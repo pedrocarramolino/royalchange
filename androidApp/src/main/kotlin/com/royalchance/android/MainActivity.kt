@@ -10,8 +10,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        val graph = (application as RoyalChanceApplication).graph
         setContent {
-            App()
+            App(graph)
         }
     }
 }

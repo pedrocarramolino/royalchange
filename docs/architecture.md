@@ -19,12 +19,13 @@ Navegadores soportados: los que implementan WasmGC (Chrome/Edge y Firefox actual
 
 | Área | Elección |
 |---|---|
-| Lenguaje | Kotlin 2.4.20, Coroutines, Flow |
-| UI | Compose Multiplatform 1.12.1, Material 3 (1.9.0, última estable) |
+| Lenguaje | Kotlin 2.4.20, Coroutines 1.11, Flow, kotlinx-serialization 1.11, kotlinx-datetime 0.8 |
+| UI | Compose Multiplatform 1.12.1, Material 3 (1.9.0, última estable), fuentes Cinzel y Manrope (OFL) |
+| Navegación y estado | Navigation 3 (1.1.2), ViewModel multiplataforma (lifecycle 2.11.0) |
 | Build | Gradle 9.7.0, AGP 9.3.3 (`com.android.kotlin.multiplatform.library`), convention plugins en `build-logic` |
 | Datos (Fase 4) | Firebase: Auth + Firestore con caché offline, vía GitLive firebase-kotlin-sdk (no existe SDK oficial KMP) |
 | Hosting | Firebase Hosting (plan Spark, gratuito) |
-| Tests | kotlin.test en `commonTest`, ejecutados en JVM y en Wasm (Node.js) |
+| Tests | kotlin.test y kotlinx-coroutines-test en `commonTest`, ejecutados en JVM y en Wasm (Node.js o Chrome headless) |
 
 Compatibilidad verificada: Kotlin 2.4.20 admite Gradle ≤ 9.7.0 y AGP ≤ 9.3.x.
 
@@ -43,16 +44,35 @@ webApp ─────┘     │            ├──► domain ─────
 | `engine:*` | `core:common`, `engine:cards` | Compose, `domain`, `data` |
 | `domain` | `core:common` | Compose, Firebase |
 | `data` | `domain` (+ Firebase) | UI |
-| `feature:*` | `domain`, `engine:*`, `core:designsystem`, `core:audio` | `data`, Firebase |
+| `feature:*` | `domain`, `engine:*`, `core:designsystem`, `core:ui`, `core:audio` | `data`, Firebase, otras features |
+| `core:ui` | `core:designsystem`, `domain` | `data` |
 | `shared` | todo (raíz de composición) | — |
 
-Los módulos se crean cuando una fase los necesita. Existentes hoy: `shared`, `androidApp`,
-`desktopApp`, `webApp`, `core:common`, `core:testing`.
+Las features no se conocen entre sí: cuando una necesita abrir una pantalla de otra (p. ej.
+Ajustes → documentos legales), recibe una función y es `shared` quien conoce la ruta.
+Excepción controlada: los tests de `feature:auth` usan `:data` (repositorio en memoria) como doble.
+
+Los módulos se crean cuando una fase los necesita. Existentes tras la Fase 3:
+
+| Módulo | Contenido |
+|---|---|
+| `core:common` | `RandomGenerator`, `Outcome` (errores tipados), nombres de países por plataforma (CLDR) |
+| `core:designsystem` | Tema "Noir & Oro", tipografía, iconos, palos de la baraja, componentes, navegación adaptativa |
+| `core:ui` | Avatares y selector de país (componentes que conocen el dominio) |
+| `core:testing` | Generadores aleatorios deterministas, `TestClock` |
+| `domain` | Contrato de autenticación, reglas del registro, países, ajustes, `GameType` |
+| `data` | Repositorios en memoria (Fase 3 y escritorio de desarrollo) |
+| `feature:auth` | Bienvenida, inicio de sesión, registro completo, completar perfil, recuperar contraseña, legales |
+| `feature:lobby` | Saludo, avisos de cuenta y catálogo de juegos |
+| `feature:profile`, `feature:history` | Pestañas de progreso e historial (estado vacío hasta las Fases 6 y 11) |
+| `feature:settings` | Cuenta, tema, documentos legales, cerrar sesión y eliminar cuenta |
+| `shared` | `App()`, `AppGraph` (DI manual) y flujos de navegación |
 
 **Convention plugins** (`build-logic`):
 - `royalchance.kmp.library`: Kotlin puro (JVM + Wasm). Android consume su variante JVM, así que no
   necesita el plugin de Android (verificado en la Fase 2).
 - `royalchance.kmp.compose`: módulos con UI (Android + JVM + Wasm + Compose).
+- `royalchance.kmp.feature`: `kmp.compose` + serialización y las dependencias comunes de una feature.
 
 iOS se añadirá en un único punto (`KotlinMultiplatform.kt`) cuando haya un Mac.
 
@@ -83,9 +103,10 @@ iOS se añadirá en un único punto (`KotlinMultiplatform.kt`) cuando haya un Ma
 - Región de Firestore: UE (irreversible una vez creada la base de datos).
 - Sin Firebase Analytics (evita banner de consentimiento por rastreo).
 
-## 7. Autenticación (requisito añadido en la Fase 2)
+## 7. Autenticación (Fase 3: interfaz y reglas; Fase 4: Firebase)
 
-Login y registro completo. Propuesta pendiente de confirmar:
+Decisiones confirmadas: modo invitado sí (con confirmación de mayoría de edad), Google Sign-In sí,
+la verificación de email no bloquea el juego.
 
 - **Registro**: alias único, email, contraseña + confirmación (requisitos y medidor de fortaleza),
   fecha de nacimiento (verificación 18+, se guarda solo el año), país, avatar predefinido,
@@ -95,6 +116,12 @@ Login y registro completo. Propuesta pendiente de confirmar:
   modo invitado opcional con vinculación posterior.
 - **Cuenta**: cerrar sesión y **eliminar cuenta** (exigido por Google Play y por el RGPD).
 - Avatares predefinidos: subir fotos requeriría Cloud Storage, que exige plan de pago.
+- Tras entrar con Google por primera vez, la cuenta completa su perfil (mismo formulario sin email
+  ni contraseña) antes de acceder al casino.
+- Un invitado que crea su cuenta conserva su identificador y, por tanto, su progreso.
+- Los errores de inicio de sesión y de recuperación no revelan si un email está registrado.
+- Los textos legales incluidos son un **borrador** marcado como tal en la app: deben sustituirse por
+  la versión revisada antes de publicar. Cada aceptación guarda la versión del documento y la fecha.
 
 ## 8. Navegación
 
@@ -110,13 +137,23 @@ Shell: Casino (lobby) · Progreso · Historial · Ajustes
 
 Layout: barra inferior (<600 dp), rail (600–840 dp), panel lateral + panel de información (≥840 dp).
 
+Implementación:
+- La raíz (`App`) no navega al iniciar o cerrar sesión: deriva el flujo (carga, acceso, completar
+  perfil, casino) del estado de sesión, así que es imposible quedarse en el casino sin sesión.
+- Cada flujo tiene su propia pila de Navigation 3; los ViewModels se asocian a cada entrada de la
+  pila y se destruyen al salir de ella.
+- La pila del casino siempre empieza en el lobby: "atrás" desde cualquier pestaña vuelve a él.
+- Las pantallas apiladas sobre una pestaña (p. ej. crear cuenta desde el lobby) ocultan la
+  navegación principal. El contenido se traslada con `movableContentOf` para no perder su estado
+  al cambiar de diseño (móvil ↔ escritorio) ni al mostrar/ocultar la navegación.
+
 ## 9. Plan de fases
 
 | Fase | Contenido | Estado |
 |---|---|---|
 | 1 | Análisis y arquitectura | Hecha |
 | 2 | Proyecto KMP: Gradle, Android, escritorio, PWA, Hosting | Hecha |
-| 3 | Sistema de diseño, navegación y pantallas de login/registro (con datos simulados) | — |
+| 3 | Sistema de diseño, navegación y pantallas de login/registro (con datos simulados) | Hecha |
 | 4 | Firebase: autenticación real + Firestore + reglas de seguridad | — |
 | 5 | Economía de fichas | — |
 | 6 | Niveles, bono diario, rachas y logros | — |
@@ -140,3 +177,14 @@ Layout: barra inferior (<600 dp), rail (600–840 dp), panel lateral + panel de 
 - Bono de rescate cuando el saldo baja de la apuesta mínima.
 - Fichas: `Long`, apuesta mínima 10, denominaciones 10/50/100/500/1K/5K/25K.
 - DI manual (composition root en `shared`).
+
+## 11. Problemas conocidos
+
+- **Clics perdidos en pruebas automatizadas de la web**: si el puntero salta y pulsa en el mismo
+  instante (así actúan las herramientas de automatización), Compose para web puede ignorar esa
+  primera pulsación; con un movimiento previo del ratón responde siempre. Hay que confirmar en
+  dispositivos reales (táctil y ratón) en la Fase 4.
+- **Aviso en consola** `Accessing memory via wasmExports is deprecated`: procede de una biblioteca
+  de Compose, no del código del proyecto. Desaparecerá al actualizar Compose.
+- En la web, los textos se cargan de forma asíncrona la primera vez que se muestra cada pantalla
+  (un instante sin texto durante la transición).

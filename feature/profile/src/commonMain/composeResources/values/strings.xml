@@ -1,0 +1,5 @@
+<resources>
+    <string name="progress_title">Progreso</string>
+    <string name="progress_empty_title">Tu camino a High Roller</string>
+    <string name="progress_empty_message">Aquí verás tu nivel, tu racha de bono diario y los logros que vayas desbloqueando.</string>
+</resources>

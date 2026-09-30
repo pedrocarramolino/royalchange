@@ -41,4 +41,17 @@ include(":shared")
 
 // Núcleo
 include(":core:common")
+include(":core:designsystem")
 include(":core:testing")
+include(":core:ui")
+
+// Dominio (contratos y reglas) y datos (implementaciones)
+include(":domain")
+include(":data")
+
+// Funcionalidades
+include(":feature:auth")
+include(":feature:lobby")
+include(":feature:profile")
+include(":feature:history")
+include(":feature:settings")

@@ -1,0 +1,106 @@
+<resources>
+    <!-- Comunes -->
+    <string name="auth_back">Volver</string>
+    <string name="auth_or">o</string>
+    <string name="auth_continue_with_google">Continuar con Google</string>
+    <string name="auth_tagline">Casino social · Fichas virtuales sin valor monetario</string>
+
+    <!-- Bienvenida -->
+    <string name="welcome_title">Bienvenido a la mesa</string>
+    <string name="welcome_subtitle">Blackjack, ruleta, póker, slots y dados. Juega con fichas virtuales, sube de nivel y consigue logros.</string>
+    <string name="welcome_create_account">Crear cuenta</string>
+    <string name="welcome_sign_in">Iniciar sesión</string>
+    <string name="welcome_guest">Jugar como invitado</string>
+    <string name="welcome_legal_notice">Solo para mayores de 18 años. Las fichas son virtuales: no se compran, no se canjean y no tienen valor monetario.</string>
+
+    <!-- Invitado -->
+    <string name="guest_dialog_title">Jugar como invitado</string>
+    <string name="guest_dialog_body">Confirmo que tengo 18 años o más y que entiendo que las fichas son virtuales y no tienen valor monetario.\n\nComo invitado, si cierras sesión o borras los datos del navegador antes de crear una cuenta, perderás tu progreso.</string>
+    <string name="guest_dialog_legal">Al continuar aceptas los Términos y condiciones y la Política de privacidad.</string>
+    <string name="guest_dialog_confirm">Confirmar y jugar</string>
+    <string name="guest_dialog_cancel">Cancelar</string>
+
+    <!-- Inicio de sesión -->
+    <string name="login_title">Iniciar sesión</string>
+    <string name="login_subtitle">Te estábamos esperando. Tu mesa sigue preparada.</string>
+    <string name="login_submit">Iniciar sesión</string>
+    <string name="login_forgot_password">¿Has olvidado tu contraseña?</string>
+    <string name="login_no_account">¿Aún no tienes cuenta?</string>
+    <string name="login_create_account">Crear cuenta</string>
+
+    <!-- Registro -->
+    <string name="register_title">Crear cuenta</string>
+    <string name="register_subtitle">Tu cuenta guarda tus fichas, tu nivel y tus logros.</string>
+    <string name="complete_profile_title">Completa tu perfil</string>
+    <string name="complete_profile_subtitle">Solo falta un paso para sentarte a la mesa.</string>
+    <string name="register_section_profile">Tu perfil</string>
+    <string name="register_section_access">Acceso</string>
+    <string name="register_section_personal">Datos personales</string>
+    <string name="register_section_terms">Condiciones</string>
+    <string name="register_alias">Alias</string>
+    <string name="register_alias_help">Nombre público. De 3 a 20 caracteres: letras, números y _</string>
+    <string name="register_password_confirmation">Repite la contraseña</string>
+    <string name="register_birth_date">Fecha de nacimiento</string>
+    <string name="register_birth_date_help">Debes ser mayor de edad. Solo guardamos el año.</string>
+    <string name="register_terms">Acepto los Términos y condiciones y la Política de privacidad.</string>
+    <string name="register_virtual_chips">Entiendo que las fichas son virtuales y no tienen valor monetario: no se compran, no se canjean y no dan premios.</string>
+    <string name="register_marketing">Quiero recibir novedades de Royal Chance por email (opcional).</string>
+    <string name="register_submit">Crear cuenta</string>
+    <string name="complete_profile_submit">Guardar y continuar</string>
+    <string name="complete_profile_sign_out">Cerrar sesión</string>
+
+    <!-- Contraseña -->
+    <string name="field_email">Email</string>
+    <string name="field_password">Contraseña</string>
+    <string name="password_requirement_length">Al menos 8 caracteres</string>
+    <string name="password_requirement_lowercase">Una letra minúscula</string>
+    <string name="password_requirement_uppercase">Una letra mayúscula</string>
+    <string name="password_requirement_digit">Un número</string>
+    <string name="password_strength_weak">Contraseña débil</string>
+    <string name="password_strength_fair">Contraseña aceptable</string>
+    <string name="password_strength_good">Contraseña buena</string>
+    <string name="password_strength_strong">Contraseña fuerte</string>
+
+    <!-- Recuperación -->
+    <string name="forgot_title">Recuperar contraseña</string>
+    <string name="forgot_body">Escribe el email de tu cuenta y te enviaremos un enlace para crear una contraseña nueva.</string>
+    <string name="forgot_submit">Enviar enlace</string>
+    <string name="forgot_sent">Si existe una cuenta con ese email, recibirás un enlace en unos minutos. Revisa también la carpeta de spam.</string>
+    <string name="forgot_back_to_login">Volver a iniciar sesión</string>
+
+    <!-- Errores de campo -->
+    <string name="error_required">Este campo es obligatorio</string>
+    <string name="error_alias_too_short">El alias debe tener al menos 3 caracteres</string>
+    <string name="error_alias_too_long">El alias no puede superar los 20 caracteres</string>
+    <string name="error_alias_start_letter">El alias debe empezar por una letra</string>
+    <string name="error_alias_characters">Usa solo letras sin tilde, números y _</string>
+    <string name="error_alias_taken">Ese alias ya está en uso</string>
+    <string name="error_email_invalid">Escribe un email válido</string>
+    <string name="error_email_in_use">Ya existe una cuenta con ese email</string>
+    <string name="error_password_requirements">La contraseña no cumple los requisitos</string>
+    <string name="error_password_too_long">La contraseña es demasiado larga</string>
+    <string name="error_passwords_mismatch">Las contraseñas no coinciden</string>
+    <string name="error_birth_date_future">La fecha no puede ser futura</string>
+    <string name="error_birth_date_implausible">Revisa el año de nacimiento</string>
+    <string name="error_underage">Debes tener 18 años o más para jugar</string>
+    <string name="error_must_accept">Debes aceptarlo para continuar</string>
+    <string name="error_country_required">Elige tu país</string>
+
+    <!-- Errores de autenticación -->
+    <string name="auth_error_invalid_credentials">Email o contraseña incorrectos.</string>
+    <string name="auth_error_email_in_use">Ya existe una cuenta con ese email.</string>
+    <string name="auth_error_alias_taken">Ese alias ya está en uso.</string>
+    <string name="auth_error_weak_password">La contraseña es demasiado débil.</string>
+    <string name="auth_error_too_many_attempts">Demasiados intentos. Espera unos minutos y vuelve a probar.</string>
+    <string name="auth_error_network">Sin conexión. Comprueba tu red y vuelve a intentarlo.</string>
+    <string name="auth_error_cancelled">Se canceló el inicio de sesión.</string>
+    <string name="auth_error_not_signed_in">Tu sesión ha caducado. Vuelve a iniciar sesión.</string>
+    <string name="auth_error_unknown">Algo ha fallado. Vuelve a intentarlo.</string>
+
+    <!-- Documentos legales -->
+    <string name="legal_terms_title">Términos y condiciones</string>
+    <string name="legal_privacy_title">Política de privacidad</string>
+    <string name="legal_draft_notice">Borrador pendiente de revisión legal. Este texto se sustituirá por la versión definitiva antes de publicar la aplicación.</string>
+    <string name="legal_terms_body">1. Qué es Royal Chance\nRoyal Chance es un juego de entretenimiento que simula juegos de casino con fichas virtuales. No es un servicio de apuestas.\n\n2. Fichas virtuales\nLas fichas no tienen valor monetario. No se compran con dinero, no se pueden canjear, transferir ni vender, y no dan acceso a premios de ningún tipo.\n\n3. Edad mínima\nSolo pueden usar Royal Chance las personas mayores de 18 años.\n\n4. Uso responsable\nNo está permitido manipular la aplicación, aprovechar errores, usar programas automáticos ni crear varias cuentas para obtener ventajas. Podemos suspender las cuentas que incumplan estas normas.\n\n5. Tu cuenta\nEres responsable de mantener segura tu contraseña. Puedes eliminar tu cuenta en cualquier momento desde Ajustes; al hacerlo se borran tu progreso y tus datos.\n\n6. Cambios\nSi modificamos estos términos, te pediremos que los aceptes de nuevo antes de seguir jugando.\n\n7. Contacto\n[Datos de contacto del responsable]</string>
+    <string name="legal_privacy_body">1. Responsable\n[Nombre y datos de contacto del responsable del tratamiento]\n\n2. Datos que tratamos\nEmail, alias, avatar, país, año de nacimiento, preferencias, consentimientos y tu progreso en el juego (fichas, nivel, logros, historial y estadísticas).\n\n3. Para qué\nPara crear y mantener tu cuenta, guardar tu progreso, verificar que eres mayor de edad y, solo si lo aceptas, enviarte novedades.\n\n4. Base legal\nLa ejecución del servicio que solicitas y, para las comunicaciones, tu consentimiento, que puedes retirar cuando quieras.\n\n5. Dónde se guardan\nEn servicios de Google Firebase, con los datos alojados en la Unión Europea. No vendemos tus datos ni usamos publicidad o analítica de terceros.\n\n6. Cuánto tiempo\nMientras tu cuenta exista. Al eliminarla, borramos tus datos salvo que la ley obligue a conservar alguno.\n\n7. Tus derechos\nAcceso, rectificación, supresión, portabilidad, oposición y limitación. Puedes ejercerlos escribiendo al responsable y reclamar ante la Agencia Española de Protección de Datos (aepd.es).</string>
+</resources>

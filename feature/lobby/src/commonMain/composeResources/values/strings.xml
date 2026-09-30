@@ -1,0 +1,24 @@
+<resources>
+    <string name="lobby_title">Casino</string>
+    <string name="lobby_greeting">Hola, %1$s</string>
+    <string name="lobby_greeting_guest">Hola, invitado</string>
+    <string name="lobby_subtitle">Elige tu mesa</string>
+    <string name="lobby_games">Juegos</string>
+    <string name="lobby_coming_soon">Próximamente</string>
+    <string name="lobby_guest_banner">Juegas como invitado. Crea una cuenta para no perder tu progreso.</string>
+    <string name="lobby_guest_action">Crear cuenta</string>
+    <string name="lobby_verify_banner">Confirma tu email para proteger tu cuenta.</string>
+    <string name="lobby_verify_action">Verificar</string>
+    <string name="lobby_verify_sent">Email verificado. ¡Gracias!</string>
+
+    <string name="game_blackjack">Blackjack</string>
+    <string name="game_blackjack_description">Llega a 21 sin pasarte y gana al crupier.</string>
+    <string name="game_roulette">Ruleta</string>
+    <string name="game_roulette_description">Ruleta europea de 37 números.</string>
+    <string name="game_slots">Slots</string>
+    <string name="game_slots_description">Cinco rodillos y líneas de premio.</string>
+    <string name="game_poker">Póker</string>
+    <string name="game_poker_description">Texas Hold’em contra bots.</string>
+    <string name="game_dice">Dados</string>
+    <string name="game_dice_description">Mayor, menor y combinaciones.</string>
+</resources>

@@ -1,0 +1,14 @@
+<resources>
+    <string name="ds_show_password">Mostrar contraseña</string>
+    <string name="ds_hide_password">Ocultar contraseña</string>
+    <string name="ds_loading">Cargando</string>
+    <string name="ds_search">Buscar</string>
+    <string name="ds_no_results">No hay resultados</string>
+    <string name="ds_close">Cerrar</string>
+    <string name="ds_accept">Aceptar</string>
+    <string name="ds_cancel">Cancelar</string>
+    <string name="ds_select_date">Elegir fecha</string>
+    <string name="ds_brand_name">Royal Chance</string>
+    <string name="ds_requirement_met">cumplido</string>
+    <string name="ds_requirement_pending">pendiente</string>
+</resources>

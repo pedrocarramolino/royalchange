@@ -45,16 +45,28 @@ firebase emulators:start --only hosting --project demo-royalchance
 ## Estructura
 
 ```
-androidApp/   host Android
-desktopApp/   host de escritorio (desarrollo)
-webApp/       host web: index.html, manifest, service worker, iconos
-shared/       raíz de la UI compartida
-core/common   utilidades puras (RandomGenerator)
-core/testing  dobles de prueba (TestRandomGenerator, ScriptedRandomGenerator)
-build-logic/  convention plugins de Gradle
-branding/     SVG maestros del icono y script de generación de PNG
-docs/         arquitectura y decisiones
+androidApp/          host Android
+desktopApp/          host de escritorio (desarrollo, datos en memoria)
+webApp/              host web: index.html, manifest, service worker, iconos
+shared/              App(), AppGraph (inyección de dependencias) y navegación
+core/common          utilidades puras: RandomGenerator, Outcome, nombres de países
+core/designsystem    tema "Noir & Oro", tipografía, iconos y componentes
+core/ui              componentes con conocimiento del dominio (avatares, país)
+core/testing         dobles de prueba: generadores deterministas, TestClock
+domain/              contratos y reglas de negocio (Kotlin puro)
+data/                implementaciones de los repositorios
+feature/auth         bienvenida, login, registro completo, recuperación, legales
+feature/lobby        lobby del casino
+feature/profile      progreso (Fase 6)
+feature/history      historial (Fase 11)
+feature/settings     ajustes y cuenta
+build-logic/         convention plugins de Gradle
+branding/            SVG maestros del icono y script de generación de PNG
+docs/                arquitectura, decisiones y recursos de terceros
 ```
+
+Hasta la Fase 4 los datos viven en memoria: al cerrar la app se pierden las cuentas creadas.
+El inicio de sesión con Google está simulado (entra con una cuenta de ejemplo).
 
 Regenerar los iconos de la PWA tras cambiar `branding/*.svg`:
 

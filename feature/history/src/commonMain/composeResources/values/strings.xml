@@ -1,0 +1,5 @@
+<resources>
+    <string name="history_title">Historial</string>
+    <string name="history_empty_title">Aún no hay partidas</string>
+    <string name="history_empty_message">Cuando juegues, aquí aparecerá cada partida con su apuesta y su resultado, además de tus estadísticas por juego.</string>
+</resources>

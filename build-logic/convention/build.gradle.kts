@@ -23,5 +23,9 @@ gradlePlugin {
             id = libs.plugins.royalchance.kmp.compose.get().pluginId
             implementationClass = "KmpComposeConventionPlugin"
         }
+        register("kmpFeature") {
+            id = libs.plugins.royalchance.kmp.feature.get().pluginId
+            implementationClass = "KmpFeatureConventionPlugin"
+        }
     }
 }

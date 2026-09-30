@@ -1,74 +1,68 @@
 package com.royalchance.shared
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.royalchance.shared.resources.Res
-import com.royalchance.shared.resources.app_name
-import com.royalchance.shared.resources.tagline
-import org.jetbrains.compose.resources.stringResource
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.royalchance.core.designsystem.adaptive.ProvideWindowWidthClass
+import com.royalchance.core.designsystem.component.FullScreenLoading
+import com.royalchance.core.designsystem.theme.RoyalChanceTheme
+import com.royalchance.domain.auth.AuthState
+import com.royalchance.domain.settings.ThemePreference
+import com.royalchance.shared.navigation.AuthFlow
+import com.royalchance.shared.navigation.CompleteProfileFlow
+import com.royalchance.shared.navigation.MainFlow
 
 /**
  * Punto de entrada de la UI en todas las plataformas.
  *
- * En la Fase 2 solo valida que Android, escritorio y web renderizan el mismo código y los mismos
- * recursos. El sistema de diseño y la navegación reales llegan en la Fase 3.
+ * La pantalla raíz se deriva del estado de sesión: al iniciar o cerrar sesión no se navega a mano,
+ * simplemente cambia el flujo mostrado. Así es imposible quedarse "dentro" del casino sin sesión.
  */
 @Composable
-fun App() {
-    MaterialTheme(colorScheme = BootstrapColorScheme) {
-        Surface(
-            modifier = Modifier.fillMaxSize(),
-            color = MaterialTheme.colorScheme.background,
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .safeDrawingPadding()
-                    .padding(24.dp),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Text(
-                    text = stringResource(Res.string.app_name).uppercase(),
-                    style = MaterialTheme.typography.displaySmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    letterSpacing = 6.sp,
-                    textAlign = TextAlign.Center,
-                )
-                Spacer(Modifier.height(12.dp))
-                Text(
-                    text = stringResource(Res.string.tagline),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                )
+fun App(graph: AppGraph) {
+    val settings by graph.settingsRepository.settings.collectAsStateWithLifecycle()
+    val authState by graph.authRepository.authState.collectAsStateWithLifecycle()
+
+    val darkTheme = when (settings.theme) {
+        ThemePreference.Dark -> true
+        ThemePreference.Light -> false
+        ThemePreference.System -> isSystemInDarkTheme()
+    }
+
+    RoyalChanceTheme(darkTheme = darkTheme) {
+        Surface(color = MaterialTheme.colorScheme.background, modifier = Modifier.fillMaxSize()) {
+            ProvideWindowWidthClass {
+                AnimatedContent(
+                    targetState = authState.toRootScreen(),
+                    transitionSpec = { fadeIn(tween(300)) togetherWith fadeOut(tween(200)) },
+                    label = "root",
+                ) { screen ->
+                    when (screen) {
+                        RootScreen.Loading -> FullScreenLoading()
+                        RootScreen.SignedOut -> AuthFlow(graph)
+                        RootScreen.CompleteProfile -> CompleteProfileFlow(graph)
+                        RootScreen.Casino -> MainFlow(graph, user = (authState as? AuthState.SignedIn)?.user)
+                    }
+                }
             }
         }
     }
 }
 
-// Paleta mínima provisional; la identidad visual "Noir & Oro" completa se define en la Fase 3.
-private val BootstrapColorScheme = darkColorScheme(
-    primary = Color(0xFFD4AF6A),
-    background = Color(0xFF0E0F13),
-    surface = Color(0xFF0E0F13),
-    onBackground = Color(0xFFF3EDE0),
-    onSurface = Color(0xFFF3EDE0),
-    onSurfaceVariant = Color(0xFFB9B2A4),
-)
+private enum class RootScreen { Loading, SignedOut, CompleteProfile, Casino }
+
+private fun AuthState.toRootScreen(): RootScreen = when (this) {
+    AuthState.Loading -> RootScreen.Loading
+    AuthState.SignedOut -> RootScreen.SignedOut
+    is AuthState.SignedIn -> if (user.needsProfileCompletion) RootScreen.CompleteProfile else RootScreen.Casino
+}

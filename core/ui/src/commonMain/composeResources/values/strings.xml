@@ -1,0 +1,14 @@
+<resources>
+    <string name="avatar_spade_gold">Pica dorada</string>
+    <string name="avatar_heart_ruby">Corazón rubí</string>
+    <string name="avatar_diamond_gold">Diamante dorado</string>
+    <string name="avatar_club_emerald">Trébol esmeralda</string>
+    <string name="avatar_spade_ivory">Pica marfil</string>
+    <string name="avatar_heart_gold">Corazón dorado</string>
+    <string name="avatar_diamond_ruby">Diamante rubí</string>
+    <string name="avatar_club_gold">Trébol dorado</string>
+    <string name="avatar_picker_label">Elige tu avatar</string>
+
+    <string name="country_label">País de residencia</string>
+    <string name="country_dialog_title">Elige tu país</string>
+</resources>
