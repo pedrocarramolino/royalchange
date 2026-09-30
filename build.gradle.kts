@@ -1,0 +1,10 @@
+// Declara los plugins una sola vez (apply false) para que todos los módulos
+// y los convention plugins compartan el mismo classpath y las mismas versiones.
+plugins {
+    alias(libs.plugins.android.application) apply false
+    alias(libs.plugins.android.kotlin.multiplatform.library) apply false
+    alias(libs.plugins.kotlin.multiplatform) apply false
+    alias(libs.plugins.kotlin.jvm) apply false
+    alias(libs.plugins.compose.multiplatform) apply false
+    alias(libs.plugins.compose.compiler) apply false
+}

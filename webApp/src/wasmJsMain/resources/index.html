@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Royal Chance</title>
+    <meta name="description" content="Casino social con fichas virtuales sin valor monetario.">
+    <meta name="theme-color" content="#0E0F13">
+
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+    <link rel="icon" href="icons/favicon-32.png" sizes="32x32" type="image/png">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Royal Chance">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Visible mientras se descarga y arranca el módulo Wasm; Compose lo cubre al pintar el primer frame. -->
+    <div id="loader" role="status" aria-live="polite">
+        <img src="icons/icon.svg" alt="" width="96" height="96">
+        <span class="brand">ROYAL CHANCE</span>
+        <p id="loader-error" class="error" hidden>
+            Tu navegador no puede ejecutar Royal Chance.<br>
+            Actualiza a una versión reciente de Chrome, Edge, Firefox o Safari (18.2 o posterior).
+        </p>
+    </div>
+
+    <div id="composeTarget"></div>
+
+    <noscript>Royal Chance necesita JavaScript activado.</noscript>
+
+    <script>
+        // Si el módulo Wasm no puede cargarse (p. ej. navegador sin WasmGC), se informa en lugar de dejar
+        // una pantalla de carga infinita.
+        (function () {
+            function showError() {
+                document.getElementById('loader-error').hidden = false;
+            }
+            window.addEventListener('error', showError);
+            window.addEventListener('unhandledrejection', showError);
+        })();
+    </script>
+    <script src="webApp.js"></script>
+    <script>
+        // El service worker solo se registra fuera de localhost para no cachear builds de desarrollo.
+        if ('serviceWorker' in navigator && !['localhost', '127.0.0.1'].includes(location.hostname)) {
+            window.addEventListener('load', function () {
+                navigator.serviceWorker.register('sw.js');
+            });
+        }
+    </script>
+</body>
+</html>

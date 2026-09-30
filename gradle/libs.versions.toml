@@ -1,0 +1,46 @@
+# Catálogo único de versiones. Ninguna versión se declara fuera de este archivo.
+# Matriz verificada (2026-09-30): Kotlin 2.4.20 admite Gradle ≤ 9.7.0 y AGP ≤ 9.3.x.
+
+[versions]
+kotlin = "2.4.20"
+agp = "9.3.3"
+compose-multiplatform = "1.12.1"
+# Última versión estable de Material 3 para Compose Multiplatform (las posteriores son alpha).
+compose-material3 = "1.9.0"
+androidx-activity = "1.13.0"
+kotlinx-coroutines = "1.11.0"
+
+android-compileSdk = "37"
+android-targetSdk = "37"
+# Android 8.0: SQLite 3.18+, java.time nativo y ~97 % de dispositivos activos.
+android-minSdk = "26"
+
+[libraries]
+compose-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "compose-multiplatform" }
+compose-foundation = { module = "org.jetbrains.compose.foundation:foundation", version.ref = "compose-multiplatform" }
+compose-ui = { module = "org.jetbrains.compose.ui:ui", version.ref = "compose-multiplatform" }
+compose-ui-tooling = { module = "org.jetbrains.compose.ui:ui-tooling", version.ref = "compose-multiplatform" }
+compose-ui-tooling-preview = { module = "org.jetbrains.compose.ui:ui-tooling-preview", version.ref = "compose-multiplatform" }
+compose-components-resources = { module = "org.jetbrains.compose.components:components-resources", version.ref = "compose-multiplatform" }
+compose-material3 = { module = "org.jetbrains.compose.material3:material3", version.ref = "compose-material3" }
+
+androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activity" }
+kotlinx-coroutines-swing = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-swing", version.ref = "kotlinx-coroutines" }
+
+# Solo para build-logic (convention plugins).
+android-gradlePlugin = { module = "com.android.tools.build:gradle", version.ref = "agp" }
+kotlin-gradlePlugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
+compose-gradlePlugin = { module = "org.jetbrains.compose:compose-gradle-plugin", version.ref = "compose-multiplatform" }
+compose-compiler-gradlePlugin = { module = "org.jetbrains.kotlin:compose-compiler-gradle-plugin", version.ref = "kotlin" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+android-kotlin-multiplatform-library = { id = "com.android.kotlin.multiplatform.library", version.ref = "agp" }
+kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+compose-multiplatform = { id = "org.jetbrains.compose", version.ref = "compose-multiplatform" }
+compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+
+# Convention plugins propios (build-logic).
+royalchance-kmp-library = { id = "royalchance.kmp.library" }
+royalchance-kmp-compose = { id = "royalchance.kmp.compose" }

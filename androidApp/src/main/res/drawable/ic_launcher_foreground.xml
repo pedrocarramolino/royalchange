@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Pica dorada centrada dentro de la zona segura (círculo de 66dp) del icono adaptativo. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:translateX="23"
+        android:translateY="23"
+        android:scaleX="0.62"
+        android:scaleY="0.62">
+        <path android:pathData="M50,8 C44,20 16,38 16,58 C16,71 26,79 37,79 C42,79 46,77 48.5,73 C47.5,81 43,88 36,92 L64,92 C57,88 52.5,81 51.5,73 C54,77 58,79 63,79 C74,79 84,71 84,58 C84,38 56,20 50,8 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:type="linear"
+                    android:startX="50"
+                    android:startY="8"
+                    android:endX="50"
+                    android:endY="92">
+                    <item android:offset="0" android:color="#FFF3DFA2" />
+                    <item android:offset="0.5" android:color="#FFD4AF6A" />
+                    <item android:offset="1" android:color="#FF9C7A3C" />
+                </gradient>
+            </aapt:attr>
+        </path>
+    </group>
+</vector>

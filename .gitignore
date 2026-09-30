@@ -1,0 +1,31 @@
+# Gradle / Kotlin
+.gradle/
+.kotlin/
+**/build/
+!src/**/build/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Local
+local.properties
+.DS_Store
+captures/
+*.log
+
+# Android
+.externalNativeBuild/
+.cxx/
+*.keystore
+*.jks
+
+# Firebase
+.firebase/
+firebase-debug.log*
+firestore-debug.log*
+ui-debug.log*
+
+# Node
+node_modules/
