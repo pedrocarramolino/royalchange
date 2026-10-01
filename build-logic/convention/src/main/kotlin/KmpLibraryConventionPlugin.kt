@@ -15,6 +15,8 @@ class KmpLibraryConventionPlugin : Plugin<Project> {
     override fun apply(target: Project) {
         with(target) {
             pluginManager.apply(libs.pluginId("kotlin-multiplatform"))
+            // Cobertura de los tests de JVM (informe conjunto en la raíz: ./gradlew koverHtmlReport).
+            pluginManager.apply(libs.pluginId("kover"))
 
             extensions.configure<KotlinMultiplatformExtension> {
                 configureCommonTargets(WasmTestEnvironment.NodeJs)

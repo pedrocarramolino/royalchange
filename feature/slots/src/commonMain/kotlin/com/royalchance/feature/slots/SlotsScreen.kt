@@ -39,6 +39,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -252,6 +253,8 @@ private fun StepButton(symbol: String, description: String, onClick: () -> Unit,
         modifier = Modifier.size(48.dp).clearAndSetSemantics {
             contentDescription = description
             role = Role.Button
+            // clearAndSetSemantics borra la acción del Surface: se declara para los lectores de pantalla.
+            if (enabled) onClick { onClick(); true }
         },
     ) {
         Box(contentAlignment = Alignment.Center) {

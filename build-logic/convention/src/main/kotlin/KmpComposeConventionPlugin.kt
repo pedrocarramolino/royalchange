@@ -8,6 +8,7 @@ import com.royalchance.buildlogic.library
 import com.royalchance.buildlogic.pluginId
 import com.royalchance.buildlogic.version
 import org.gradle.api.Plugin
+import org.jetbrains.compose.ComposePlugin
 import org.gradle.api.Project
 import org.gradle.api.plugins.ExtensionAware
 import org.gradle.kotlin.dsl.configure
@@ -26,6 +27,8 @@ class KmpComposeConventionPlugin : Plugin<Project> {
                 apply(libs.pluginId("android-kotlin-multiplatform-library"))
                 apply(libs.pluginId("compose-multiplatform"))
                 apply(libs.pluginId("compose-compiler"))
+                // Cobertura de los tests de JVM (informe conjunto en la raíz).
+                apply(libs.pluginId("kover"))
             }
 
             extensions.configure<KotlinMultiplatformExtension> {
@@ -38,6 +41,13 @@ class KmpComposeConventionPlugin : Plugin<Project> {
                     compilerOptions { jvmTarget.set(JVM_TARGET) }
                     // Necesario para que Compose Resources empaquete strings, fuentes e imágenes en Android.
                     androidResources { enable = true }
+                }
+
+                // Tests de UI en escritorio (JVM): rápidos y medidos por Kover.
+                sourceSets.getByName("jvmTest").dependencies {
+                    implementation(libs.library("compose-ui-test"))
+                    implementation(ComposePlugin.DesktopDependencies.currentOs)
+                    implementation(libs.library("kotlinx-coroutines-swing"))
                 }
 
                 sourceSets.getByName("commonMain").dependencies {

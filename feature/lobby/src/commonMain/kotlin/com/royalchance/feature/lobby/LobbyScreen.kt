@@ -26,6 +26,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -224,9 +225,14 @@ private fun GameCard(game: GameType, available: Boolean, onOpen: () -> Unit) {
         enabled = available,
         shape = MaterialTheme.shapes.large,
         color = MaterialTheme.colorScheme.surfaceContainer,
+        // clearAndSetSemantics borra también la acción de pulsar del Surface: se declara aquí para
+        // que los lectores de pantalla puedan abrir la mesa.
         modifier = Modifier.clearAndSetSemantics {
             contentDescription = "$title. $description. $badge"
-            if (available) role = Role.Button
+            if (available) {
+                role = Role.Button
+                onClick { onOpen(); true }
+            }
         },
     ) {
         Column {

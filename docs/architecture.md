@@ -388,6 +388,36 @@ Cambios:
   deshacer/repetir); se mantienen separados porque sus tipos de apuesta difieren y ambos tienen
   tests. Extraerlo añadiría genéricos sin simplificar.
 
+## 8 nonies. Tests y cobertura (Fase 14)
+
+| Nivel | Dónde | Qué prueba |
+|---|---|---|
+| Unidad | `commonTest` (JVM y Wasm) | Motores de juego, dominio (economía, progresión, historial), repositorios, ViewModels |
+| UI de componentes | `jvmTest` de `core:designsystem` y `core:ui` | Fichas, cartas, botones, saldo, avisos de progreso retenidos |
+| Extremo a extremo | `shared/src/jvmTest/AppTest` | La app completa con repositorios en memoria: registro, inicio de sesión, bono diario, progreso, una partida de cada juego (comprobando el asiento en el libro), historial y ajustes |
+| Reglas de Firestore | `firebase/tests` (emulador) | 35 tests de seguridad y validación de cada movimiento |
+
+Los tests de UI usan `runComposeUiTest` en escritorio (rápidos y medidos por Kover); el plugin
+de convención de Compose añade `ui-test`, el runtime gráfico del sistema y `kotlinx-coroutines-swing`
+(hilo principal de los ViewModels).
+
+**Cobertura** (Kover 0.9.11, tests de JVM; `./gradlew koverHtmlReport` → `build/reports/kover/html`):
+de 35,6 % a **87,5 % de líneas** (85,7 % de instrucciones, 64,4 % de ramas). Motores, dominio y
+datos rondan el 95–100 %; la navegación, el 97 %. `data:firebase` no tiene objetivo JVM: sus 29
+tests se ejecutan en Android y Wasm pero no entran en el informe.
+
+Los tests de extremo a extremo destaparon un fallo de accesibilidad: las tarjetas del lobby y los
+botones −/+ de la tragaperras usaban `clearAndSetSemantics` sin declarar la acción, así que con
+VoiceOver/TalkBack no se podían activar. Corregido.
+
+Cómo ejecutar:
+
+```bash
+./gradlew allTests                       # unidad + UI (JVM y Wasm)
+./gradlew koverHtmlReport                # cobertura
+firebase emulators:exec --only firestore --project demo-royalchance "cd firebase/tests && npm test"
+```
+
 ## 9. Autenticación (Fase 3: interfaz y reglas; Fase 4: Firebase)
 
 Decisiones confirmadas: **solo email y contraseña** (sin modo invitado ni Google Sign-In, retirados
@@ -449,7 +479,7 @@ Implementación:
 | 11 | Estadísticas e historial | Hecha |
 | 12 | Sonido y animaciones avanzadas | Hecha |
 | 13 | Optimización | Hecha |
-| 14 | Cobertura de tests | — |
+| 14 | Cobertura de tests | Hecha |
 | 15 | Builds y despliegue | — |
 
 ## 12. Reglas de juego acordadas (Fase 1)

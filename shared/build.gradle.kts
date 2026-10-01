@@ -28,6 +28,10 @@ kotlin {
             implementation(libs.navigation3.ui)
             implementation(libs.kotlinx.serialization.core)
         }
+        jvmTest.dependencies {
+            // Tests de extremo a extremo de la app con repositorios en memoria.
+            implementation(projects.core.testing)
+        }
     }
 }
 

@@ -17,6 +17,8 @@ kotlinx-datetime = "0.8.0"
 # Firebase: SDK oficiales (Android y JavaScript). Kotlin Multiplatform no tiene SDK oficial.
 firebase-bom = "34.19.0"
 firebase-js = "12.19.0"
+# Cobertura de tests (solo en desarrollo; no llega a la app).
+kover = "0.9.11"
 
 android-compileSdk = "37"
 android-targetSdk = "37"
@@ -31,6 +33,8 @@ compose-ui-tooling = { module = "org.jetbrains.compose.ui:ui-tooling", version.r
 compose-ui-tooling-preview = { module = "org.jetbrains.compose.ui:ui-tooling-preview", version.ref = "compose-multiplatform" }
 compose-components-resources = { module = "org.jetbrains.compose.components:components-resources", version.ref = "compose-multiplatform" }
 compose-material3 = { module = "org.jetbrains.compose.material3:material3", version.ref = "compose-material3" }
+# Tests de UI de Compose (runComposeUiTest); en escritorio, con el runtime gráfico del sistema.
+compose-ui-test = { module = "org.jetbrains.compose.ui:ui-test", version.ref = "compose-multiplatform" }
 
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activity" }
 lifecycle-viewmodel-compose = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "androidx-lifecycle" }
@@ -64,6 +68,7 @@ kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 compose-multiplatform = { id = "org.jetbrains.compose", version.ref = "compose-multiplatform" }
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+kover = { id = "org.jetbrains.kotlinx.kover", version.ref = "kover" }
 
 # Convention plugins propios (build-logic).
 royalchance-kmp-library = { id = "royalchance.kmp.library" }
