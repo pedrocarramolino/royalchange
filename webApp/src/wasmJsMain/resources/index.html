@@ -44,6 +44,8 @@
             window.addEventListener('unhandledrejection', showError);
         })();
     </script>
+    <!-- En iPhone/iPad, abre el teclado al tocar un campo de texto (ver el archivo). -->
+    <script src="ios-keyboard.js"></script>
     <script src="webApp.js"></script>
     <script>
         // El service worker solo se registra fuera de localhost para no cachear builds de desarrollo.

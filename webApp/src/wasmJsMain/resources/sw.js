@@ -6,7 +6,7 @@
 // - Peticiones a otros orígenes (Firebase, etc.) nunca pasan por esta caché.
 //
 // Incrementa CACHE_VERSION al cambiar este archivo para descartar las cachés anteriores.
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 const CACHE_PREFIX = 'royal-chance-';
 const CACHE_NAME = CACHE_PREFIX + CACHE_VERSION;
 
@@ -14,6 +14,7 @@ const APP_SHELL = [
   './',
   'index.html',
   'styles.css',
+  'ios-keyboard.js',
   'manifest.webmanifest',
   'icons/icon.svg',
   'icons/icon-192.png',
