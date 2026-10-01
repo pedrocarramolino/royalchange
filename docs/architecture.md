@@ -355,6 +355,39 @@ de 25 ciegas o más en el póker). Las trayectorias salen del índice de cada mo
 la animación nunca usa azar. **Animaciones reducidas** (Ajustes) quita las decorativas y conserva
 las que cuentan el resultado (rueda, rodillos, dados, crupier).
 
+## 8 octies. Optimización (Fase 13)
+
+Medido antes de cambiar nada:
+
+| Recurso | Tamaño | Transferido |
+|---|---|---|
+| Motor gráfico (Skia, Wasm) | 8,6 MB | 2,6 MB (Brotli de Hosting) |
+| App (Kotlin/Wasm) | 6,0 MB | 1,3 MB |
+| JavaScript (SDK de Firebase…) | 1,3 MB | ~0,25 MB |
+| APK de Android (release) | 14,5 MB → **3,6 MB** con R8 | — |
+
+Los `.wasm` llevan hash en el nombre y se sirven con caché de un año (`immutable`); el service
+worker los guarda: solo se descargan la primera vez.
+
+Cambios:
+- **iOS, teclado:** el script ya no recoloca sus inputs en cada fotograma (era la única tarea
+  que trabajaba sin parar en el iPhone): un `MutationObserver` sobre la capa de accesibilidad de
+  Compose los mueve solo cuando algo cambia, con respaldo cada segundo y escribiendo solo los
+  estilos que cambian. En reposo, la app no pide ningún fotograma (medido).
+- **Densidad de pintado limitada a 2** en la web: en pantallas ×3 se pintan 2,25 veces menos
+  píxeles por fotograma, con una diferencia de nitidez imperceptible en un móvil.
+- **Ruleta:** las 37 etiquetas de la rueda se miden una vez por tamaño (`drawWithCache`).
+- **Póker:** las simulaciones de los bots se calculan fuera del hilo de la interfaz (Android y
+  escritorio; en la web es el mismo hilo). Sin tareas largas (>50 ms) medidas en una mano.
+- **Preconexión** a los servidores de Firebase mientras se descarga la app.
+- **Android:** R8 con reducción de recursos (`proguard-rules.pro`: serializadores y nombres de
+  enums que se guardan). Pendiente verificar el APK de release en un dispositivo.
+- Corregido de paso: el botón secundario aplicaba el margen dos veces y en botones estrechos el
+  texto salía con una letra por línea.
+- Duplicación aceptada: los ViewModels de ruleta y dados comparten estructura (tapete con
+  deshacer/repetir); se mantienen separados porque sus tipos de apuesta difieren y ambos tienen
+  tests. Extraerlo añadiría genéricos sin simplificar.
+
 ## 9. Autenticación (Fase 3: interfaz y reglas; Fase 4: Firebase)
 
 Decisiones confirmadas: **solo email y contraseña** (sin modo invitado ni Google Sign-In, retirados
@@ -415,7 +448,7 @@ Implementación:
 | 10 | Póker contra bots | Hecha |
 | 11 | Estadísticas e historial | Hecha |
 | 12 | Sonido y animaciones avanzadas | Hecha |
-| 13 | Optimización | — |
+| 13 | Optimización | Hecha |
 | 14 | Cobertura de tests | — |
 | 15 | Builds y despliegue | — |
 
@@ -446,7 +479,8 @@ Implementación:
   captura `Throwable` (dejando pasar la cancelación).
 - Con el servidor de desarrollo web en marcha, `allTests` puede agotar la memoria del daemon de
   Kotlin al enlazar los ejecutables de test de Wasm: conviene parar el servidor (y `./gradlew --stop`)
-  antes de lanzar todos los tests. Desde la Fase 10 el daemon de Kotlin usa 4 GB (`gradle.properties`).
+  antes de lanzar todos los tests. El daemon de Kotlin usa 5 GB y Gradle ejecuta 4 tareas a la vez
+  (`gradle.properties`, Fase 13).
 
 - **Clics perdidos en pruebas automatizadas de la web**: si el puntero salta y pulsa en el mismo
   instante (así actúan las herramientas de automatización), Compose para web puede ignorar esa
