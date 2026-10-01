@@ -52,12 +52,13 @@ Las features no se conocen entre sí: cuando una necesita abrir una pantalla de 
 Ajustes → documentos legales), recibe una función y es `shared` quien conoce la ruta.
 Excepción controlada: los tests de `feature:auth` usan `:data` (repositorio en memoria) como doble.
 
-Los módulos se crean cuando una fase los necesita. Existentes tras la Fase 11:
+Los módulos se crean cuando una fase los necesita. Existentes tras la Fase 12:
 
 | Módulo | Contenido |
 |---|---|
+| `core:audio` | Efectos de sonido sintetizados en código (sin archivos) y su reproducción: AudioTrack (Android), javax.sound (escritorio), Web Audio (navegador) |
 | `core:common` | `RandomGenerator` e ids aleatorios, `Outcome` (errores tipados), formato de números, nombres de países (CLDR) |
-| `core:designsystem` | Tema "Noir & Oro", tipografía, iconos, palos de la baraja, naipe, ficha de casino, fichas de apuesta, barras de avance, componentes, navegación adaptativa |
+| `core:designsystem` | Tema "Noir & Oro", tipografía, iconos, palos de la baraja, naipe, ficha de casino, fichas de apuesta, barras de avance, componentes, navegación adaptativa, animaciones (reparto de cartas, lluvia de monedas, animaciones reducidas) |
 | `core:ui` | Avatares, selector de país, saldo de fichas, nombres de juegos, textos de niveles y logros, avisos de progreso (con retención mientras una mesa anima) |
 | `core:testing` | Generadores aleatorios deterministas, `TestClock` |
 | `domain` | Autenticación, reglas del registro, países, ajustes, `GameType`, `GameSessionStore`, economía (`Chips`, monedero, asientos, reglas), progresión (niveles, experiencia, bono diario, logros) e historial (`LedgerSource`, líneas del historial, estadísticas por juego) |
@@ -334,6 +335,26 @@ instantánea). Las reglas lo validan sin romper versiones anteriores de la app:
 - Se recarga sola cuando el monedero registra un movimiento nuevo.
 - Las estadísticas generales (nivel, rachas, saldo máximo) siguen en la pestaña Progreso.
 
+## 8 septies. Sonido y animaciones (Fase 12)
+
+**Sonido** (`core:audio`): los efectos se **sintetizan en código** (tonos, campanas y ruido filtrado
+con envolventes) en vez de usar archivos: sin licencias ni descargas y deterministas (un test
+comprueba duración, volumen y que terminan sin chasquido). Efectos: ficha, carta, giro (bola que
+se frena), rodillo que se para, dados, premio, premio grande y ronda perdida. Cada plataforma solo
+reproduce las muestras: `AudioTrack` estático (Android), `Clip` de javax.sound (escritorio) y
+Web Audio (navegador; el contexto se crea con el primer toque, como exige Safari).
+
+- La raíz proporciona `LocalSoundPlayer`, que respeta la preferencia "Sonido" (Ajustes) en cada
+  reproducción. Las fichas suenan solas; las mesas usan `SoundOnChange`/`SoundOnIncrease`, que
+  solo suenan ante cambios: volver a una mesa con un resultado a la vista no lo repite.
+- En la tragaperras solo suenan los premios (perder es lo habitual).
+
+**Animaciones:** cartas que entran repartidas (caen, giran y aparecen), saldo que cuenta hasta el
+valor nuevo y lluvia de monedas para premios de 10× o más (blackjack natural en el blackjack; botes
+de 25 ciegas o más en el póker). Las trayectorias salen del índice de cada moneda (ángulo áureo):
+la animación nunca usa azar. **Animaciones reducidas** (Ajustes) quita las decorativas y conserva
+las que cuentan el resultado (rueda, rodillos, dados, crupier).
+
 ## 9. Autenticación (Fase 3: interfaz y reglas; Fase 4: Firebase)
 
 Decisiones confirmadas: **solo email y contraseña** (sin modo invitado ni Google Sign-In, retirados
@@ -393,7 +414,7 @@ Implementación:
 | 9 | Slots y Dados | Hecha |
 | 10 | Póker contra bots | Hecha |
 | 11 | Estadísticas e historial | Hecha |
-| 12 | Sonido y animaciones avanzadas | — |
+| 12 | Sonido y animaciones avanzadas | Hecha |
 | 13 | Optimización | — |
 | 14 | Cobertura de tests | — |
 | 15 | Builds y despliegue | — |
