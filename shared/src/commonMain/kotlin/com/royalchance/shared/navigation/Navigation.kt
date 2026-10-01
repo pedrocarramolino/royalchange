@@ -5,6 +5,7 @@ import androidx.savedstate.serialization.SavedStateConfiguration
 import com.royalchance.feature.auth.navigation.authRoutes
 import com.royalchance.feature.blackjack.blackjackRoutes
 import com.royalchance.feature.dice.diceRoutes
+import com.royalchance.feature.poker.pokerRoutes
 import com.royalchance.feature.roulette.rouletteRoutes
 import com.royalchance.feature.slots.slotsRoutes
 import com.royalchance.feature.history.historyRoutes
@@ -26,6 +27,7 @@ internal val NavigationConfiguration = SavedStateConfiguration {
             rouletteRoutes()
             slotsRoutes()
             diceRoutes()
+            pokerRoutes()
             lobbyRoutes()
             progressRoutes()
             historyRoutes()

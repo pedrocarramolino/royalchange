@@ -1,0 +1,67 @@
+<resources>
+    <string name="poker_title">Póker</string>
+    <string name="poker_back">Volver al casino</string>
+    <string name="poker_sit_title">Texas Hold’em sin límite</string>
+    <string name="poker_rules_note">Seis asientos: tú y cinco bots con estilos distintos. Las fichas que llevas a la mesa son lo máximo que puedes arriesgar en una mano; cada ficha que pones en el bote se descuenta de tu saldo y lo que ganas vuelve a él al terminar la mano.</string>
+    <string name="poker_table_option">Ciegas %1$s/%2$s · entrada de %3$s a %4$s</string>
+    <string name="poker_buy_in">Fichas a la mesa: %1$s</string>
+    <string name="poker_sit">Sentarse</string>
+    <string name="poker_stand_up">Levantarse</string>
+    <string name="poker_deal">Repartir</string>
+    <string name="poker_rebuy">Recargar a %1$s</string>
+    <string name="poker_rebuy_message">Te has quedado sin fichas en la mesa.</string>
+
+    <string name="poker_fold">Retirarse</string>
+    <string name="poker_check">Pasar</string>
+    <string name="poker_call">Igualar %1$s</string>
+    <string name="poker_raise_to">Subir a %1$s</string>
+    <string name="poker_all_in">All-in</string>
+    <string name="poker_min">Mín.</string>
+    <string name="poker_half_pot">½ bote</string>
+    <string name="poker_pot_size">Bote</string>
+    <string name="poker_turn_of">Le toca a %1$s…</string>
+    <string name="poker_folded_waiting">Te has retirado. La mano sigue sin ti.</string>
+    <string name="poker_thinking">Pensando…</string>
+    <string name="poker_pot">Bote: %1$s</string>
+    <string name="poker_dealer">Botón del repartidor</string>
+    <string name="poker_hidden_cards">dos cartas tapadas</string>
+    <string name="poker_seat_description">%1$s, %2$s. %3$s. %4$s</string>
+    <string name="poker_win_category">%1$s gana %2$s con %3$s</string>
+    <string name="poker_win_uncontested">%1$s gana %2$s</string>
+    <string name="poker_dismiss">Entendido</string>
+
+    <string name="poker_action_small_blind">Ciega pequeña</string>
+    <string name="poker_action_big_blind">Ciega grande</string>
+    <string name="poker_action_fold">Se retira</string>
+    <string name="poker_action_check">Pasa</string>
+    <string name="poker_action_call">Iguala</string>
+    <string name="poker_action_bet">Apuesta</string>
+    <string name="poker_action_raise">Sube</string>
+    <string name="poker_action_all_in">All-in</string>
+
+    <string name="poker_hand_high_card">carta alta</string>
+    <string name="poker_hand_pair">pareja</string>
+    <string name="poker_hand_two_pair">doble pareja</string>
+    <string name="poker_hand_three">trío</string>
+    <string name="poker_hand_straight">escalera</string>
+    <string name="poker_hand_flush">color</string>
+    <string name="poker_hand_full_house">full</string>
+    <string name="poker_hand_four">póker</string>
+    <string name="poker_hand_straight_flush">escalera de color</string>
+
+    <string name="poker_card_name">%1$s de %2$s</string>
+    <string name="poker_rank_ace">As</string>
+    <string name="poker_rank_king">Rey</string>
+    <string name="poker_rank_queen">Reina</string>
+    <string name="poker_rank_jack">Jota</string>
+    <string name="poker_suit_spades">picas</string>
+    <string name="poker_suit_hearts">corazones</string>
+    <string name="poker_suit_diamonds">diamantes</string>
+    <string name="poker_suit_clubs">tréboles</string>
+
+    <string name="poker_notice_funds">No tienes fichas suficientes en tu saldo para eso.</string>
+    <string name="poker_notice_wallet">Tu saldo no está disponible ahora mismo. Vuelve a intentarlo en unos minutos.</string>
+    <string name="poker_notice_other_round">Tienes fichas en otra mesa. Termina esa ronda antes de jugar aquí.</string>
+    <string name="poker_notice_forfeited">Había una mano sin terminar que no se pudo recuperar en este dispositivo: lo que habías apostado en ella se ha dado por perdido.</string>
+    <string name="poker_notice_settlement">No se pudo registrar el resultado de la mano. Se reintentará al volver a la mesa.</string>
+</resources>

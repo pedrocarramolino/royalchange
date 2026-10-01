@@ -9,6 +9,7 @@ import com.royalchance.domain.settings.SettingsRepository
 import com.royalchance.feature.auth.navigation.AuthDependencies
 import com.royalchance.feature.blackjack.BlackjackDependencies
 import com.royalchance.feature.dice.DiceDependencies
+import com.royalchance.feature.poker.PokerDependencies
 import com.royalchance.feature.roulette.RouletteDependencies
 import com.royalchance.feature.slots.SlotsDependencies
 import kotlinx.datetime.TimeZone
@@ -33,6 +34,7 @@ class AppGraph(
     internal val rouletteDependencies = RouletteDependencies(authRepository, economyRepository, gameSessions, random)
     internal val slotsDependencies = SlotsDependencies(authRepository, economyRepository, gameSessions, random)
     internal val diceDependencies = DiceDependencies(authRepository, economyRepository, gameSessions, random)
+    internal val pokerDependencies = PokerDependencies(authRepository, economyRepository, gameSessions, random)
 }
 
 object AppInfo {

@@ -52,7 +52,7 @@ Las features no se conocen entre sí: cuando una necesita abrir una pantalla de 
 Ajustes → documentos legales), recibe una función y es `shared` quien conoce la ruta.
 Excepción controlada: los tests de `feature:auth` usan `:data` (repositorio en memoria) como doble.
 
-Los módulos se crean cuando una fase los necesita. Existentes tras la Fase 9:
+Los módulos se crean cuando una fase los necesita. Existentes tras la Fase 10:
 
 | Módulo | Contenido |
 |---|---|
@@ -66,6 +66,7 @@ Los módulos se crean cuando una fase los necesita. Existentes tras la Fase 9:
 | `engine:roulette` | Ruleta europea: rueda, apuestas (todas las del tapete), validación, giro y pagos |
 | `engine:slots` | Tragaperras 5×3: tiras de los rodillos, 10 líneas, comodín y tabla de pagos |
 | `engine:dice` | Dados: tirada de dos dados, apuestas sobre la suma y pagos |
+| `engine:poker` | Texas Hold'em No-Limit: evaluador de manos, apuestas, botes laterales, bots y mesa |
 | `data` | Repositorios en memoria (escritorio y tests), incluida la economía, ajustes persistentes (`KeyValueStore`) y sesiones de mesa guardadas en el dispositivo |
 | `data:firebase` | Autenticación, perfil y economía con Firebase (Android y web); lógica común sobre pasarelas por plataforma |
 | `feature:auth` | Bienvenida, inicio de sesión, registro completo, completar perfil, recuperar contraseña, legales |
@@ -74,6 +75,7 @@ Los módulos se crean cuando una fase los necesita. Existentes tras la Fase 9:
 | `feature:roulette` | Mesa de ruleta: tapete, rueda animada, deshacer/repetir y últimos números |
 | `feature:slots` | Tragaperras: rodillos animados, líneas premiadas, apuesta y tabla de pagos |
 | `feature:dice` | Mesa de dados: tapete, dados animados, deshacer/repetir y últimas sumas |
+| `feature:poker` | Mesa de póker: sentarse con fichas, mesa ovalada de seis asientos, acciones y subidas, bots |
 | `feature:profile` | Progreso: nivel, estadísticas, racha de bono diario y logros con el cobro de sus recompensas |
 | `feature:history` | Pestaña de historial (estado vacío hasta la Fase 11) |
 | `feature:settings` | Cuenta, tema, documentos legales, cerrar sesión y eliminar cuenta |
@@ -284,6 +286,35 @@ seguridad). Los dados que se ven mientras ruedan siguen una secuencia fija: la a
 fuente de azar. Se guardan en el dispositivo la apuesta de la tragaperras y, en los dados, las
 últimas sumas y la última apuesta.
 
+## 8 quinquies. Póker contra bots (Fase 10)
+
+**Reglas** (`engine:poker`): Texas Hold'em No-Limit, seis asientos (el jugador y cinco bots).
+Mesas 10/20 (entrada 400–2.000) y 50/100 (2.000–10.000). Ciegas, en mano a dos el botón pone la
+pequeña y habla primero antes del flop; subida mínima = la última subida completa; botes laterales
+por niveles de aportación; empates repartidos en unidades de 10 con la sobrante al primer ganador a
+la izquierda del botón. Simplificación documentada: tras un all-in corto, quien ya había hablado
+puede volver a subir. Todas las cantidades son múltiplos de 10.
+
+**Evaluador:** puntúa directamente 5–7 cartas (conteos y máscaras de bits, sin probar las 21
+combinaciones). Un test recorre las 2.598.960 manos de cinco cartas y comprueba las frecuencias de
+cada categoría y los 7.462 valores distintos.
+
+**Bots:** estiman la equidad de su mano simulando 160 repartos del resto (solo ven sus cartas y
+las comunitarias: no hacen trampa) y la comparan con las pot odds. Cuatro estilos (tight,
+equilibrado, loose, agresivo) ajustan cuánto juegan, suben y farolean. Los que se quedan sin
+fichas se sustituyen por otros entre manos. Un test juega cientos de manos entre bots comprobando
+que las fichas se conservan.
+
+**Contabilidad por mano** (decisión de esta fase): cada ficha que el jugador mete en el bote
+(ciegas, igualar, subir) es un `placeBet` de la ronda de póker *antes* de mostrarse en la mesa, y
+al terminar la mano —o al retirarse— `settleRound` paga lo que gana. Así solo está en riesgo lo que
+ya está en el bote, cada mano cuenta para nivel y estadísticas, y no hace falta cambiar las reglas
+de Firestore (todo es múltiplo de 10 ≥ la apuesta mínima; lo ganado nunca supera 6× lo aportado).
+Las "fichas llevadas a la mesa" (regla de la Fase 1) son el tope que el jugador puede arriesgar por
+mano y no salen del saldo hasta que se apuestan. La mesa se guarda en el dispositivo tras cada
+acción para reanudarla; una mano con fichas en juego sin su estado (otro dispositivo) se da por
+perdida, como en el blackjack. Limitación aceptada: la baraja de la mano está en el estado local.
+
 ## 9. Autenticación (Fase 3: interfaz y reglas; Fase 4: Firebase)
 
 Decisiones confirmadas: **solo email y contraseña** (sin modo invitado ni Google Sign-In, retirados
@@ -341,7 +372,7 @@ Implementación:
 | 7 | Blackjack | Hecha |
 | 8 | Ruleta | Hecha |
 | 9 | Slots y Dados | Hecha |
-| 10 | Póker contra bots | — |
+| 10 | Póker contra bots | Hecha |
 | 11 | Estadísticas e historial | — |
 | 12 | Sonido y animaciones avanzadas | — |
 | 13 | Optimización | — |
@@ -364,7 +395,7 @@ Implementación:
 - El SDK de Firebase añade unos 210 KB comprimidos a la PWA.
 - Con el servidor de desarrollo web en marcha, `allTests` puede agotar la memoria del daemon de
   Kotlin al enlazar los ejecutables de test de Wasm: conviene parar el servidor (y `./gradlew --stop`)
-  antes de lanzar todos los tests.
+  antes de lanzar todos los tests. Desde la Fase 10 el daemon de Kotlin usa 4 GB (`gradle.properties`).
 
 - **Clics perdidos en pruebas automatizadas de la web**: si el puntero salta y pulsa en el mismo
   instante (así actúan las herramientas de automatización), Compose para web puede ignorar esa

@@ -17,6 +17,7 @@ kotlin {
             implementation(projects.feature.roulette)
             implementation(projects.feature.slots)
             implementation(projects.feature.dice)
+            implementation(projects.feature.poker)
             implementation(projects.feature.lobby)
             implementation(projects.feature.profile)
             implementation(projects.feature.history)
