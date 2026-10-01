@@ -10,6 +10,7 @@ import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.MetadataChanges
+import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.Source
 import com.royalchance.data.firebase.gateway.AuthGateway
 import com.royalchance.data.firebase.gateway.FirebaseErrorCode
@@ -132,7 +133,27 @@ internal class AndroidWalletStore(private val db: FirebaseFirestore) : WalletSto
         return PendingWrite { unit { commit.await() } }
     }
 
+    override suspend fun ledgerBefore(uid: String, beforeSeq: Long?, limit: Int): List<LedgerEntryDocument> = readLedger {
+        val ordered = db.collection(FirestorePaths.ledger(uid)).orderBy(SEQ, Query.Direction.DESCENDING)
+        (if (beforeSeq != null) ordered.whereLessThan(SEQ, beforeSeq) else ordered).limit(limit.toLong())
+    }
+
+    override suspend fun ledgerAfter(uid: String, afterSeq: Long, limit: Int): List<LedgerEntryDocument> = readLedger {
+        db.collection(FirestorePaths.ledger(uid)).whereGreaterThan(SEQ, afterSeq).orderBy(SEQ, Query.Direction.ASCENDING).limit(limit.toLong())
+    }
+
+    /** Servidor si hay conexión; si no, la caché local (Firestore decide). */
+    private suspend fun readLedger(query: () -> Query): List<LedgerEntryDocument> = try {
+        query().get().await().documents.mapNotNull { snapshot -> snapshot.data?.let { fromFirestoreMap<LedgerEntryDocument>(it) } }
+    } catch (e: FirebaseFirestoreException) {
+        throw e.toGatewayException()
+    }
+
     private fun walletReference(uid: String): DocumentReference = db.collection(FirestorePaths.WALLETS).document(uid)
+
+    private companion object {
+        const val SEQ = "seq"
+    }
 }
 
 /**

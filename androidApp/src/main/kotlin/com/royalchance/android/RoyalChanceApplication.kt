@@ -4,6 +4,7 @@ import android.app.Application
 import com.royalchance.data.firebase.AndroidFirebase
 import com.royalchance.data.firebase.FirebaseEnvironment
 import com.royalchance.data.games.KeyValueGameSessionStore
+import com.royalchance.data.history.LedgerHistoryRepository
 import com.royalchance.data.settings.PersistentSettingsRepository
 import com.royalchance.shared.AppGraph
 import kotlinx.coroutines.MainScope
@@ -25,6 +26,7 @@ class RoyalChanceApplication : Application() {
             economyRepository = firebase.economy,
             settingsRepository = PersistentSettingsRepository(preferences),
             gameSessions = KeyValueGameSessionStore(preferences),
+            historyRepository = LedgerHistoryRepository(firebase.auth, firebase.ledger, preferences),
         )
     }
 

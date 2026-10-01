@@ -5,10 +5,12 @@ import com.royalchance.core.common.random.RandomGenerator
 import com.royalchance.domain.auth.AuthRepository
 import com.royalchance.domain.economy.EconomyRepository
 import com.royalchance.domain.game.GameSessionStore
+import com.royalchance.domain.history.HistoryRepository
 import com.royalchance.domain.settings.SettingsRepository
 import com.royalchance.feature.auth.navigation.AuthDependencies
 import com.royalchance.feature.blackjack.BlackjackDependencies
 import com.royalchance.feature.dice.DiceDependencies
+import com.royalchance.feature.history.HistoryDependencies
 import com.royalchance.feature.poker.PokerDependencies
 import com.royalchance.feature.roulette.RouletteDependencies
 import com.royalchance.feature.slots.SlotsDependencies
@@ -25,6 +27,7 @@ class AppGraph(
     val economyRepository: EconomyRepository,
     val settingsRepository: SettingsRepository,
     val gameSessions: GameSessionStore,
+    val historyRepository: HistoryRepository,
     val clock: Clock = Clock.System,
     val timeZone: TimeZone = TimeZone.currentSystemDefault(),
     val random: RandomGenerator = ProductionRandomGenerator(),
@@ -35,6 +38,7 @@ class AppGraph(
     internal val slotsDependencies = SlotsDependencies(authRepository, economyRepository, gameSessions, random)
     internal val diceDependencies = DiceDependencies(authRepository, economyRepository, gameSessions, random)
     internal val pokerDependencies = PokerDependencies(authRepository, economyRepository, gameSessions, random)
+    internal val historyDependencies = HistoryDependencies(historyRepository, economyRepository, timeZone)
 }
 
 object AppInfo {

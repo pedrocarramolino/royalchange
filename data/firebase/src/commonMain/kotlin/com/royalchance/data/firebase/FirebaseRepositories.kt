@@ -6,6 +6,7 @@ import com.royalchance.data.firebase.gateway.PlayerStore
 import com.royalchance.data.firebase.gateway.WalletStore
 import com.royalchance.domain.auth.AuthRepository
 import com.royalchance.domain.economy.EconomyRepository
+import com.royalchance.domain.history.LedgerSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.datetime.TimeZone
 import kotlin.time.Clock
@@ -14,6 +15,8 @@ import kotlin.time.Clock
 class FirebaseRepositories internal constructor(
     val auth: AuthRepository,
     val economy: EconomyRepository,
+    /** Lectura del libro contable (historial y estadísticas). */
+    val ledger: LedgerSource,
 ) {
     internal companion object {
         fun create(
@@ -26,10 +29,8 @@ class FirebaseRepositories internal constructor(
             scope: CoroutineScope,
         ): FirebaseRepositories {
             val auth = FirebaseAuthRepository(authGateway, playerStore, clock, scope)
-            return FirebaseRepositories(
-                auth = auth,
-                economy = FirebaseEconomyRepository(auth, walletStore, clock, timeZone, random, scope),
-            )
+            val economy = FirebaseEconomyRepository(auth, walletStore, clock, timeZone, random, scope)
+            return FirebaseRepositories(auth = auth, economy = economy, ledger = economy)
         }
     }
 }

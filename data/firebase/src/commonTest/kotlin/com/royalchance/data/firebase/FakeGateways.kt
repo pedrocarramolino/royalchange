@@ -137,6 +137,12 @@ internal class FakeWalletStore : WalletStore {
         return wallets.value[uid]
     }
 
+    override suspend fun ledgerBefore(uid: String, beforeSeq: Long?, limit: Int): List<LedgerEntryDocument> =
+        ledger[uid].orEmpty().sortedByDescending { it.seq }.filter { beforeSeq == null || it.seq < beforeSeq }.take(limit)
+
+    override suspend fun ledgerAfter(uid: String, afterSeq: Long, limit: Int): List<LedgerEntryDocument> =
+        ledger[uid].orEmpty().sortedBy { it.seq }.filter { it.seq > afterSeq }.take(limit)
+
     override fun write(wallet: WalletDocument, entry: LedgerEntryDocument): PendingWrite {
         writes++
         val previous = wallets.value[wallet.uid]

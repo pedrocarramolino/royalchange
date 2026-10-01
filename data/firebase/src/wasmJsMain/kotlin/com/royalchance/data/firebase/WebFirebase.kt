@@ -25,7 +25,13 @@ import com.royalchance.data.firebase.web.externals.doc
 import com.royalchance.data.firebase.web.externals.getAuth
 import com.royalchance.data.firebase.web.externals.getDocFromCache
 import com.royalchance.data.firebase.web.externals.getDocFromServer
+import com.royalchance.data.firebase.web.externals.getDocs
 import com.royalchance.data.firebase.web.externals.getDocsFromServer
+import com.royalchance.data.firebase.web.externals.Query
+import com.royalchance.data.firebase.web.externals.limit
+import com.royalchance.data.firebase.web.externals.orderBy
+import com.royalchance.data.firebase.web.externals.query
+import com.royalchance.data.firebase.web.externals.where
 import com.royalchance.data.firebase.web.externals.initializeApp
 import com.royalchance.data.firebase.web.externals.initializeFirestore
 import com.royalchance.data.firebase.web.externals.memoryLocalCache
@@ -217,7 +223,32 @@ internal class WebWalletStore(private val db: Firestore) : WalletStore {
         return PendingWrite { commit.awaitFirebase() }
     }
 
+    override suspend fun ledgerBefore(uid: String, beforeSeq: Long?, limit: Int): List<LedgerEntryDocument> {
+        val ledger = collection(db, FirestorePaths.ledger(uid))
+        val newestFirst = orderBy(SEQ, "desc")
+        val page = if (beforeSeq != null) {
+            query(ledger, where(SEQ, "<", beforeSeq.toDouble().toJsNumber()), newestFirst, limit(limit))
+        } else {
+            query(ledger, newestFirst, limit(limit))
+        }
+        return readLedger(page)
+    }
+
+    override suspend fun ledgerAfter(uid: String, afterSeq: Long, limit: Int): List<LedgerEntryDocument> =
+        readLedger(query(collection(db, FirestorePaths.ledger(uid)), where(SEQ, ">", afterSeq.toDouble().toJsNumber()), orderBy(SEQ, "asc"), limit(limit)))
+
+    private suspend fun readLedger(query: Query): List<LedgerEntryDocument> {
+        val snapshot = getDocs(query).awaitFirebase()
+        return (0 until snapshot.docs.length).mapNotNull { index ->
+            snapshot.docs[index]?.data()?.let { fromJson<LedgerEntryDocument>(jsonStringify(it)) }
+        }
+    }
+
     private fun walletReference(uid: String): DocumentReference = doc(db, "${FirestorePaths.WALLETS}/$uid")
+
+    private companion object {
+        const val SEQ = "seq"
+    }
 }
 
 /**

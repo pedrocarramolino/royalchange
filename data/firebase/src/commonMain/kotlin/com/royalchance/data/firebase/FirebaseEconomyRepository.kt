@@ -17,7 +17,10 @@ import com.royalchance.domain.economy.Wallet
 import com.royalchance.domain.economy.WalletState
 import com.royalchance.domain.economy.WalletTransition
 import com.royalchance.domain.economy.WalletTransitions
+import com.royalchance.domain.economy.LedgerEntry
 import com.royalchance.domain.game.GameType
+import com.royalchance.domain.history.HistoryError
+import com.royalchance.domain.history.LedgerSource
 import com.royalchance.domain.progression.AchievementId
 import com.royalchance.domain.progression.ProgressEvent
 import kotlinx.coroutines.CancellationException
@@ -55,7 +58,7 @@ internal class FirebaseEconomyRepository(
     private val timeZone: TimeZone,
     private val random: RandomGenerator,
     private val scope: CoroutineScope,
-) : EconomyRepository {
+) : EconomyRepository, LedgerSource {
 
     private val mutex = Mutex()
     private val progressEvents = MutableSharedFlow<ProgressEvent>(extraBufferCapacity = EVENT_BUFFER)
@@ -80,6 +83,22 @@ internal class FirebaseEconomyRepository(
                     }
                 }
         }
+    }
+
+    override suspend fun ledgerBefore(playerId: String, beforeSequence: Long?, limit: Int): Outcome<List<LedgerEntry>, HistoryError> =
+        readLedger { store.ledgerBefore(playerId, beforeSequence, limit) }
+
+    override suspend fun ledgerAfter(playerId: String, afterSequence: Long, limit: Int): Outcome<List<LedgerEntry>, HistoryError> =
+        readLedger { store.ledgerAfter(playerId, afterSequence, limit) }
+
+    private suspend fun readLedger(read: suspend () -> List<LedgerEntryDocument>): Outcome<List<LedgerEntry>, HistoryError> = try {
+        Outcome.Success(read().map { it.toDomain() })
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Throwable) {
+        // Sin conexión, sin permiso o un asiento que no se puede leer. En Wasm, los errores de
+        // JavaScript no son Exception: se captura Throwable.
+        failure(HistoryError.ReadFailed)
     }
 
     override suspend fun placeBet(game: GameType, stake: Chips) = execute(EconomyOperation.PlaceBet(game, stake))

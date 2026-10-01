@@ -71,6 +71,12 @@ internal interface WalletStore {
      * sigue en segundo plano y se espera con [PendingWrite.awaitServer].
      */
     fun write(wallet: WalletDocument, entry: LedgerEntryDocument): PendingWrite
+
+    /** Asientos con número menor que [beforeSeq] (todos si es `null`), de mayor a menor. */
+    suspend fun ledgerBefore(uid: String, beforeSeq: Long?, limit: Int): List<LedgerEntryDocument>
+
+    /** Asientos con número mayor que [afterSeq], de menor a mayor. */
+    suspend fun ledgerAfter(uid: String, afterSeq: Long, limit: Int): List<LedgerEntryDocument>
 }
 
 /** Escritura ya aplicada en local, pendiente de confirmar por el servidor. */

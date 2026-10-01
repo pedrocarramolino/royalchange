@@ -54,4 +54,9 @@
     <string name="achievement_daily_streak_7_description">Cobra el bono diario 7 días seguidos.</string>
     <string name="achievement_daily_streak_30">Un mes en la mesa</string>
     <string name="achievement_daily_streak_30_description">Cobra el bono diario 30 días seguidos.</string>
+    <string name="game_name_blackjack">Blackjack</string>
+    <string name="game_name_roulette">Ruleta</string>
+    <string name="game_name_slots">Slots</string>
+    <string name="game_name_poker">Póker</string>
+    <string name="game_name_dice">Dados</string>
 </resources>

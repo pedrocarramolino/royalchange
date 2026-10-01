@@ -283,6 +283,20 @@ describe('wallets', () => {
     ));
   });
 
+  test('la liquidación guarda lo apostado en la ronda, sin poder falsearlo', async () => {
+    const db = as('ana');
+    await seedWallet('ana');
+    await assertSucceeds(move(
+      db, 'ana',
+      { balance: 9500, seq: 6, lastEntryId: 'apuesta', openRound: { id: 'apuesta', game: 'Poker', stake: 500 } },
+      { id: 'apuesta', seq: 6, kind: 'Bet', amount: -500, balanceAfter: 9500, game: 'Poker', roundId: 'apuesta', stake: 500 },
+    ));
+    const after = { balance: 10500, seq: 7, lastEntryId: 'pago', highestBalance: 10500, ...afterRound(500, 1000) };
+    const entry = { id: 'pago', seq: 7, kind: 'Settlement', amount: 1000, balanceAfter: 10500, game: 'Poker', roundId: 'apuesta', payout: 1000 };
+    await assertFails(move(db, 'ana', after, { ...entry, stake: 50 }));
+    await assertSucceeds(move(db, 'ana', after, { ...entry, stake: 500 }));
+  });
+
   test('una ronda instantánea cobra la apuesta y paga el premio a la vez', async () => {
     await seedWallet('ana');
     await assertSucceeds(spin(as('ana'), 'ana', { stake: 100, payout: 3600 }));

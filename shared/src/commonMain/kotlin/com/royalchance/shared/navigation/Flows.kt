@@ -174,7 +174,7 @@ internal fun MainFlow(graph: AppGraph, user: AuthUser?) {
                     diceEntry(graph.diceDependencies, eventGate, onBack = { backStack.popIfNotRoot() })
                     pokerEntry(graph.pokerDependencies, eventGate, onBack = { backStack.popIfNotRoot() })
                     progressEntry(graph.economyRepository, graph.clock, graph.timeZone)
-                    historyEntry()
+                    historyEntry(graph.historyDependencies)
                     settingsEntry(
                         authRepository = graph.authRepository,
                         settingsRepository = graph.settingsRepository,

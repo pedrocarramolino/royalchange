@@ -105,7 +105,8 @@ object WalletTransitions {
                 // La ronda cuenta al cerrarse, con todas sus apuestas (dobles y separaciones incluidas).
                 progress = progress.afterRound(stake = round.stake, payout = operation.payout),
             ),
-            entry = Draft(entryId, LedgerEntryKind.Settlement, now, game = round.game, roundId = round.id, payout = operation.payout),
+            // La liquidación guarda lo apostado en toda la ronda: el historial la muestra completa.
+            entry = Draft(entryId, LedgerEntryKind.Settlement, now, game = round.game, roundId = round.id, stake = round.stake, payout = operation.payout),
         )
     }
 

@@ -18,6 +18,8 @@ import com.royalchance.domain.economy.WalletState
 import com.royalchance.domain.economy.WalletTransition
 import com.royalchance.domain.economy.WalletTransitions
 import com.royalchance.domain.game.GameType
+import com.royalchance.domain.history.HistoryError
+import com.royalchance.domain.history.LedgerSource
 import com.royalchance.domain.progression.AchievementId
 import com.royalchance.domain.progression.ProgressEvent
 import kotlinx.coroutines.CoroutineScope
@@ -53,7 +55,7 @@ class InMemoryEconomyRepository(
     private val clock: Clock = Clock.System,
     private val timeZone: TimeZone = TimeZone.currentSystemDefault(),
     private val random: RandomGenerator = ProductionRandomGenerator(),
-) : EconomyRepository {
+) : EconomyRepository, LedgerSource {
 
     private val mutex = Mutex()
     private val progressEvents = MutableSharedFlow<ProgressEvent>(extraBufferCapacity = EVENT_BUFFER)
@@ -84,6 +86,12 @@ class InMemoryEconomyRepository(
 
     /** Asientos de un jugador, del primero al último. Para tests y depuración. */
     fun ledger(playerId: String): List<LedgerEntry> = ledgers[playerId].orEmpty()
+
+    override suspend fun ledgerBefore(playerId: String, beforeSequence: Long?, limit: Int): Outcome<List<LedgerEntry>, HistoryError> =
+        Outcome.Success(ledger(playerId).asReversed().filter { beforeSequence == null || it.sequence < beforeSequence }.take(limit))
+
+    override suspend fun ledgerAfter(playerId: String, afterSequence: Long, limit: Int): Outcome<List<LedgerEntry>, HistoryError> =
+        Outcome.Success(ledger(playerId).filter { it.sequence > afterSequence }.take(limit))
 
     override suspend fun placeBet(game: GameType, stake: Chips) = execute(EconomyOperation.PlaceBet(game, stake))
 

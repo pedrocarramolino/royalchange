@@ -2,4 +2,19 @@
     <string name="history_title">Historial</string>
     <string name="history_empty_title">Aún no hay partidas</string>
     <string name="history_empty_message">Cuando juegues, aquí aparecerá cada partida con su apuesta y su resultado, además de tus estadísticas por juego.</string>
+    <string name="history_failed">No se pudo cargar el historial. Comprueba tu conexión.</string>
+    <string name="history_retry">Reintentar</string>
+    <string name="history_by_game">Por juego</string>
+    <string name="history_recent">Últimos movimientos</string>
+    <string name="history_no_rounds">Sin partidas todavía</string>
+    <string name="history_rounds_wins">%1$s rondas · %2$d % ganadas</string>
+    <string name="history_net">Balance: %1$s</string>
+    <string name="history_biggest_win">Mejor ronda: +%1$s</string>
+    <string name="history_round_detail">apuesta %1$s · cobra %2$s</string>
+    <string name="history_balance_after">Saldo %1$s</string>
+    <string name="history_load_more">Cargar más</string>
+    <string name="history_movement_welcome">Fichas de bienvenida</string>
+    <string name="history_movement_rescue">Recarga gratuita</string>
+    <string name="history_movement_daily">Bono diario</string>
+    <string name="history_movement_achievement">Logro: %1$s</string>
 </resources>

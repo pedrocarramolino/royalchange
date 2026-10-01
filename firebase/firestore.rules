@@ -276,6 +276,8 @@ service cloud.firestore {
         && round != null
         && e.roundId == round.id
         && e.game == round.game
+        // Lo apostado en la ronda (versiones anteriores de la app no lo guardaban).
+        && e.get('stake', round.stake) == round.stake
         && payout >= 0
         && e.payout == payout
         && payout <= round.stake * maximumPayoutMultiplier()

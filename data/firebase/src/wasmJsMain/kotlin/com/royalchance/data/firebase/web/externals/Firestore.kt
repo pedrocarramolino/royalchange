@@ -8,7 +8,12 @@ external interface Firestore : JsAny
 
 external interface DocumentReference : JsAny
 
-external interface CollectionReference : JsAny
+external interface CollectionReference : Query
+
+/** Consulta de Firestore (una colección también lo es). */
+external interface Query : JsAny
+
+external interface QueryConstraint : JsAny
 
 external interface SnapshotMetadata : JsAny {
     val fromCache: Boolean
@@ -54,6 +59,22 @@ external fun getDocFromServer(reference: DocumentReference): Promise<DocumentSna
 external fun getDocFromCache(reference: DocumentReference): Promise<DocumentSnapshot>
 
 external fun getDocsFromServer(query: CollectionReference): Promise<QuerySnapshot>
+
+/** Del servidor si hay conexión; si no, de la caché local. */
+external fun getDocs(query: Query): Promise<QuerySnapshot>
+
+// `query` admite cualquier número de restricciones; se declaran las aridades que se usan.
+external fun query(query: Query, first: QueryConstraint, second: QueryConstraint): Query
+
+external fun query(query: Query, first: QueryConstraint, second: QueryConstraint, third: QueryConstraint): Query
+
+/** [operator]: "<", ">"… */
+external fun where(field: String, operator: String, value: JsAny): QueryConstraint
+
+/** [direction]: "asc" o "desc". */
+external fun orderBy(field: String, direction: String): QueryConstraint
+
+external fun limit(count: Int): QueryConstraint
 
 external fun writeBatch(firestore: Firestore): WriteBatch
 

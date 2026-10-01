@@ -52,23 +52,23 @@ Las features no se conocen entre sí: cuando una necesita abrir una pantalla de 
 Ajustes → documentos legales), recibe una función y es `shared` quien conoce la ruta.
 Excepción controlada: los tests de `feature:auth` usan `:data` (repositorio en memoria) como doble.
 
-Los módulos se crean cuando una fase los necesita. Existentes tras la Fase 10:
+Los módulos se crean cuando una fase los necesita. Existentes tras la Fase 11:
 
 | Módulo | Contenido |
 |---|---|
 | `core:common` | `RandomGenerator` e ids aleatorios, `Outcome` (errores tipados), formato de números, nombres de países (CLDR) |
 | `core:designsystem` | Tema "Noir & Oro", tipografía, iconos, palos de la baraja, naipe, ficha de casino, fichas de apuesta, barras de avance, componentes, navegación adaptativa |
-| `core:ui` | Avatares, selector de país, saldo de fichas, textos de niveles y logros, avisos de progreso (con retención mientras una mesa anima) |
+| `core:ui` | Avatares, selector de país, saldo de fichas, nombres de juegos, textos de niveles y logros, avisos de progreso (con retención mientras una mesa anima) |
 | `core:testing` | Generadores aleatorios deterministas, `TestClock` |
-| `domain` | Autenticación, reglas del registro, países, ajustes, `GameType`, `GameSessionStore`, economía (`Chips`, monedero, asientos, reglas) y progresión (niveles, experiencia, bono diario, logros) |
+| `domain` | Autenticación, reglas del registro, países, ajustes, `GameType`, `GameSessionStore`, economía (`Chips`, monedero, asientos, reglas), progresión (niveles, experiencia, bono diario, logros) e historial (`LedgerSource`, líneas del historial, estadísticas por juego) |
 | `engine:cards` | Cartas, baraja y zapato serializable con carta de corte |
 | `engine:blackjack` | Motor de blackjack: reglas, valor de manos, acciones, eventos y liquidación |
 | `engine:roulette` | Ruleta europea: rueda, apuestas (todas las del tapete), validación, giro y pagos |
 | `engine:slots` | Tragaperras 5×3: tiras de los rodillos, 10 líneas, comodín y tabla de pagos |
 | `engine:dice` | Dados: tirada de dos dados, apuestas sobre la suma y pagos |
 | `engine:poker` | Texas Hold'em No-Limit: evaluador de manos, apuestas, botes laterales, bots y mesa |
-| `data` | Repositorios en memoria (escritorio y tests), incluida la economía, ajustes persistentes (`KeyValueStore`) y sesiones de mesa guardadas en el dispositivo |
-| `data:firebase` | Autenticación, perfil y economía con Firebase (Android y web); lógica común sobre pasarelas por plataforma |
+| `data` | Repositorios en memoria (escritorio y tests), incluida la economía, ajustes persistentes (`KeyValueStore`), sesiones de mesa e historial con estadísticas resumidas en el dispositivo |
+| `data:firebase` | Autenticación, perfil, economía y lectura del libro contable con Firebase (Android y web); lógica común sobre pasarelas por plataforma |
 | `feature:auth` | Bienvenida, inicio de sesión, registro completo, completar perfil, recuperar contraseña, legales |
 | `feature:lobby` | Saludo, saldo, nivel, bono diario, avisos de cuenta y de logros, recarga gratuita y catálogo de juegos (abre los disponibles) |
 | `feature:blackjack` | Mesa de blackjack: apuesta con fichas, jugadas, animación del crupier y reanudación de la mano |
@@ -77,7 +77,7 @@ Los módulos se crean cuando una fase los necesita. Existentes tras la Fase 10:
 | `feature:dice` | Mesa de dados: tapete, dados animados, deshacer/repetir y últimas sumas |
 | `feature:poker` | Mesa de póker: sentarse con fichas, mesa ovalada de seis asientos, acciones y subidas, bots |
 | `feature:profile` | Progreso: nivel, estadísticas, racha de bono diario y logros con el cobro de sus recompensas |
-| `feature:history` | Pestaña de historial (estado vacío hasta la Fase 11) |
+| `feature:history` | Historial de rondas y movimientos (paginado) y estadísticas por juego |
 | `feature:settings` | Cuenta, tema, documentos legales, cerrar sesión y eliminar cuenta |
 | `shared` | `App()`, `AppGraph` (DI manual) y flujos de navegación |
 
@@ -315,6 +315,25 @@ mano y no salen del saldo hasta que se apuestan. La mesa se guarda en el disposi
 acción para reanudarla; una mano con fichas en juego sin su estado (otro dispositivo) se da por
 perdida, como en el blackjack. Limitación aceptada: la baraja de la mano está en el estado local.
 
+## 8 sexies. Estadísticas e historial (Fase 11)
+
+La fuente es el libro contable (`wallets/{uid}/ledger`), que ya registraba cada movimiento y es
+inmutable. Desde esta fase la liquidación de una ronda por turnos guarda también lo apostado en
+toda la ronda (`stake`): así cada ronda es un único asiento completo (liquidación o ronda
+instantánea). Las reglas lo validan sin romper versiones anteriores de la app:
+`e.get('stake', round.stake) == round.stake`.
+
+- **Historial:** páginas de 30 líneas del asiento más reciente al más antiguo
+  (`seq` descendente). Las apuestas sueltas no se muestran: se ven en su liquidación. Movimientos:
+  bienvenida, recarga, bono diario y logros.
+- **Estadísticas por juego:** rondas, % ganadas, balance (cobrado − apostado) y mejor ronda. Se
+  guardan resumidas en el dispositivo con el último asiento contado y cada visita solo lee los
+  asientos nuevos (`seq > último`): cuesta pocas lecturas aunque el libro crezca. En un
+  dispositivo nuevo se lee el libro una vez. Alternativa descartada: contadores por juego en el
+  monedero, que exigirían más validación en unas reglas ya cerca del límite de expresiones.
+- Se recarga sola cuando el monedero registra un movimiento nuevo.
+- Las estadísticas generales (nivel, rachas, saldo máximo) siguen en la pestaña Progreso.
+
 ## 9. Autenticación (Fase 3: interfaz y reglas; Fase 4: Firebase)
 
 Decisiones confirmadas: **solo email y contraseña** (sin modo invitado ni Google Sign-In, retirados
@@ -373,7 +392,7 @@ Implementación:
 | 8 | Ruleta | Hecha |
 | 9 | Slots y Dados | Hecha |
 | 10 | Póker contra bots | Hecha |
-| 11 | Estadísticas e historial | — |
+| 11 | Estadísticas e historial | Hecha |
 | 12 | Sonido y animaciones avanzadas | — |
 | 13 | Optimización | — |
 | 14 | Cobertura de tests | — |
@@ -393,6 +412,10 @@ Implementación:
 ## 13. Problemas conocidos
 
 - El SDK de Firebase añade unos 210 KB comprimidos a la PWA.
+- Los tests de reglas borran la base de datos del emulador: no hay que lanzarlos contra el
+  emulador que usa la app en desarrollo (`firebase emulators:exec` arranca uno propio).
+- En Wasm, los errores de JavaScript no son `Exception`: donde se llama a la API de Firebase se
+  captura `Throwable` (dejando pasar la cancelación).
 - Con el servidor de desarrollo web en marcha, `allTests` puede agotar la memoria del daemon de
   Kotlin al enlazar los ejecutables de test de Wasm: conviene parar el servidor (y `./gradlew --stop`)
   antes de lanzar todos los tests. Desde la Fase 10 el daemon de Kotlin usa 4 GB (`gradle.properties`).
