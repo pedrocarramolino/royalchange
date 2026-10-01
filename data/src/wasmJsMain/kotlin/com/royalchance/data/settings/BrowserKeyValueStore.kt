@@ -12,10 +12,17 @@ class BrowserKeyValueStore(private val prefix: String = "royalchance.") : KeyVal
     override fun putString(key: String, value: String) {
         localStorageSet(prefix + key, value)
     }
+
+    override fun remove(key: String) {
+        localStorageRemove(prefix + key)
+    }
 }
 
 private fun localStorageGet(key: String): String? =
     js("(() => { try { return globalThis.localStorage.getItem(key); } catch (e) { return null; } })()")
+
+private fun localStorageRemove(key: String): Unit =
+    js("(() => { try { globalThis.localStorage.removeItem(key); } catch (e) { } })()")
 
 private fun localStorageSet(key: String, value: String): Unit =
     js("(() => { try { globalThis.localStorage.setItem(key, value); } catch (e) { } })()")

@@ -12,4 +12,9 @@ class JvmPreferencesKeyValueStore(nodePath: String = "/com/royalchance") : KeyVa
         preferences.put(key, value)
         preferences.flush()
     }
+
+    override fun remove(key: String) {
+        preferences.remove(key)
+        preferences.flush()
+    }
 }

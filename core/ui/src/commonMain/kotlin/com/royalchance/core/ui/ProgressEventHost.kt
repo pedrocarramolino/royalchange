@@ -17,11 +17,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -40,21 +43,45 @@ import com.royalchance.domain.progression.Levels
 import com.royalchance.domain.progression.ProgressEvent
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import org.jetbrains.compose.resources.stringResource
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
+ * Retiene los avisos de progreso mientras una mesa anima el final de una ronda: la ronda ya está
+ * contabilizada, pero un "logro desbloqueado" no debe adelantar el resultado.
+ */
+@Stable
+class ProgressEventGate {
+    var held: Boolean by mutableStateOf(false)
+}
+
+/** Retiene los avisos de [gate] mientras [held] sea `true` (y los suelta al salir de la pantalla). */
+@Composable
+fun HoldProgressEvents(gate: ProgressEventGate, held: Boolean) {
+    DisposableEffect(gate, held) {
+        gate.held = held
+        onDispose { gate.held = false }
+    }
+}
+
+/**
  * Avisos de progreso (subida de nivel, logro desbloqueado), uno tras otro, sobre cualquier pantalla.
- * No bloquean: desaparecen solos y los lectores de pantalla los anuncian.
+ * No bloquean: desaparecen solos y los lectores de pantalla los anuncian. Esperan mientras
+ * [gate] los retenga.
  */
 @Composable
-fun ProgressEventHost(events: Flow<ProgressEvent>, modifier: Modifier = Modifier) {
+fun ProgressEventHost(events: Flow<ProgressEvent>, gate: ProgressEventGate, modifier: Modifier = Modifier) {
     var current by remember { mutableStateOf<ProgressEvent?>(null) }
     var visible by remember { mutableStateOf(false) }
 
-    LaunchedEffect(events) {
+    LaunchedEffect(events, gate) {
         events.collect { event ->
+            // El evento llega al contabilizar; la pantalla que anima retiene la puerta al recomponerse,
+            // unos milisegundos después. La espera inicial evita adelantarse a esa retención.
+            delay(GATE_GRACE)
+            snapshotFlow { gate.held }.first { !it }
             current = event
             visible = true
             delay(VISIBLE_TIME)
@@ -108,5 +135,6 @@ private fun ProgressEventCard(event: ProgressEvent) {
     }
 }
 
+private val GATE_GRACE = 300.milliseconds
 private val VISIBLE_TIME = 3.5.seconds
 private val HIDE_ANIMATION = 350.milliseconds

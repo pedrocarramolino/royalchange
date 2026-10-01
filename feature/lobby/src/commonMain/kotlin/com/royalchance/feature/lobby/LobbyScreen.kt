@@ -22,9 +22,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -55,6 +57,7 @@ import com.royalchance.feature.lobby.resources.lobby_coming_soon
 import com.royalchance.feature.lobby.resources.lobby_games
 import com.royalchance.feature.lobby.resources.lobby_greeting
 import com.royalchance.feature.lobby.resources.lobby_greeting_default
+import com.royalchance.feature.lobby.resources.lobby_play
 import com.royalchance.feature.lobby.resources.lobby_subtitle
 import com.royalchance.feature.lobby.resources.lobby_verify_action
 import com.royalchance.feature.lobby.resources.lobby_verify_banner
@@ -65,7 +68,7 @@ import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
-internal fun LobbyScreen(viewModel: LobbyViewModel, onOpenProgress: () -> Unit) {
+internal fun LobbyScreen(viewModel: LobbyViewModel, onOpenProgress: () -> Unit, onOpenGame: (GameType) -> Unit) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     // En escritorio el contenido se centra con un ancho máximo cómodo de leer.
@@ -132,7 +135,7 @@ internal fun LobbyScreen(viewModel: LobbyViewModel, onOpenProgress: () -> Unit) 
             item(span = { GridItemSpan(maxLineSpan) }) {
                 SectionHeader(stringResource(Res.string.lobby_games))
             }
-            items(state.games, key = { it.name }) { game -> GameCard(game) }
+            items(state.games, key = { it.name }) { game -> GameCard(game, available = game in AVAILABLE_GAMES, onOpen = { onOpenGame(game) }) }
         }
     }
 }
@@ -206,17 +209,25 @@ private val GameType.description: StringResource
         GameType.Dice -> Res.string.game_dice_description
     }
 
-/** Tarjeta de juego. En esta fase los juegos aún no están disponibles: se muestran como "Próximamente". */
+/** Juegos ya jugables; el resto se muestra como "Próximamente" hasta su fase. */
+private val AVAILABLE_GAMES = setOf(GameType.Blackjack)
+
+/** Tarjeta de juego: abre la mesa si el juego está disponible. */
 @Composable
-private fun GameCard(game: GameType) {
+private fun GameCard(game: GameType, available: Boolean, onOpen: () -> Unit) {
     val casino = RoyalTheme.casinoColors
     val title = stringResource(game.title)
     val description = stringResource(game.description)
-    val comingSoon = stringResource(Res.string.lobby_coming_soon)
+    val badge = stringResource(if (available) Res.string.lobby_play else Res.string.lobby_coming_soon)
     Surface(
+        onClick = onOpen,
+        enabled = available,
         shape = MaterialTheme.shapes.large,
         color = MaterialTheme.colorScheme.surfaceContainer,
-        modifier = Modifier.clearAndSetSemantics { contentDescription = "$title. $description. $comingSoon" },
+        modifier = Modifier.clearAndSetSemantics {
+            contentDescription = "$title. $description. $badge"
+            if (available) role = Role.Button
+        },
     ) {
         Column {
             Column(
@@ -230,11 +241,14 @@ private fun GameCard(game: GameType) {
                 Text(title, style = MaterialTheme.typography.titleLarge)
                 Text(description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, minLines = 3)
                 Spacer(Modifier.height(RoyalSpacing.xs))
-                Surface(shape = MaterialTheme.shapes.extraSmall, color = MaterialTheme.colorScheme.primaryContainer) {
+                Surface(
+                    shape = MaterialTheme.shapes.extraSmall,
+                    color = if (available) casino.gold else MaterialTheme.colorScheme.primaryContainer,
+                ) {
                     Text(
-                        text = comingSoon.uppercase(),
+                        text = badge.uppercase(),
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        color = if (available) casino.onGold else MaterialTheme.colorScheme.onPrimaryContainer,
                         modifier = Modifier.padding(horizontal = RoyalSpacing.s, vertical = RoyalSpacing.xxs),
                     )
                 }

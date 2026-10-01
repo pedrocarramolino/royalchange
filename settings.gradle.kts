@@ -45,6 +45,10 @@ include(":core:designsystem")
 include(":core:testing")
 include(":core:ui")
 
+// Motores de juego: Kotlin puro, sin UI ni datos
+include(":engine:cards")
+include(":engine:blackjack")
+
 // Dominio (contratos y reglas) y datos (implementaciones)
 include(":domain")
 include(":data")
@@ -52,6 +56,7 @@ include(":data:firebase")
 
 // Funcionalidades
 include(":feature:auth")
+include(":feature:blackjack")
 include(":feature:lobby")
 include(":feature:profile")
 include(":feature:history")

@@ -5,6 +5,7 @@
     <string name="lobby_subtitle">Elige tu mesa</string>
     <string name="lobby_games">Juegos</string>
     <string name="lobby_coming_soon">Próximamente</string>
+    <string name="lobby_play">Jugar</string>
     <string name="lobby_balance_label">Tu saldo</string>
     <string name="lobby_balance_loading">Cargando tu saldo</string>
     <string name="lobby_balance_unavailable">Tu saldo no está disponible ahora mismo. Vuelve a intentarlo en unos minutos.</string>

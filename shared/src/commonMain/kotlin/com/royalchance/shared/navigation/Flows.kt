@@ -15,6 +15,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
@@ -36,15 +37,19 @@ import com.royalchance.core.designsystem.icon.RoyalIcons
 import com.royalchance.core.designsystem.theme.RoyalSpacing
 import com.royalchance.core.ui.AvatarBadge
 import com.royalchance.core.ui.ChipBalance
+import com.royalchance.core.ui.ProgressEventGate
 import com.royalchance.core.ui.ProgressEventHost
 import com.royalchance.domain.auth.AuthUser
 import com.royalchance.domain.auth.AvatarId
 import com.royalchance.domain.economy.Chips
 import com.royalchance.domain.economy.WalletState
+import com.royalchance.domain.game.GameType
 import com.royalchance.feature.auth.legal.LegalDocument
 import com.royalchance.feature.auth.navigation.AuthRoute
 import com.royalchance.feature.auth.navigation.authEntries
 import com.royalchance.feature.auth.navigation.legalEntries
+import com.royalchance.feature.blackjack.BlackjackRoute
+import com.royalchance.feature.blackjack.blackjackEntry
 import com.royalchance.feature.history.HistoryRoute
 import com.royalchance.feature.history.historyEntry
 import com.royalchance.feature.lobby.LobbyRoute
@@ -104,7 +109,7 @@ private enum class MainTab(val route: NavKey) {
 /**
  * Casino con sesión iniciada. La pila siempre empieza en el lobby; cambiar de pestaña deja
  * `[lobby, pestaña]`, de modo que "atrás" desde cualquier pestaña vuelve al lobby.
- * Las pantallas empujadas encima (p. ej. los documentos legales) ocultan la navegación principal.
+ * Las pantallas empujadas encima (mesas de juego, documentos legales) ocultan la navegación principal.
  */
 @Composable
 internal fun MainFlow(graph: AppGraph, user: AuthUser?) {
@@ -122,6 +127,7 @@ internal fun MainFlow(graph: AppGraph, user: AuthUser?) {
         NavigationItem(MainTab.Settings, stringResource(Res.string.tab_settings), RoyalIcons.Settings),
     )
 
+    val eventGate = remember { ProgressEventGate() }
     Box(Modifier.fillMaxSize()) {
         AdaptiveNavigationScaffold(
             items = items,
@@ -144,7 +150,9 @@ internal fun MainFlow(graph: AppGraph, user: AuthUser?) {
                         clock = graph.clock,
                         timeZone = graph.timeZone,
                         onOpenProgress = { backStack.selectTab(MainTab.Progress) },
+                        onOpenGame = { game -> if (game == GameType.Blackjack) backStack.add(BlackjackRoute) },
                     )
+                    blackjackEntry(graph.blackjackDependencies, eventGate, onBack = { backStack.popIfNotRoot() })
                     progressEntry(graph.economyRepository, graph.clock, graph.timeZone)
                     historyEntry()
                     settingsEntry(
@@ -161,6 +169,7 @@ internal fun MainFlow(graph: AppGraph, user: AuthUser?) {
         // Subidas de nivel y logros, sobre cualquier pantalla del casino.
         ProgressEventHost(
             events = graph.economyRepository.events,
+            gate = eventGate,
             modifier = Modifier.align(Alignment.TopCenter).windowInsetsPadding(WindowInsets.safeDrawing),
         )
     }

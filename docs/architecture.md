@@ -52,19 +52,22 @@ Las features no se conocen entre sí: cuando una necesita abrir una pantalla de 
 Ajustes → documentos legales), recibe una función y es `shared` quien conoce la ruta.
 Excepción controlada: los tests de `feature:auth` usan `:data` (repositorio en memoria) como doble.
 
-Los módulos se crean cuando una fase los necesita. Existentes tras la Fase 3:
+Los módulos se crean cuando una fase los necesita. Existentes tras la Fase 7:
 
 | Módulo | Contenido |
 |---|---|
 | `core:common` | `RandomGenerator` e ids aleatorios, `Outcome` (errores tipados), formato de números, nombres de países (CLDR) |
-| `core:designsystem` | Tema "Noir & Oro", tipografía, iconos, palos de la baraja, ficha de casino, barras de avance, componentes, navegación adaptativa |
-| `core:ui` | Avatares, selector de país, saldo de fichas, textos de niveles y logros, avisos de progreso |
+| `core:designsystem` | Tema "Noir & Oro", tipografía, iconos, palos de la baraja, naipe, ficha de casino, barras de avance, componentes, navegación adaptativa |
+| `core:ui` | Avatares, selector de país, saldo de fichas, textos de niveles y logros, avisos de progreso (con retención mientras una mesa anima) |
 | `core:testing` | Generadores aleatorios deterministas, `TestClock` |
-| `domain` | Autenticación, reglas del registro, países, ajustes, `GameType`, economía (`Chips`, monedero, asientos, reglas) y progresión (niveles, experiencia, bono diario, logros) |
-| `data` | Repositorios en memoria (escritorio y tests), incluida la economía, y ajustes persistentes (`KeyValueStore`) |
+| `domain` | Autenticación, reglas del registro, países, ajustes, `GameType`, `GameSessionStore`, economía (`Chips`, monedero, asientos, reglas) y progresión (niveles, experiencia, bono diario, logros) |
+| `engine:cards` | Cartas, baraja y zapato serializable con carta de corte |
+| `engine:blackjack` | Motor de blackjack: reglas, valor de manos, acciones, eventos y liquidación |
+| `data` | Repositorios en memoria (escritorio y tests), incluida la economía, ajustes persistentes (`KeyValueStore`) y sesiones de mesa guardadas en el dispositivo |
 | `data:firebase` | Autenticación, perfil y economía con Firebase (Android y web); lógica común sobre pasarelas por plataforma |
 | `feature:auth` | Bienvenida, inicio de sesión, registro completo, completar perfil, recuperar contraseña, legales |
-| `feature:lobby` | Saludo, saldo, nivel, bono diario, avisos de cuenta y de logros, recarga gratuita y catálogo de juegos |
+| `feature:lobby` | Saludo, saldo, nivel, bono diario, avisos de cuenta y de logros, recarga gratuita y catálogo de juegos (abre los disponibles) |
+| `feature:blackjack` | Mesa de blackjack: apuesta con fichas, jugadas, animación del crupier y reanudación de la mano |
 | `feature:profile` | Progreso: nivel, estadísticas, racha de bono diario y logros con el cobro de sus recompensas |
 | `feature:history` | Pestaña de historial (estado vacío hasta la Fase 11) |
 | `feature:settings` | Cuenta, tema, documentos legales, cerrar sesión y eliminar cuenta |
@@ -205,6 +208,33 @@ una sola vez, como una operación más con su asiento.
 **Avisos:** `EconomyRepository.events` emite subidas de nivel y logros desbloqueados; un aviso
 no bloqueante los muestra sobre cualquier pantalla del casino.
 
+## 8 bis. Blackjack (Fase 7)
+
+**Reglas** (`BlackjackRules`): 6 barajas, se baraja al pasar la carta de corte (75 % del zapato),
+el crupier se planta en todos los 17 y mira si tiene blackjack, blackjack 3:2, doblar con 2 cartas
+(también tras separar), separar hasta 4 manos (los ases reciben una sola carta y 21 con ellos no es
+blackjack), sin seguro ni rendición. Mesa: mínimo 10, máximo 10.000 por mano, en múltiplos de 10;
+el máximo en juego (4 manos dobladas = 80.000) cabe en el límite de ronda de la economía.
+
+**Motor** (`engine:blackjack`): función pura `apply(estado, acción, random) → estado + eventos` o
+error tipado. El zapato forma parte del estado, así que una mano se puede guardar y reanudar tal
+cual. Simulación de 5.000 rondas en los tests: las cartas se conservan y los pagos cuadran.
+
+**Flujo con la economía** (`BlackjackViewModel`):
+1. Repartir: `placeBet` antes de enseñar cartas; doblar y separar son nuevas `placeBet` de la misma
+   ronda. Sin saldo, la jugada se rechaza y la mano sigue.
+2. Al terminar la ronda se liquida (`settleRound`) **antes** de animar al crupier; el saldo mostrado
+   se congela hasta que acaba la animación y los avisos de progreso esperan (`ProgressEventGate`).
+3. Tras cada acción se guarda la mesa en el dispositivo (`GameSessionStore`). Al volver: se reanuda
+   la mano, o se completa una liquidación pendiente; si el monedero tiene una ronda de blackjack
+   abierta sin mesa guardada (otro dispositivo, datos borrados), se da por perdida con
+   `settleRound(0)` y se avisa.
+
+Limitación aceptada: el cliente decide las cartas. El servidor acota el daño (límites de apuesta,
+techo de pago, una ronda abierta a la vez), pero un cliente manipulado podría elegir resultados
+dentro de esos límites. Con fichas sin valor es asumible; un servidor de juego exigiría Cloud
+Functions (plan de pago).
+
 ## 9. Autenticación (Fase 3: interfaz y reglas; Fase 4: Firebase)
 
 Decisiones confirmadas: **solo email y contraseña** (sin modo invitado ni Google Sign-In, retirados
@@ -259,7 +289,7 @@ Implementación:
 | 4 | Firebase: autenticación real + Firestore + reglas de seguridad | Hecha |
 | 5 | Economía de fichas | Hecha |
 | 6 | Niveles, bono diario, rachas y logros | Hecha |
-| 7 | Blackjack | — |
+| 7 | Blackjack | Hecha |
 | 8 | Ruleta | — |
 | 9 | Slots y Dados | — |
 | 10 | Póker contra bots | — |
@@ -271,7 +301,7 @@ Implementación:
 
 ## 12. Reglas de juego acordadas (Fase 1)
 
-- Blackjack: 6 barajas, crupier se planta en 17 blando, blackjack 3:2, doblar con 2 cartas,
+- Blackjack: 6 barajas, crupier se planta en todos los 17 (también el blando), blackjack 3:2, doblar con 2 cartas,
   split hasta 4 manos (ases: una carta), sin seguro ni rendición en la v1.
 - Ruleta europea (0–36); con 0 pierden las apuestas sencillas.
 - Póker: No-Limit Texas Hold'em, 6 asientos, fichas llevadas del saldo a la mesa.

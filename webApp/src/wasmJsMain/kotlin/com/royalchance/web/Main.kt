@@ -4,6 +4,7 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.window.ComposeViewport
 import com.royalchance.data.firebase.FirebaseEnvironment
 import com.royalchance.data.firebase.WebFirebase
+import com.royalchance.data.games.KeyValueGameSessionStore
 import com.royalchance.data.settings.BrowserKeyValueStore
 import com.royalchance.data.settings.PersistentSettingsRepository
 import com.royalchance.shared.App
@@ -19,10 +20,12 @@ fun main() {
         environment = FirebaseEnvironment.fromConfig(emulatorHost = pageHostname()),
         scope = appScope,
     )
+    val browserStore = BrowserKeyValueStore()
     val graph = AppGraph(
         authRepository = firebase.auth,
         economyRepository = firebase.economy,
-        settingsRepository = PersistentSettingsRepository(BrowserKeyValueStore()),
+        settingsRepository = PersistentSettingsRepository(browserStore),
+        gameSessions = KeyValueGameSessionStore(browserStore),
     )
     ComposeViewport(viewportContainerId = "composeTarget") {
         App(graph)

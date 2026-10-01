@@ -3,6 +3,7 @@ package com.royalchance.android
 import android.app.Application
 import com.royalchance.data.firebase.AndroidFirebase
 import com.royalchance.data.firebase.FirebaseEnvironment
+import com.royalchance.data.games.KeyValueGameSessionStore
 import com.royalchance.data.settings.PersistentSettingsRepository
 import com.royalchance.shared.AppGraph
 import kotlinx.coroutines.MainScope
@@ -18,10 +19,12 @@ class RoyalChanceApplication : Application() {
             environment = FirebaseEnvironment.fromConfig(emulatorHost = ANDROID_EMULATOR_HOST),
             scope = appScope,
         )
+        val preferences = SharedPreferencesKeyValueStore(this)
         AppGraph(
             authRepository = firebase.auth,
             economyRepository = firebase.economy,
-            settingsRepository = PersistentSettingsRepository(SharedPreferencesKeyValueStore(this)),
+            settingsRepository = PersistentSettingsRepository(preferences),
+            gameSessions = KeyValueGameSessionStore(preferences),
         )
     }
 

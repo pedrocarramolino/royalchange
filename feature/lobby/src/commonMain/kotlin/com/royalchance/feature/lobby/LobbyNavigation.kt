@@ -5,6 +5,7 @@ import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
 import com.royalchance.domain.auth.AuthRepository
 import com.royalchance.domain.economy.EconomyRepository
+import com.royalchance.domain.game.GameType
 import kotlinx.serialization.Serializable
 import kotlinx.datetime.TimeZone
 import kotlinx.serialization.modules.PolymorphicModuleBuilder
@@ -17,18 +18,23 @@ fun PolymorphicModuleBuilder<NavKey>.lobbyRoutes() {
     subclass(LobbyRoute::class, LobbyRoute.serializer())
 }
 
-/** @param onOpenProgress abre la pestaña de progreso (nivel y logros): la decide quien navega. */
+/**
+ * @param onOpenProgress abre la pestaña de progreso (nivel y logros).
+ * @param onOpenGame abre la mesa de un juego. Las rutas las decide quien navega.
+ */
 fun EntryProviderScope<NavKey>.lobbyEntry(
     authRepository: AuthRepository,
     economyRepository: EconomyRepository,
     clock: Clock,
     timeZone: TimeZone,
     onOpenProgress: () -> Unit,
+    onOpenGame: (GameType) -> Unit,
 ) {
     entry<LobbyRoute> {
         LobbyScreen(
             viewModel = viewModel { LobbyViewModel(authRepository, economyRepository, clock, timeZone) },
             onOpenProgress = onOpenProgress,
+            onOpenGame = onOpenGame,
         )
     }
 }
