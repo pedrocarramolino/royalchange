@@ -38,6 +38,7 @@ import com.royalchance.core.designsystem.theme.RoyalSpacing
 import com.royalchance.core.designsystem.theme.RoyalTheme
 import com.royalchance.core.ui.AvatarBadge
 import com.royalchance.domain.auth.AvatarId
+import com.royalchance.domain.economy.RescueStatus
 import com.royalchance.domain.game.GameType
 import com.royalchance.feature.lobby.resources.Res
 import com.royalchance.feature.lobby.resources.game_blackjack
@@ -78,6 +79,25 @@ internal fun LobbyScreen(viewModel: LobbyViewModel) {
         ) {
             item(span = { GridItemSpan(maxLineSpan) }) {
                 LobbyHeader(alias = state.user?.profile?.alias, avatar = state.user?.profile?.avatar ?: AvatarId.SpadeGold)
+            }
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                BalanceCard(state.balance)
+            }
+            if (state.showWelcomeGrant) {
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    WelcomeGrantBanner(onDismiss = viewModel::dismissWelcomeGrant)
+                }
+            }
+            if (state.rescue != RescueStatus.NotNeeded || state.rescueFailed) {
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    RescueBanner(
+                        rescue = state.rescue,
+                        now = state.now,
+                        claiming = state.isClaimingRescue,
+                        failed = state.rescueFailed,
+                        onClaim = viewModel::claimRescue,
+                    )
+                }
             }
             state.verificationBanner?.let { banner ->
                 item(span = { GridItemSpan(maxLineSpan) }) {

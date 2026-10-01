@@ -1,6 +1,8 @@
 package com.royalchance.data.firebase.gateway
 
+import com.royalchance.data.firebase.LedgerEntryDocument
 import com.royalchance.data.firebase.PlayerDocument
+import com.royalchance.data.firebase.WalletDocument
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -45,8 +47,36 @@ internal interface PlayerStore {
     /** Reserva el alias y guarda el perfil en una única escritura atómica. */
     suspend fun saveProfile(document: PlayerDocument)
 
-    /** Borra el perfil y libera su alias en una única escritura atómica. */
-    suspend fun delete(uid: String, aliasKey: String?)
+    /**
+     * Borra todos los datos del jugador: perfil, alias, monedero y asientos. Las reglas solo
+     * permiten borrar el monedero junto con el perfil, y los asientos cuando ya no hay monedero.
+     */
+    suspend fun deleteAccountData(uid: String, aliasKey: String?)
+}
+
+internal interface WalletStore {
+
+    /**
+     * Monedero con las escrituras pendientes ya aplicadas; `null` solo cuando el servidor confirma
+     * que no existe (una caché vacía no cuenta como "no existe").
+     */
+    fun observe(uid: String): Flow<WalletDocument?>
+
+    /** Versión local más reciente (caché más escrituras pendientes); `null` si no está en caché. */
+    suspend fun readLocal(uid: String): WalletDocument?
+
+    /**
+     * Guarda el monedero y su asiento en una escritura atómica. Firestore la aplica en local al
+     * instante, también sin conexión, y una lectura local posterior ya la ve; el envío al servidor
+     * sigue en segundo plano y se espera con [PendingWrite.awaitServer].
+     */
+    fun write(wallet: WalletDocument, entry: LedgerEntryDocument): PendingWrite
+}
+
+/** Escritura ya aplicada en local, pendiente de confirmar por el servidor. */
+internal fun interface PendingWrite {
+    /** Lanza [FirebaseGatewayException] si el servidor la rechaza (Firestore deshace entonces el cambio local). */
+    suspend fun awaitServer()
 }
 
 internal data class GatewayUser(

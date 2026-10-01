@@ -8,6 +8,8 @@ external interface Firestore : JsAny
 
 external interface DocumentReference : JsAny
 
+external interface CollectionReference : JsAny
+
 external interface SnapshotMetadata : JsAny {
     val fromCache: Boolean
 }
@@ -16,6 +18,14 @@ external interface DocumentSnapshot : JsAny {
     val metadata: SnapshotMetadata
     fun exists(): Boolean
     fun data(): JsAny?
+}
+
+external interface QueryDocumentSnapshot : DocumentSnapshot {
+    val ref: DocumentReference
+}
+
+external interface QuerySnapshot : JsAny {
+    val docs: JsArray<QueryDocumentSnapshot>
 }
 
 external interface WriteBatch : JsAny {
@@ -36,13 +46,21 @@ external fun connectFirestoreEmulator(firestore: Firestore, host: String, port: 
 
 external fun doc(firestore: Firestore, path: String): DocumentReference
 
+external fun collection(firestore: Firestore, path: String): CollectionReference
+
 external fun getDocFromServer(reference: DocumentReference): Promise<DocumentSnapshot>
+
+/** Lee la caché local (con escrituras pendientes). Se rechaza con "unavailable" si no está en caché. */
+external fun getDocFromCache(reference: DocumentReference): Promise<DocumentSnapshot>
+
+external fun getDocsFromServer(query: CollectionReference): Promise<QuerySnapshot>
 
 external fun writeBatch(firestore: Firestore): WriteBatch
 
-/** Devuelve la función para cancelar la suscripción. */
+/** Devuelve la función para cancelar la suscripción. [options]: `{ includeMetadataChanges }`. */
 external fun onSnapshot(
     reference: DocumentReference,
+    options: JsAny,
     onNext: (DocumentSnapshot) -> Unit,
     onError: (JsAny) -> Unit,
 ): () -> Unit

@@ -4,7 +4,6 @@ import com.royalchance.domain.auth.AvatarId
 import com.royalchance.domain.auth.LegalConsents
 import com.royalchance.domain.auth.PlayerProfile
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 import kotlin.time.Instant
 
 /**
@@ -49,8 +48,6 @@ internal data class PlayerDocument(
 
         /** Los alias son únicos sin distinguir mayúsculas. */
         fun aliasKey(alias: String): String = alias.trim().lowercase()
-
-        val json = Json { ignoreUnknownKeys = true }
     }
 }
 

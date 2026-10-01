@@ -9,11 +9,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
@@ -28,8 +30,11 @@ import com.royalchance.core.designsystem.component.NavigationItem
 import com.royalchance.core.designsystem.icon.RoyalIcons
 import com.royalchance.core.designsystem.theme.RoyalSpacing
 import com.royalchance.core.ui.AvatarBadge
+import com.royalchance.core.ui.ChipBalance
 import com.royalchance.domain.auth.AuthUser
 import com.royalchance.domain.auth.AvatarId
+import com.royalchance.domain.economy.Chips
+import com.royalchance.domain.economy.WalletState
 import com.royalchance.feature.auth.legal.LegalDocument
 import com.royalchance.feature.auth.navigation.AuthRoute
 import com.royalchance.feature.auth.navigation.authEntries
@@ -98,6 +103,7 @@ private enum class MainTab(val route: NavKey) {
 @Composable
 internal fun MainFlow(graph: AppGraph, user: AuthUser?) {
     val backStack = rememberNavBackStack(NavigationConfiguration, LobbyRoute)
+    val wallet by graph.economyRepository.wallet.collectAsStateWithLifecycle()
     val currentTab = backStack.lastOrNull { key -> MainTab.entries.any { it.route == key } }
         ?.let { key -> MainTab.entries.first { it.route == key } }
         ?: MainTab.Casino
@@ -115,7 +121,7 @@ internal fun MainFlow(graph: AppGraph, user: AuthUser?) {
         selected = currentTab,
         onSelect = { tab -> backStack.selectTab(tab) },
         navigationVisible = onTabRoot,
-        drawerHeader = { DrawerHeader(user) },
+        drawerHeader = { DrawerHeader(user, balance = (wallet as? WalletState.Ready)?.wallet?.balance) },
     ) {
         NavDisplay(
             backStack = backStack,
@@ -125,7 +131,7 @@ internal fun MainFlow(graph: AppGraph, user: AuthUser?) {
                 rememberViewModelStoreNavEntryDecorator(),
             ),
             entryProvider = entryProvider {
-                lobbyEntry(graph.authRepository)
+                lobbyEntry(graph.authRepository, graph.economyRepository, graph.clock)
                 progressEntry()
                 historyEntry()
                 settingsEntry(
@@ -142,7 +148,7 @@ internal fun MainFlow(graph: AppGraph, user: AuthUser?) {
 }
 
 @Composable
-private fun DrawerHeader(user: AuthUser?) {
+private fun DrawerHeader(user: AuthUser?, balance: Chips?) {
     Column(verticalArrangement = Arrangement.spacedBy(RoyalSpacing.l), modifier = Modifier.padding(RoyalSpacing.s)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             BrandEmblem(size = 44.dp)
@@ -155,12 +161,15 @@ private fun DrawerHeader(user: AuthUser?) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             AvatarBadge(avatar = user?.profile?.avatar ?: AvatarId.SpadeGold, size = 40.dp)
             Spacer(Modifier.width(RoyalSpacing.m))
-            Text(
-                text = user?.profile?.alias ?: user?.email.orEmpty(),
-                style = MaterialTheme.typography.titleMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(RoyalSpacing.xxs)) {
+                Text(
+                    text = user?.profile?.alias ?: user?.email.orEmpty(),
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (balance != null) ChipBalance(balance, style = MaterialTheme.typography.labelLarge, glyphSize = 16.dp)
+            }
         }
     }
 }

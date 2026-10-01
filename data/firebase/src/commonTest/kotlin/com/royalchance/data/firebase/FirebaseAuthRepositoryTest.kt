@@ -9,6 +9,7 @@ import com.royalchance.domain.auth.AvatarId
 import com.royalchance.domain.auth.LegalConsents
 import com.royalchance.domain.auth.NewAccount
 import com.royalchance.domain.auth.PlayerProfile
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
@@ -139,6 +140,35 @@ class FirebaseAuthRepositoryTest {
         repository.refreshUser()
 
         assertTrue(repository.user().isEmailVerified)
+    }
+
+    @Test
+    fun deletingTheAccountNeverExposesAnAccountWithoutProfile() = test {
+        val repository = repository()
+        repository.register(NewAccount("ana@example.com", "Secreto123", profile("Ana")))
+        val states = mutableListOf<AuthState>()
+        backgroundScope.launch { repository.authState.toList(states) }
+
+        repository.deleteAccount("Secreto123")
+
+        // El perfil se borra antes que el usuario; la app nunca debe ver ese estado intermedio.
+        assertTrue(states.none { it is AuthState.SignedIn && it.user.needsProfileCompletion }, "estados: $states")
+        assertIs<AuthState.SignedOut>(repository.authState.value)
+    }
+
+    @Test
+    fun deletionFinishesEvenIfTheScreenThatStartedItGoesAway() = test {
+        val repository = repository()
+        repository.register(NewAccount("ana@example.com", "Secreto123", profile("Ana")))
+        val uid = repository.user().id
+        val slowNetwork = CompletableDeferred<Unit>().also { store.afterDeletingData = it }
+
+        val deletion = launch { repository.deleteAccount("Secreto123") }
+        deletion.cancel()
+        slowNetwork.complete(Unit)
+
+        assertEquals(listOf(uid), auth.deletedUids)
+        assertIs<AuthState.SignedOut>(repository.authState.value)
     }
 
     @Test

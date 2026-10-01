@@ -49,4 +49,6 @@ internal fun firestoreSettings(localCache: JsAny): JsAny = js("({ localCache: lo
 
 internal fun authEmulatorOptions(): JsAny = js("({ disableWarnings: true })")
 
+internal fun includeMetadataChanges(): JsAny = js("({ includeMetadataChanges: true })")
+
 internal fun aliasDocumentJs(uid: String, alias: String): JsAny = js("({ uid: uid, alias: alias })")

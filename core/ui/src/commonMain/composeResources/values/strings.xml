@@ -11,4 +11,6 @@
 
     <string name="country_label">País de residencia</string>
     <string name="country_dialog_title">Elige tu país</string>
+
+    <string name="chips_amount">%1$s fichas</string>
 </resources>

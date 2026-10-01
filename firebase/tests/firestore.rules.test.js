@@ -136,9 +136,184 @@ describe('aliases', () => {
   });
 });
 
+// ── Economía ────────────────────────────────────────────────────────────────────────────────
+
+const HOUR = 60 * 60 * 1000;
+
+/** Prepara un estado sin pasar por las reglas. */
+async function seed(path, data) {
+  await env.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), path), data);
+  });
+}
+
+/** Monedero de partida para probar movimientos (como si ya llevara cinco). */
+function seedWallet(uid, fields = {}) {
+  return seed(`wallets/${uid}`, { uid, balance: 10000, seq: 5, lastEntryId: 'anterior', ...fields });
+}
+
+/** Escribe un movimiento como la app: el monedero completo y su asiento, en un único lote. */
+function move(db, uid, wallet, entry) {
+  const batch = writeBatch(db);
+  batch.set(doc(db, `wallets/${uid}`), { uid, ...wallet });
+  batch.set(doc(db, `wallets/${uid}/ledger/${entry.id}`), { createdAtMillis: Date.now(), ...entry });
+  return batch.commit();
+}
+
+function welcome(db, uid, { id = 'bienvenida', amount = 10000 } = {}) {
+  return move(
+    db,
+    uid,
+    { balance: amount, seq: 1, lastEntryId: id },
+    { id, seq: 1, kind: 'Welcome', amount, balanceAfter: amount },
+  );
+}
+
+/** Ronda instantánea sobre un monedero de 10.000 fichas y 5 movimientos. */
+function spin(db, uid, { id = 'giro', stake = 100, payout = 0, balance = 10000 - stake + payout } = {}) {
+  return move(
+    db,
+    uid,
+    { balance, seq: 6, lastEntryId: id },
+    { id, seq: 6, kind: 'InstantRound', amount: balance - 10000, balanceAfter: balance, game: 'Roulette', roundId: id, stake, payout },
+  );
+}
+
+function rescue(db, uid, { balance = 5, at = Date.now() } = {}) {
+  return move(
+    db,
+    uid,
+    { balance: balance + 1000, seq: 6, lastEntryId: 'recarga', lastRescueAtMillis: at },
+    { id: 'recarga', seq: 6, kind: 'Rescue', amount: 1000, balanceAfter: balance + 1000, createdAtMillis: at },
+  );
+}
+
+describe('wallets', () => {
+  test('un jugador con perfil crea su monedero con las fichas de bienvenida', async () => {
+    const db = as('ana');
+    await register(db, 'ana', 'AsDePicas');
+    await assertSucceeds(welcome(db, 'ana'));
+    await assertSucceeds(getDoc(doc(db, 'wallets/ana')));
+  });
+
+  test('sin perfil no hay monedero, y la bienvenida no se puede inflar ni repetir', async () => {
+    const db = as('ana');
+    await assertFails(welcome(db, 'ana'));
+
+    await register(db, 'ana', 'AsDePicas');
+    await assertFails(welcome(db, 'ana', { amount: 1000000 }));
+    await welcome(db, 'ana');
+    await assertFails(welcome(db, 'ana', { id: 'otra-bienvenida' }));
+  });
+
+  test('una apuesta abre la ronda y su liquidación la cierra', async () => {
+    const db = as('ana');
+    await seedWallet('ana');
+
+    await assertSucceeds(move(
+      db, 'ana',
+      { balance: 9500, seq: 6, lastEntryId: 'apuesta', openRound: { id: 'apuesta', game: 'Blackjack', stake: 500 } },
+      { id: 'apuesta', seq: 6, kind: 'Bet', amount: -500, balanceAfter: 9500, game: 'Blackjack', roundId: 'apuesta', stake: 500 },
+    ));
+    await assertSucceeds(move(
+      db, 'ana',
+      { balance: 10500, seq: 7, lastEntryId: 'pago' },
+      { id: 'pago', seq: 7, kind: 'Settlement', amount: 1000, balanceAfter: 10500, game: 'Blackjack', roundId: 'apuesta', payout: 1000 },
+    ));
+  });
+
+  test('una ronda instantánea cobra la apuesta y paga el premio a la vez', async () => {
+    await seedWallet('ana');
+    await assertSucceeds(spin(as('ana'), 'ana', { stake: 100, payout: 3600 }));
+  });
+
+  test('el saldo no cambia sin un asiento que lo justifique', async () => {
+    const db = as('ana');
+    await seedWallet('ana');
+
+    await assertFails(setDoc(doc(db, 'wallets/ana'), { uid: 'ana', balance: 999999, seq: 6, lastEntryId: 'nada' }));
+    // Asiento que no cuadra: dice ganar 100 y el saldo sube 5.000.
+    await assertFails(spin(db, 'ana', { stake: 100, payout: 200, balance: 15000 }));
+  });
+
+  test('ni saldo negativo, ni apuestas fuera de límites, ni pagos imposibles', async () => {
+    const db = as('ana');
+    await seedWallet('ana', { balance: 50 });
+    await assertFails(move(
+      db, 'ana',
+      { balance: -50, seq: 6, lastEntryId: 'giro' },
+      { id: 'giro', seq: 6, kind: 'InstantRound', amount: -100, balanceAfter: -50, game: 'Dice', roundId: 'giro', stake: 100, payout: 0 },
+    ));
+
+    await seedWallet('ana');
+    await assertFails(spin(db, 'ana', { stake: 5 }));
+    await assertFails(spin(db, 'ana', { stake: 10, payout: 10010 }));
+    await assertFails(spin(db, 'ana', { stake: 100001, payout: 100001, balance: 10000 }));
+  });
+
+  test('los asientos son inmutables y nunca van sueltos', async () => {
+    const db = as('ana');
+    await seedWallet('ana');
+    await assertFails(setDoc(doc(db, 'wallets/ana/ledger/suelto'), {
+      id: 'suelto', seq: 6, kind: 'Rescue', amount: 1000, balanceAfter: 11000, createdAtMillis: Date.now(),
+    }));
+
+    await spin(db, 'ana', { id: 'giro' });
+    await assertFails(setDoc(doc(db, 'wallets/ana/ledger/giro'), {
+      id: 'giro', seq: 6, kind: 'InstantRound', amount: 5000, balanceAfter: 15000, createdAtMillis: Date.now(),
+    }));
+    await assertFails(deleteDoc(doc(db, 'wallets/ana/ledger/giro')));
+  });
+
+  test('repetir una operación no la cobra dos veces', async () => {
+    const db = as('ana');
+    await seedWallet('ana');
+    await assertSucceeds(spin(db, 'ana', { stake: 100, payout: 200 }));
+    await assertFails(spin(db, 'ana', { stake: 100, payout: 200 }));
+  });
+
+  test('la recarga gratuita solo llega sin fichas y una vez cada 4 horas del servidor', async () => {
+    const db = as('ana');
+    await seedWallet('ana', { balance: 100 });
+    await assertFails(rescue(db, 'ana', { balance: 100 }));
+
+    await seedWallet('ana', { balance: 5, lastRescueAtMillis: Date.now() - HOUR });
+    await assertFails(rescue(db, 'ana'));
+
+    await seedWallet('ana', { balance: 5, lastRescueAtMillis: Date.now() - 5 * HOUR });
+    // Adelantar la fecha del dispositivo no sirve: el servidor la rechaza.
+    await assertFails(rescue(db, 'ana', { at: Date.now() + 2 * HOUR }));
+    await assertSucceeds(rescue(db, 'ana'));
+  });
+
+  test('nadie lee ni mueve el monedero de otro jugador', async () => {
+    await seedWallet('ana');
+    await assertFails(getDoc(doc(as('luis'), 'wallets/ana')));
+    await assertFails(getDoc(doc(anonymous(), 'wallets/ana')));
+    await assertFails(spin(as('luis'), 'ana', { stake: 100, payout: 200 }));
+  });
+
+  test('eliminar la cuenta borra monedero y asientos, nunca el saldo por separado', async () => {
+    const db = as('ana');
+    await register(db, 'ana', 'AsDePicas');
+    await welcome(db, 'ana');
+
+    // Borrar solo el monedero permitiría volver a cobrar la bienvenida.
+    await assertFails(deleteDoc(doc(db, 'wallets/ana')));
+    await assertFails(deleteDoc(doc(db, 'wallets/ana/ledger/bienvenida')));
+
+    const batch = writeBatch(db);
+    batch.delete(doc(db, 'players/ana'));
+    batch.delete(doc(db, 'aliases/asdepicas'));
+    batch.delete(doc(db, 'wallets/ana'));
+    batch.delete(doc(db, 'wallets/ana/ledger/bienvenida'));
+    await assertSucceeds(batch.commit());
+  });
+});
+
 describe('resto de la base de datos', () => {
   test('cualquier otra colección está cerrada', async () => {
-    await assertFails(setDoc(doc(as('ana'), 'wallets/ana'), { balance: 1 }));
-    await assertFails(getDoc(doc(as('ana'), 'wallets/ana')));
+    await assertFails(setDoc(doc(as('ana'), 'leaderboard/ana'), { balance: 1 }));
+    await assertFails(getDoc(doc(as('ana'), 'leaderboard/ana')));
   });
 });

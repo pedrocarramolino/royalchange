@@ -10,6 +10,13 @@ rules_version = '2';
 // Colecciones:
 // - players/{uid}: perfil del jugador (solo cuentas con email y contraseña).
 // - aliases/{aliasKey}: reserva de alias (en minúsculas) para que sean únicos.
+// - wallets/{uid}: saldo de fichas. Solo cambia junto a un asiento que lo justifique.
+// - wallets/{uid}/ledger/{entryId}: asientos contables, inmutables.
+//
+// Límite conocido: sin lógica en el servidor (Cloud Functions, plan de pago) el cliente decide el
+// resultado de cada ronda. Estas reglas impiden saldos negativos, movimientos sin justificar,
+// apuestas y pagos imposibles y recargas antes de tiempo, pero no que un cliente manipulado
+// declare una victoria. Por eso los pagos tienen un techo por ronda.
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -59,6 +66,199 @@ service cloud.firestore {
         && data.birthYear >= request.time.year() - 120
         && data.marketingOptIn is bool;
     }
+
+    // ── Economía ────────────────────────────────────────────────────────────────────────────
+    // Repite EconomyRules (módulo domain): si cambia un valor, hay que cambiar los dos y sus tests.
+
+    function welcomeGrant() { return 10000; }
+    function minimumBet() { return 10; }
+    function maximumRoundStake() { return 100000; }
+    function maximumPayoutMultiplier() { return 1000; }
+    function rescueGrant() { return 1000; }
+    function rescueCooldownMillis() { return 4 * 60 * 60 * 1000; }
+    // Margen para relojes de dispositivo algo adelantados respecto al servidor.
+    function clockSkewMillis() { return 5 * 60 * 1000; }
+    function games() { return ['Blackjack', 'Roulette', 'Slots', 'Poker', 'Dice']; }
+    function entryKinds() { return ['Welcome', 'Bet', 'Settlement', 'InstantRound', 'Rescue']; }
+
+    function playerPath(uid) {
+      return /databases/$(database)/documents/players/$(uid);
+    }
+
+    function walletPath(uid) {
+      return /databases/$(database)/documents/wallets/$(uid);
+    }
+
+    function entryPath(uid, entryId) {
+      return /databases/$(database)/documents/wallets/$(uid)/ledger/$(entryId);
+    }
+
+    function validOpenRound(round) {
+      return round is map
+        && round.keys().hasAll(['id', 'game', 'stake'])
+        && round.keys().hasOnly(['id', 'game', 'stake'])
+        && round.id is string
+        && round.game in games()
+        && round.stake is int && round.stake >= minimumBet() && round.stake <= maximumRoundStake();
+    }
+
+    function validWallet(data, uid) {
+      return data.keys().hasAll(['uid', 'balance', 'seq', 'lastEntryId'])
+        && data.keys().hasOnly(['uid', 'balance', 'seq', 'lastEntryId', 'openRound', 'lastRescueAtMillis'])
+        && data.uid == uid
+        && data.balance is int && data.balance >= 0
+        && data.seq is int
+        && data.lastEntryId is string
+        && (!('openRound' in data) || validOpenRound(data.openRound))
+        && (!('lastRescueAtMillis' in data) || data.lastRescueAtMillis is int);
+    }
+
+    function validEntry(data, entryId) {
+      return data.keys().hasAll(['id', 'seq', 'kind', 'amount', 'balanceAfter', 'createdAtMillis'])
+        && data.keys().hasOnly([
+          'id', 'seq', 'kind', 'amount', 'balanceAfter', 'createdAtMillis',
+          'game', 'roundId', 'stake', 'payout'
+        ])
+        && data.id == entryId
+        && data.seq is int
+        && data.kind in entryKinds()
+        && data.amount is int
+        && data.balanceAfter is int
+        // La fecha la pone el dispositivo (funciona sin conexión), pero nunca en el futuro del servidor.
+        && data.createdAtMillis is int
+        && data.createdAtMillis <= request.time.toMillis() + clockSkewMillis()
+        && (!('game' in data) || data.game in games())
+        && (!('roundId' in data) || data.roundId is string)
+        && (!('stake' in data) || data.stake is int)
+        && (!('payout' in data) || data.payout is int);
+    }
+
+    function keepsRescueTime(before, after) {
+      return after.get('lastRescueAtMillis', null) == before.get('lastRescueAtMillis', null);
+    }
+
+    // Apuesta de una ronda por turnos: abre la ronda o añade fichas a la abierta del mismo juego.
+    function validBet(before, after, e) {
+      let previous = before.get('openRound', null);
+      let stake = before.balance - after.balance;
+      let roundId = previous == null ? e.id : previous.id;
+      let roundStake = (previous == null ? 0 : previous.stake) + stake;
+      return e.kind == 'Bet'
+        && stake >= minimumBet()
+        && e.stake == stake
+        && (previous == null || previous.game == e.game)
+        && e.roundId == roundId
+        && roundStake <= maximumRoundStake()
+        && after.get('openRound', null) == {'id': roundId, 'game': e.game, 'stake': roundStake}
+        && keepsRescueTime(before, after);
+    }
+
+    // Liquidación de la ronda abierta: el pago no puede superar su apuesta por el techo global.
+    function validSettlement(before, after, e) {
+      let round = before.get('openRound', null);
+      let payout = after.balance - before.balance;
+      return e.kind == 'Settlement'
+        && round != null
+        && e.roundId == round.id
+        && e.game == round.game
+        && payout >= 0
+        && e.payout == payout
+        && payout <= round.stake * maximumPayoutMultiplier()
+        && !('openRound' in after)
+        && keepsRescueTime(before, after);
+    }
+
+    // Ronda instantánea (ruleta, slots, dados): apuesta y pago en un solo asiento.
+    function validInstantRound(before, after, e) {
+      return e.kind == 'InstantRound'
+        && e.game in games()
+        && e.roundId == e.id
+        && e.stake is int && e.payout is int
+        && e.stake >= minimumBet() && e.stake <= maximumRoundStake()
+        && e.stake <= before.balance
+        && e.payout >= 0 && e.payout <= e.stake * maximumPayoutMultiplier()
+        && after.balance - before.balance == e.payout - e.stake
+        && after.get('openRound', null) == before.get('openRound', null)
+        && keepsRescueTime(before, after);
+    }
+
+    // Recarga gratuita: sin fichas para apostar ni en la mesa, y como mucho una cada 4 horas
+    // según la hora del servidor (cambiar la fecha del dispositivo no adelanta la siguiente).
+    function validRescue(before, after, e) {
+      let last = before.get('lastRescueAtMillis', null);
+      return e.kind == 'Rescue'
+        && before.balance < minimumBet()
+        && !('openRound' in before)
+        && !('openRound' in after)
+        && after.balance - before.balance == rescueGrant()
+        && (last == null || request.time.toMillis() + clockSkewMillis() >= last + rescueCooldownMillis())
+        && after.lastRescueAtMillis == e.createdAtMillis
+        && (last == null || after.lastRescueAtMillis >= last + rescueCooldownMillis());
+    }
+
+    // El asiento cuadra con el cambio de saldo y es una de las operaciones permitidas.
+    function validMovement(before, after, e) {
+      return e.seq == after.seq
+        && e.amount == after.balance - before.balance
+        && e.balanceAfter == after.balance
+        && (validBet(before, after, e)
+          || validSettlement(before, after, e)
+          || validInstantRound(before, after, e)
+          || validRescue(before, after, e));
+    }
+
+    function validWelcome(after, e) {
+      return after.seq == 1
+        && after.balance == welcomeGrant()
+        && !('openRound' in after)
+        && !('lastRescueAtMillis' in after)
+        && e.kind == 'Welcome'
+        && e.seq == 1
+        && e.amount == welcomeGrant()
+        && e.balanceAfter == welcomeGrant();
+    }
+
+    match /wallets/{uid} {
+      allow read: if isOwner(uid);
+
+      // Se crea una sola vez, tras el perfil, con las fichas de bienvenida y su asiento.
+      allow create: if isOwner(uid)
+        && exists(playerPath(uid))
+        && validWallet(request.resource.data, uid)
+        && validWelcome(request.resource.data, getAfter(entryPath(uid, request.resource.data.lastEntryId)).data);
+
+      // Cada cambio: número de movimiento consecutivo y un asiento nuevo, escrito en el mismo lote,
+      // que lo justifica. Una escritura basada en un saldo antiguo no cuadra y se rechaza.
+      allow update: if isOwner(uid)
+        && validWallet(request.resource.data, uid)
+        && request.resource.data.seq == resource.data.seq + 1
+        && !exists(entryPath(uid, request.resource.data.lastEntryId))
+        && validMovement(
+          resource.data,
+          request.resource.data,
+          getAfter(entryPath(uid, request.resource.data.lastEntryId)).data
+        );
+
+      // Solo al eliminar la cuenta: junto con el perfil, para no poder reiniciar el saldo.
+      allow delete: if isOwner(uid) && !existsAfter(playerPath(uid));
+
+      match /ledger/{entryId} {
+        allow read: if isOwner(uid);
+
+        // Solo junto al cambio de monedero que justifica: ni asientos sueltos ni repetidos
+        // (repetir un id es una actualización, y nunca se permite).
+        allow create: if isOwner(uid)
+          && validEntry(request.resource.data, entryId)
+          && getAfter(walletPath(uid)).data.lastEntryId == entryId
+          && getAfter(walletPath(uid)).data.seq == request.resource.data.seq;
+        allow update: if false;
+
+        // Solo al eliminar la cuenta, cuando el monedero ya no existe.
+        allow delete: if isOwner(uid) && !existsAfter(walletPath(uid));
+      }
+    }
+
+    // ── Perfil y alias ──────────────────────────────────────────────────────────────────────
 
     match /players/{uid} {
       allow read: if isOwner(uid);

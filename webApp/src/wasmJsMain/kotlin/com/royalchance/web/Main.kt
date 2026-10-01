@@ -14,12 +14,14 @@ import kotlinx.coroutines.MainScope
 fun main() {
     // Ámbito de toda la vida de la página: mantiene viva la sesión de Firebase.
     val appScope = MainScope()
+    val firebase = WebFirebase.repositories(
+        // Con emuladores, se buscan en el mismo equipo que sirve la página.
+        environment = FirebaseEnvironment.fromConfig(emulatorHost = pageHostname()),
+        scope = appScope,
+    )
     val graph = AppGraph(
-        authRepository = WebFirebase.authRepository(
-            // Con emuladores, se buscan en el mismo equipo que sirve la página.
-            environment = FirebaseEnvironment.fromConfig(emulatorHost = pageHostname()),
-            scope = appScope,
-        ),
+        authRepository = firebase.auth,
+        economyRepository = firebase.economy,
         settingsRepository = PersistentSettingsRepository(BrowserKeyValueStore()),
     )
     ComposeViewport(viewportContainerId = "composeTarget") {

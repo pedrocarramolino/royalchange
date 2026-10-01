@@ -7,16 +7,21 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import com.royalchance.data.auth.InMemoryAuthRepository
+import com.royalchance.data.economy.InMemoryEconomyRepository
 import com.royalchance.data.settings.JvmPreferencesKeyValueStore
 import com.royalchance.data.settings.PersistentSettingsRepository
 import com.royalchance.shared.App
 import com.royalchance.shared.AppGraph
+import kotlinx.coroutines.MainScope
 import java.awt.Dimension
 
 fun main() {
-    // Entorno de desarrollo: cuentas en memoria (se pierden al cerrar) y preferencias persistentes.
+    // Entorno de desarrollo: cuentas y fichas en memoria (se pierden al cerrar) y preferencias persistentes.
+    val appScope = MainScope()
+    val authRepository = InMemoryAuthRepository()
     val graph = AppGraph(
-        authRepository = InMemoryAuthRepository(),
+        authRepository = authRepository,
+        economyRepository = InMemoryEconomyRepository(authRepository, appScope),
         settingsRepository = PersistentSettingsRepository(JvmPreferencesKeyValueStore()),
     )
     application {

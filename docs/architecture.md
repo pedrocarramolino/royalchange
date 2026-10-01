@@ -56,15 +56,15 @@ Los módulos se crean cuando una fase los necesita. Existentes tras la Fase 3:
 
 | Módulo | Contenido |
 |---|---|
-| `core:common` | `RandomGenerator`, `Outcome` (errores tipados), nombres de países por plataforma (CLDR) |
-| `core:designsystem` | Tema "Noir & Oro", tipografía, iconos, palos de la baraja, componentes, navegación adaptativa |
-| `core:ui` | Avatares y selector de país (componentes que conocen el dominio) |
+| `core:common` | `RandomGenerator` e ids aleatorios, `Outcome` (errores tipados), formato de números, nombres de países (CLDR) |
+| `core:designsystem` | Tema "Noir & Oro", tipografía, iconos, palos de la baraja, ficha de casino, componentes, navegación adaptativa |
+| `core:ui` | Avatares, selector de país y saldo de fichas (componentes que conocen el dominio) |
 | `core:testing` | Generadores aleatorios deterministas, `TestClock` |
-| `domain` | Contrato de autenticación, reglas del registro, países, ajustes, `GameType` |
-| `data` | Repositorios en memoria (escritorio y tests) y ajustes persistentes (`KeyValueStore`) |
-| `data:firebase` | Autenticación y perfil con Firebase (Android y web); lógica común sobre pasarelas por plataforma |
+| `domain` | Autenticación, reglas del registro, países, ajustes, `GameType` y economía (`Chips`, monedero, asientos, reglas) |
+| `data` | Repositorios en memoria (escritorio y tests), incluida la economía, y ajustes persistentes (`KeyValueStore`) |
+| `data:firebase` | Autenticación, perfil y economía con Firebase (Android y web); lógica común sobre pasarelas por plataforma |
 | `feature:auth` | Bienvenida, inicio de sesión, registro completo, completar perfil, recuperar contraseña, legales |
-| `feature:lobby` | Saludo, avisos de cuenta y catálogo de juegos |
+| `feature:lobby` | Saludo, saldo, avisos de cuenta, recarga gratuita y catálogo de juegos |
 | `feature:profile`, `feature:history` | Pestañas de progreso e historial (estado vacío hasta las Fases 6 y 11) |
 | `feature:settings` | Cuenta, tema, documentos legales, cerrar sesión y eliminar cuenta |
 | `shared` | `App()`, `AppGraph` (DI manual) y flujos de navegación |
@@ -96,8 +96,9 @@ iOS se añadirá en un único punto (`KotlinMultiplatform.kt`) cuando haya un Ma
 
 **SDK oficiales, no GitLive.** La versión estable del SDK de GitLive (2.7.0) no soporta Wasm; solo
 una alpha lo hace. Se usan los SDK oficiales: `com.google.firebase` en Android y el paquete npm
-`firebase` en la web (declarado con `external` de Kotlin/Wasm). La lógica (`FirebaseAuthRepository`)
-se escribe una vez sobre dos pasarelas (`AuthGateway`, `PlayerStore`) que cada plataforma implementa.
+`firebase` en la web (declarado con `external` de Kotlin/Wasm). La lógica (`FirebaseAuthRepository`,
+`FirebaseEconomyRepository`) se escribe una vez sobre pasarelas (`AuthGateway`, `PlayerStore`,
+`WalletStore`) que cada plataforma implementa.
 El escritorio no incluye Firebase: usa los repositorios en memoria.
 
 **Configuración.** `firebase.properties` (valores públicos) genera `FirebaseProjectConfig`. Por
@@ -105,23 +106,70 @@ defecto la app usa el proyecto real (`royalchance-92769`, Firestore en `eur3`); 
 `-Proyalchance.firebase.emulators=true` usa los emuladores locales con el proyecto aislado
 `demo-royalchance`.
 
-**Modelo.** `players/{uid}` (perfil del jugador) y `aliases/{aliasKey}` (reserva del
-alias). El alias se reserva y el perfil se guarda en una única escritura atómica; las reglas impiden
-reservar un alias ajeno.
+**Modelo.** `players/{uid}` (perfil del jugador), `aliases/{aliasKey}` (reserva del alias) y
+`wallets/{uid}` con su libro contable `wallets/{uid}/ledger/{entryId}` (sección 7). El alias se
+reserva y el perfil se guarda en una única escritura atómica; las reglas impiden reservar un alias
+ajeno.
 
 - Firebase Auth solo con email y contraseña. Firestore con caché offline como almacenamiento local-first.
-- Un documento por jugador (saldo, progreso, contadores); historial archivado por bloques.
-  Objetivo: ~1 escritura por ronda (cuota gratuita: 20.000 escrituras/día en total).
-- Reglas de seguridad (`firebase/firestore.rules`, con 15 tests en `firebase/tests`): solo el
+- Cada operación económica cuesta 2 escrituras de documento (monedero y asiento); cuota gratuita:
+  20.000 escrituras/día en total.
+- Reglas de seguridad (`firebase/firestore.rules`, con 26 tests en `firebase/tests`): solo el
   propietario accede a sus datos, forma exacta de cada documento (no se pueden añadir campos),
-  alias válido y único, avatar conocido y mayoría de edad comprobada con la hora del servidor.
-  El saldo, sus límites y el bono diario se añadirán en las Fases 5 y 6.
+  alias válido y único, avatar conocido, mayoría de edad comprobada con la hora del servidor y
+  cada movimiento de fichas justificado y dentro de los límites. El bono diario llegará en la Fase 6.
 - Limitación conocida: sin Cloud Functions (plan Blaze) el cliente decide los resultados; los
   rankings no serán fiables hasta tener lógica en servidor. Los motores puros podrán ejecutarse allí.
 - Región de Firestore: UE (irreversible una vez creada la base de datos).
 - Sin Firebase Analytics (evita banner de consentimiento por rastreo).
 
-## 7. Autenticación (Fase 3: interfaz y reglas; Fase 4: Firebase)
+## 7. Economía de fichas (Fase 5)
+
+**Reglas** (`EconomyRules` en `domain`, repetidas en `firestore.rules`):
+
+| Concepto | Valor |
+|---|---|
+| Fichas de bienvenida | 10.000, al crear el monedero (primer acceso con perfil completo) |
+| Apuesta mínima | 10 |
+| Máximo en juego por ronda | 100.000 (suma de dobles, separaciones o apuestas de un giro); cada juego fijará límites de mesa menores |
+| Techo de pago | 1.000 × la apuesta de la ronda (la ruleta paga como mucho 36×; el techo acota a un cliente manipulado) |
+| Recarga gratuita | 1.000 fichas si el saldo no llega a la apuesta mínima y no hay fichas en la mesa; una cada 4 horas |
+
+**Operaciones con intención** (`EconomyRepository`, único punto que mueve fichas; no existe "fijar saldo"):
+- `placeBet` abre una ronda por turnos (Blackjack) o añade fichas a la abierta (doblar, separar).
+  Solo puede haber una ronda abierta; sus fichas ya no cuentan en el saldo.
+- `settleRound` la liquida; el pago incluye la apuesta devuelta (0 si se pierde).
+- `playInstantRound` contabiliza apuesta y pago a la vez (ruleta, slots, dados), con el resultado
+  ya decidido y **antes** de animarlo: cerrar la app a mitad del giro no deshace nada.
+- `claimRescue` cobra la recarga gratuita.
+- La lógica es pura (`WalletTransitions`) y la comparten el repositorio en memoria y el de Firebase.
+  Las operaciones se aplican en serie (`Mutex`): dos apuestas simultáneas nunca gastan dos veces.
+
+**Libro contable.** Cada operación deja un asiento inmutable (tipo, variación, saldo resultante,
+número de movimiento, juego, ronda, apuesta y pago). La suma de los asientos es el saldo. Será la
+fuente del historial (Fase 11).
+
+**Firestore.** `wallets/{uid}` y `wallets/{uid}/ledger/{entryId}`, escritos en un único lote:
+2 escrituras de documento por operación (con la cuota gratuita, unas 10.000 rondas diarias en
+total). Las reglas exigen que el número de movimiento suba exactamente en uno, que el asiento sea
+nuevo, que cuadre con el cambio de saldo y que respete las reglas de su tipo; los asientos no se
+pueden modificar ni crear sueltos, y repetir un id no cobra dos veces. La recarga se valida con la
+hora del servidor (`request.time`): adelantar el reloj del dispositivo no sirve.
+
+**Sin conexión.** No se espera al servidor: Firestore aplica el lote en local al instante y lo
+sincroniza después. La siguiente operación lee la versión local más reciente (la cola de Firestore
+garantiza el orden). Si el servidor rechazara un lote, Firestore deshace el cambio local y el saldo
+vuelve al último válido.
+
+**Borrado de cuenta.** Perfil, alias y monedero en un lote; después, los asientos restantes. Las
+reglas solo permiten borrar el monedero junto con el perfil (no se puede reiniciar el saldo para
+cobrar otra bienvenida) y los asientos cuando el monedero ya no existe.
+
+**Pendiente:** bono diario y rachas (Fase 6); fichas en la mesa de póker (sentarse y levantarse,
+Fase 10). El saldo mostrado durante una animación (que no revele el resultado antes de tiempo) se
+resolverá con el primer juego (Fase 7).
+
+## 8. Autenticación (Fase 3: interfaz y reglas; Fase 4: Firebase)
 
 Decisiones confirmadas: **solo email y contraseña** (sin modo invitado ni Google Sign-In, retirados
 a petición del producto) y la verificación de email no bloquea el juego.
@@ -141,7 +189,7 @@ a petición del producto) y la verificación de email no bloquea el juego.
 - Los textos legales incluidos son un **borrador** marcado como tal en la app: deben sustituirse por
   la versión revisada antes de publicar. Cada aceptación guarda la versión del documento y la fecha.
 
-## 8. Navegación
+## 9. Navegación
 
 Navigation 3 (estable en Compose Multiplatform desde 1.10), con rutas `@Serializable` registradas
 para serialización polimórfica (necesario fuera de Android).
@@ -165,15 +213,15 @@ Implementación:
   ocultan la navegación principal. El contenido se traslada con `movableContentOf` para no perder su estado
   al cambiar de diseño (móvil ↔ escritorio) ni al mostrar/ocultar la navegación.
 
-## 9. Plan de fases
+## 10. Plan de fases
 
 | Fase | Contenido | Estado |
 |---|---|---|
 | 1 | Análisis y arquitectura | Hecha |
 | 2 | Proyecto KMP: Gradle, Android, escritorio, PWA, Hosting | Hecha |
 | 3 | Sistema de diseño, navegación y pantallas de login/registro (con datos simulados) | Hecha |
-| 4 | Firebase: autenticación real + Firestore + reglas de seguridad | Hecha (falta desplegar las reglas al proyecto real) |
-| 5 | Economía de fichas | — |
+| 4 | Firebase: autenticación real + Firestore + reglas de seguridad | Hecha |
+| 5 | Economía de fichas | Hecha |
 | 6 | Niveles, bono diario, rachas y logros | — |
 | 7 | Blackjack | — |
 | 8 | Ruleta | — |
@@ -185,7 +233,7 @@ Implementación:
 | 14 | Cobertura de tests | — |
 | 15 | Builds y despliegue | — |
 
-## 10. Reglas de juego acordadas (Fase 1)
+## 11. Reglas de juego acordadas (Fase 1)
 
 - Blackjack: 6 barajas, crupier se planta en 17 blando, blackjack 3:2, doblar con 2 cartas,
   split hasta 4 manos (ases: una carta), sin seguro ni rendición en la v1.
@@ -196,7 +244,7 @@ Implementación:
 - Fichas: `Long`, apuesta mínima 10, denominaciones 10/50/100/500/1K/5K/25K.
 - DI manual (composition root en `shared`).
 
-## 11. Problemas conocidos
+## 12. Problemas conocidos
 
 - El SDK de Firebase añade unos 210 KB comprimidos a la PWA.
 

@@ -57,6 +57,10 @@ sealed interface AuthState {
     data class SignedIn(val user: AuthUser) : AuthState
 }
 
+/** Id del jugador con sesión y perfil completo (el único que puede jugar); `null` en otro caso. */
+val AuthState.playerId: String?
+    get() = (this as? AuthState.SignedIn)?.user?.takeUnless { it.needsProfileCompletion }?.id
+
 /** Fallos esperados de autenticación. Cada uno tiene un mensaje concreto en la UI. */
 enum class AuthError {
     /** Email o contraseña incorrectos. Deliberadamente no distingue cuál de los dos. */

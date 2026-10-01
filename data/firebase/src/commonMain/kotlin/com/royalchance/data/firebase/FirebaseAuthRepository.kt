@@ -17,6 +17,7 @@ import com.royalchance.domain.auth.PlayerProfile
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -27,6 +28,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.scan
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.withContext
 import kotlin.time.Clock
 
 /**
@@ -45,10 +47,11 @@ internal class FirebaseAuthRepository(
 ) : AuthRepository {
 
     /**
-     * Mientras se crea una cuenta, Firebase ya tiene usuario pero aún no perfil. Durante ese
-     * intervalo se congela el estado publicado para que la app no muestre "completar perfil".
+     * Al crear o borrar una cuenta, Firebase pasa por un estado intermedio: usuario sin perfil.
+     * Durante la operación se congela el estado publicado, para que la app no muestre "completar
+     * perfil" ni cierre la pantalla que la está ejecutando.
      */
-    private val accountSetupInProgress = MutableStateFlow(false)
+    private val accountChangeInProgress = MutableStateFlow(false)
 
     @OptIn(ExperimentalCoroutinesApi::class)
     private val observedState = auth.users.flatMapLatest { user ->
@@ -63,9 +66,9 @@ internal class FirebaseAuthRepository(
     }
 
     override val authState: StateFlow<AuthState> =
-        combine(observedState, accountSetupInProgress) { state, settingUp -> state to settingUp }
-            .scan<Pair<AuthState, Boolean>, AuthState>(AuthState.Loading) { previous, (state, settingUp) ->
-                if (settingUp) previous else state
+        combine(observedState, accountChangeInProgress) { state, changing -> state to changing }
+            .scan<Pair<AuthState, Boolean>, AuthState>(AuthState.Loading) { previous, (state, changing) ->
+                if (changing) previous else state
             }
             .stateIn(scope, SharingStarted.Eagerly, AuthState.Loading)
 
@@ -73,9 +76,9 @@ internal class FirebaseAuthRepository(
         auth.signInWithEmail(email.trim(), password)
     }
 
-    override suspend fun register(account: NewAccount) = settingUpAccount {
+    override suspend fun register(account: NewAccount) = changingAccount {
         if (players.aliasExists(PlayerDocument.aliasKey(account.profile.alias))) {
-            return@settingUpAccount failure(AuthError.AliasTaken)
+            return@changingAccount failure(AuthError.AliasTaken)
         }
         auth.createAccount(account.email, account.password)
         val saved = saveProfile(account.profile)
@@ -86,9 +89,9 @@ internal class FirebaseAuthRepository(
         saved
     }
 
-    override suspend fun completeProfile(profile: PlayerProfile) = settingUpAccount {
+    override suspend fun completeProfile(profile: PlayerProfile) = changingAccount {
         if (players.aliasExists(PlayerDocument.aliasKey(profile.alias))) {
-            return@settingUpAccount failure(AuthError.AliasTaken)
+            return@changingAccount failure(AuthError.AliasTaken)
         }
         saveProfile(profile)
     }
@@ -108,12 +111,17 @@ internal class FirebaseAuthRepository(
         runCatching { auth.signOut() }
     }
 
-    override suspend fun deleteAccount(password: String) = attempt {
+    override suspend fun deleteAccount(password: String) = changingAccount {
         val user = auth.currentUser() ?: throw FirebaseGatewayException(FirebaseErrorCode.UserNotFound)
         auth.reauthenticate(password)
         val aliasKey = (authState.value as? AuthState.SignedIn)?.user?.profile?.alias?.let(PlayerDocument::aliasKey)
-        players.delete(user.uid, aliasKey)
-        auth.deleteUser()
+        // Una vez empezado, el borrado termina aunque se cierre la pantalla que lo pidió: nunca
+        // queda una cuenta a medio borrar por una cancelación.
+        withContext(NonCancellable) {
+            players.deleteAccountData(user.uid, aliasKey)
+            auth.deleteUser()
+        }
+        success()
     }
 
     private suspend fun saveProfile(profile: PlayerProfile): Outcome<Unit, AuthError> {
@@ -127,12 +135,12 @@ internal class FirebaseAuthRepository(
         }
     }
 
-    private suspend fun settingUpAccount(block: suspend () -> Outcome<Unit, AuthError>): Outcome<Unit, AuthError> {
-        accountSetupInProgress.value = true
+    private suspend fun changingAccount(block: suspend () -> Outcome<Unit, AuthError>): Outcome<Unit, AuthError> {
+        accountChangeInProgress.value = true
         return try {
             attemptOutcome(block)
         } finally {
-            accountSetupInProgress.value = false
+            accountChangeInProgress.value = false
         }
     }
 

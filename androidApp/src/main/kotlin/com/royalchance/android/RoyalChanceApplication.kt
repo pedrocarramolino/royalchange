@@ -13,12 +13,14 @@ class RoyalChanceApplication : Application() {
     private val appScope = MainScope()
 
     val graph: AppGraph by lazy {
+        val firebase = AndroidFirebase.repositories(
+            context = this,
+            environment = FirebaseEnvironment.fromConfig(emulatorHost = ANDROID_EMULATOR_HOST),
+            scope = appScope,
+        )
         AppGraph(
-            authRepository = AndroidFirebase.authRepository(
-                context = this,
-                environment = FirebaseEnvironment.fromConfig(emulatorHost = ANDROID_EMULATOR_HOST),
-                scope = appScope,
-            ),
+            authRepository = firebase.auth,
+            economyRepository = firebase.economy,
             settingsRepository = PersistentSettingsRepository(SharedPreferencesKeyValueStore(this)),
         )
     }

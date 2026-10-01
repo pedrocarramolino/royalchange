@@ -5,20 +5,26 @@ import com.google.firebase.FirebaseApp
 import com.google.firebase.FirebaseOptions
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import com.royalchance.domain.auth.AuthRepository
+import com.royalchance.core.common.random.ProductionRandomGenerator
+import com.royalchance.core.common.random.RandomGenerator
 import kotlinx.coroutines.CoroutineScope
 import kotlin.time.Clock
 
 /** Punto de entrada de Firebase en Android. */
 object AndroidFirebase {
 
-    /** Crea el repositorio de autenticación sobre Firebase. */
-    fun authRepository(
+    /**
+     * Crea los repositorios sobre Firebase. Llamar una sola vez por proceso.
+     *
+     * @param scope ámbito de vida de la app: mantiene la sesión y el monedero observados.
+     */
+    fun repositories(
         context: Context,
         environment: FirebaseEnvironment,
         scope: CoroutineScope,
         clock: Clock = Clock.System,
-    ): AuthRepository {
+        random: RandomGenerator = ProductionRandomGenerator(),
+    ): FirebaseRepositories {
         check(FirebaseProjectConfig.ANDROID_APP_ID.isNotBlank()) {
             "La app Android no está registrada en Firebase: añade androidAppId en firebase.properties " +
                 "o compila con -Proyalchance.firebase.emulators=true (ver README)."
@@ -31,10 +37,12 @@ object AndroidFirebase {
             auth.useEmulator(environment.host, FirebaseEnvironment.AUTH_EMULATOR_PORT)
             firestore.useEmulator(environment.host, FirebaseEnvironment.FIRESTORE_EMULATOR_PORT)
         }
-        return FirebaseAuthRepository(
-            auth = AndroidAuthGateway(auth),
-            players = AndroidPlayerStore(firestore),
+        return FirebaseRepositories.create(
+            authGateway = AndroidAuthGateway(auth),
+            playerStore = AndroidPlayerStore(firestore),
+            walletStore = AndroidWalletStore(firestore),
             clock = clock,
+            random = random,
             scope = scope,
         )
     }

@@ -48,8 +48,8 @@ class FirebaseMappingTest {
     fun registeredDocumentRoundTripsThroughBothSdkFormats() {
         val document = PlayerDocument.from("uid-1", profile, now)
 
-        assertEquals(document, playerDocumentFromFirestore(document.toFirestoreMap()))
-        assertEquals(document, playerDocumentFromJson(document.toJson()))
+        assertEquals(document, fromFirestoreMap<PlayerDocument>(document.toFirestoreMap()))
+        assertEquals(document, fromJson<PlayerDocument>(document.toJson()))
         assertEquals(profile, document.toProfile())
         assertEquals("asdepicas", document.aliasKey)
     }

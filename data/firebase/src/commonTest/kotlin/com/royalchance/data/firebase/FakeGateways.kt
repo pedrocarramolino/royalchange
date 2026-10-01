@@ -4,7 +4,10 @@ import com.royalchance.data.firebase.gateway.AuthGateway
 import com.royalchance.data.firebase.gateway.FirebaseErrorCode
 import com.royalchance.data.firebase.gateway.FirebaseGatewayException
 import com.royalchance.data.firebase.gateway.GatewayUser
+import com.royalchance.data.firebase.gateway.PendingWrite
 import com.royalchance.data.firebase.gateway.PlayerStore
+import com.royalchance.data.firebase.gateway.WalletStore
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
@@ -86,6 +89,9 @@ internal class FakePlayerStore : PlayerStore {
     /** Simula que otro jugador reserva un alias entre la comprobación y la escritura. */
     var reserveBeforeNextSave: String? = null
 
+    /** Si existe, el borrado de datos se queda esperando aquí después de borrar (red lenta). */
+    var afterDeletingData: CompletableDeferred<Unit>? = null
+
     override fun observe(uid: String): Flow<PlayerDocument?> = players.map { it[uid] }
 
     override suspend fun aliasExists(aliasKey: String): Boolean = aliasKey in aliases
@@ -99,8 +105,51 @@ internal class FakePlayerStore : PlayerStore {
         players.value = players.value + (document.uid to document)
     }
 
-    override suspend fun delete(uid: String, aliasKey: String?) {
+    override suspend fun deleteAccountData(uid: String, aliasKey: String?) {
         players.value = players.value - uid
         aliasKey?.let(aliases::remove)
+        afterDeletingData?.await()
+    }
+}
+
+/**
+ * Doble de Firestore para el monedero: aplica las escrituras en local al instante y deja la
+ * confirmación del servidor para después, como el SDK real.
+ */
+internal class FakeWalletStore : WalletStore {
+
+    val wallets = MutableStateFlow<Map<String, WalletDocument>>(emptyMap())
+    val ledger = mutableMapOf<String, List<LedgerEntryDocument>>()
+
+    /** Simula que el servidor rechaza la próxima escritura: se deshace el cambio local. */
+    var rejectNextWrite = false
+
+    /** Simula un fallo leyendo la caché local. */
+    var failLocalReads = false
+
+    var writes = 0
+        private set
+
+    override fun observe(uid: String): Flow<WalletDocument?> = wallets.map { it[uid] }
+
+    override suspend fun readLocal(uid: String): WalletDocument? {
+        if (failLocalReads) throw FirebaseGatewayException(FirebaseErrorCode.Unknown)
+        return wallets.value[uid]
+    }
+
+    override fun write(wallet: WalletDocument, entry: LedgerEntryDocument): PendingWrite {
+        writes++
+        val previous = wallets.value[wallet.uid]
+        wallets.value = wallets.value + (wallet.uid to wallet)
+        ledger[wallet.uid] = ledger[wallet.uid].orEmpty() + entry
+        val rejected = rejectNextWrite
+        rejectNextWrite = false
+        return PendingWrite {
+            if (rejected) {
+                wallets.value = if (previous == null) wallets.value - wallet.uid else wallets.value + (wallet.uid to previous)
+                ledger[wallet.uid] = ledger[wallet.uid].orEmpty() - entry
+                throw FirebaseGatewayException(FirebaseErrorCode.PermissionDenied)
+            }
+        }
     }
 }
