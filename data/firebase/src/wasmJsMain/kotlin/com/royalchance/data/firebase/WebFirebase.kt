@@ -45,6 +45,7 @@ import com.royalchance.data.firebase.web.jsonStringify
 import com.royalchance.data.firebase.web.persistentCacheSettings
 import com.royalchance.data.firebase.web.toGatewayException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.datetime.TimeZone
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -72,6 +73,7 @@ object WebFirebase {
         environment: FirebaseEnvironment,
         scope: CoroutineScope,
         clock: Clock = Clock.System,
+        timeZone: TimeZone = TimeZone.currentSystemDefault(),
         random: RandomGenerator = ProductionRandomGenerator(),
         persistentCache: Boolean = true,
     ): FirebaseRepositories {
@@ -100,6 +102,7 @@ object WebFirebase {
             playerStore = WebPlayerStore(firestore),
             walletStore = WebWalletStore(firestore),
             clock = clock,
+            timeZone = timeZone,
             random = random,
             scope = scope,
         )

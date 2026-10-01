@@ -8,6 +8,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.royalchance.core.common.random.ProductionRandomGenerator
 import com.royalchance.core.common.random.RandomGenerator
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.datetime.TimeZone
 import kotlin.time.Clock
 
 /** Punto de entrada de Firebase en Android. */
@@ -23,6 +24,7 @@ object AndroidFirebase {
         environment: FirebaseEnvironment,
         scope: CoroutineScope,
         clock: Clock = Clock.System,
+        timeZone: TimeZone = TimeZone.currentSystemDefault(),
         random: RandomGenerator = ProductionRandomGenerator(),
     ): FirebaseRepositories {
         check(FirebaseProjectConfig.ANDROID_APP_ID.isNotBlank()) {
@@ -42,6 +44,7 @@ object AndroidFirebase {
             playerStore = AndroidPlayerStore(firestore),
             walletStore = AndroidWalletStore(firestore),
             clock = clock,
+            timeZone = timeZone,
             random = random,
             scope = scope,
         )

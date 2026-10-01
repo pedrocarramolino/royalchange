@@ -136,9 +136,39 @@ describe('aliases', () => {
   });
 });
 
-// ── Economía ────────────────────────────────────────────────────────────────────────────────
+// ── Economía y progresión ───────────────────────────────────────────────────────────────────
 
 const HOUR = 60 * 60 * 1000;
+const DAY = 24 * HOUR;
+
+/** Día UTC actual en días desde 1970 (el servidor compara el día del dispositivo con este). */
+const today = () => Math.floor(Date.now() / DAY);
+
+/** Id de asiento nuevo: repetir un id es repetir una operación, y eso se rechaza. */
+let entryCounter = 0;
+const newId = (prefix) => `${prefix}-${++entryCounter}`;
+
+/** Progresión de un monedero recién creado. */
+const FRESH = {
+  xp: 0, rounds: 0, wins: 0, losses: 0, pushes: 0, winStreak: 0, bestWinStreak: 0,
+  dailyStreak: 0, unlocked: [], claimed: [],
+};
+
+/** Experiencia por ronda: repite ExperienceRules. */
+function xpFor(stake) {
+  const tiers = [[25000, 12], [5000, 10], [1000, 8], [500, 6], [100, 4], [50, 2]];
+  return 10 + (tiers.find(([minimum]) => stake >= minimum)?.[1] ?? 0);
+}
+
+/** Progresión tras una ronda sobre FRESH, como la calcula la app. */
+function afterRound(stake, payout) {
+  const win = payout > stake;
+  const loss = payout < stake;
+  return {
+    xp: xpFor(stake), rounds: 1, wins: win ? 1 : 0, losses: loss ? 1 : 0, pushes: win || loss ? 0 : 1,
+    winStreak: win ? 1 : 0, bestWinStreak: win ? 1 : 0,
+  };
+}
 
 /** Prepara un estado sin pasar por las reglas. */
 async function seed(path, data) {
@@ -149,13 +179,20 @@ async function seed(path, data) {
 
 /** Monedero de partida para probar movimientos (como si ya llevara cinco). */
 function seedWallet(uid, fields = {}) {
-  return seed(`wallets/${uid}`, { uid, balance: 10000, seq: 5, lastEntryId: 'anterior', ...fields });
+  return seed(`wallets/${uid}`, {
+    uid, balance: 10000, seq: 5, lastEntryId: 'anterior', ...FRESH, highestBalance: 10000, ...fields,
+  });
 }
 
-/** Escribe un movimiento como la app: el monedero completo y su asiento, en un único lote. */
+/**
+ * Escribe un movimiento como la app: el monedero completo y su asiento, en un único lote. Por
+ * defecto la progresión no cambia y el saldo máximo es el de partida (10.000) o el nuevo saldo.
+ */
 function move(db, uid, wallet, entry) {
   const batch = writeBatch(db);
-  batch.set(doc(db, `wallets/${uid}`), { uid, ...wallet });
+  batch.set(doc(db, `wallets/${uid}`), {
+    uid, ...FRESH, highestBalance: Math.max(10000, wallet.balance), ...wallet,
+  });
   batch.set(doc(db, `wallets/${uid}/ledger/${entry.id}`), { createdAtMillis: Date.now(), ...entry });
   return batch.commit();
 }
@@ -164,27 +201,51 @@ function welcome(db, uid, { id = 'bienvenida', amount = 10000 } = {}) {
   return move(
     db,
     uid,
-    { balance: amount, seq: 1, lastEntryId: id },
+    { balance: amount, seq: 1, lastEntryId: id, highestBalance: amount },
     { id, seq: 1, kind: 'Welcome', amount, balanceAfter: amount },
   );
 }
 
-/** Ronda instantánea sobre un monedero de 10.000 fichas y 5 movimientos. */
-function spin(db, uid, { id = 'giro', stake = 100, payout = 0, balance = 10000 - stake + payout } = {}) {
+/** Ronda instantánea sobre el monedero de partida, con la progresión correcta salvo que se cambie. */
+function spin(db, uid, { id = newId('giro'), stake = 100, payout = 0, balance = 10000 - stake + payout, progress = {} } = {}) {
   return move(
     db,
     uid,
-    { balance, seq: 6, lastEntryId: id },
+    { balance, seq: 6, lastEntryId: id, ...afterRound(stake, payout), ...progress },
     { id, seq: 6, kind: 'InstantRound', amount: balance - 10000, balanceAfter: balance, game: 'Roulette', roundId: id, stake, payout },
   );
 }
 
 function rescue(db, uid, { balance = 5, at = Date.now() } = {}) {
+  const id = newId('recarga');
   return move(
     db,
     uid,
-    { balance: balance + 1000, seq: 6, lastEntryId: 'recarga', lastRescueAtMillis: at },
-    { id: 'recarga', seq: 6, kind: 'Rescue', amount: 1000, balanceAfter: balance + 1000, createdAtMillis: at },
+    { balance: balance + 1000, seq: 6, lastEntryId: id, lastRescueAtMillis: at },
+    { id, seq: 6, kind: 'Rescue', amount: 1000, balanceAfter: balance + 1000, createdAtMillis: at },
+  );
+}
+
+/** Bono diario sobre el monedero de partida. */
+function dailyBonus(db, uid, { day = today(), streak = 1, reward = 500, unlocked = [] } = {}) {
+  const at = Date.now();
+  const id = newId('bono');
+  return move(
+    db,
+    uid,
+    { balance: 10000 + reward, seq: 6, lastEntryId: id, dailyStreak: streak, lastDailyDay: day, lastDailyAtMillis: at, unlocked },
+    { id, seq: 6, kind: 'DailyBonus', amount: reward, balanceAfter: 10000 + reward, createdAtMillis: at },
+  );
+}
+
+/** Cobro de un logro sobre el monedero de partida; [progress] repite sus contadores (no cambian). */
+function claimAchievement(db, uid, { id = 'FirstWin', reward = 250, unlocked = ['FirstWin'], claimed = [id], progress = {} } = {}) {
+  const entryId = newId('logro');
+  return move(
+    db,
+    uid,
+    { balance: 10000 + reward, seq: 6, lastEntryId: entryId, unlocked, claimed, ...progress },
+    { id: entryId, seq: 6, kind: 'AchievementReward', amount: reward, balanceAfter: 10000 + reward, achievementId: id },
   );
 }
 
@@ -206,7 +267,7 @@ describe('wallets', () => {
     await assertFails(welcome(db, 'ana', { id: 'otra-bienvenida' }));
   });
 
-  test('una apuesta abre la ronda y su liquidación la cierra', async () => {
+  test('una apuesta abre la ronda y su liquidación la cierra y la cuenta', async () => {
     const db = as('ana');
     await seedWallet('ana');
 
@@ -217,7 +278,7 @@ describe('wallets', () => {
     ));
     await assertSucceeds(move(
       db, 'ana',
-      { balance: 10500, seq: 7, lastEntryId: 'pago' },
+      { balance: 10500, seq: 7, lastEntryId: 'pago', highestBalance: 10500, ...afterRound(500, 1000) },
       { id: 'pago', seq: 7, kind: 'Settlement', amount: 1000, balanceAfter: 10500, game: 'Blackjack', roundId: 'apuesta', payout: 1000 },
     ));
   });
@@ -231,7 +292,7 @@ describe('wallets', () => {
     const db = as('ana');
     await seedWallet('ana');
 
-    await assertFails(setDoc(doc(db, 'wallets/ana'), { uid: 'ana', balance: 999999, seq: 6, lastEntryId: 'nada' }));
+    await assertFails(setDoc(doc(db, 'wallets/ana'), { uid: 'ana', ...FRESH, highestBalance: 999999, balance: 999999, seq: 6, lastEntryId: 'nada' }));
     // Asiento que no cuadra: dice ganar 100 y el saldo sube 5.000.
     await assertFails(spin(db, 'ana', { stake: 100, payout: 200, balance: 15000 }));
   });
@@ -241,7 +302,7 @@ describe('wallets', () => {
     await seedWallet('ana', { balance: 50 });
     await assertFails(move(
       db, 'ana',
-      { balance: -50, seq: 6, lastEntryId: 'giro' },
+      { balance: -50, seq: 6, lastEntryId: 'giro', ...afterRound(100, 0) },
       { id: 'giro', seq: 6, kind: 'InstantRound', amount: -100, balanceAfter: -50, game: 'Dice', roundId: 'giro', stake: 100, payout: 0 },
     ));
 
@@ -268,8 +329,8 @@ describe('wallets', () => {
   test('repetir una operación no la cobra dos veces', async () => {
     const db = as('ana');
     await seedWallet('ana');
-    await assertSucceeds(spin(db, 'ana', { stake: 100, payout: 200 }));
-    await assertFails(spin(db, 'ana', { stake: 100, payout: 200 }));
+    await assertSucceeds(spin(db, 'ana', { id: 'giro', stake: 100, payout: 200 }));
+    await assertFails(spin(db, 'ana', { id: 'giro', stake: 100, payout: 200 }));
   });
 
   test('la recarga gratuita solo llega sin fichas y una vez cada 4 horas del servidor', async () => {
@@ -308,6 +369,88 @@ describe('wallets', () => {
     batch.delete(doc(db, 'wallets/ana'));
     batch.delete(doc(db, 'wallets/ana/ledger/bienvenida'));
     await assertSucceeds(batch.commit());
+  });
+});
+
+describe('progresión', () => {
+  test('cada ronda suma experiencia según la apuesta y cuenta el resultado', async () => {
+    const db = as('ana');
+    await seedWallet('ana');
+    await assertFails(spin(db, 'ana', { stake: 100, payout: 200, progress: { xp: 500 } }));
+    await assertFails(spin(db, 'ana', { stake: 100, payout: 200, progress: { rounds: 2 } }));
+    // Perder no es ganar.
+    await assertFails(spin(db, 'ana', { stake: 100, payout: 0, progress: { wins: 1, losses: 0, winStreak: 1, bestWinStreak: 1 } }));
+    await assertSucceeds(spin(db, 'ana', { stake: 1000, payout: 2000 }));
+  });
+
+  test('un empate no rompe la racha y una derrota sí', async () => {
+    const db = as('ana');
+    const streak = { wins: 3, winStreak: 3, bestWinStreak: 3, rounds: 3, xp: 42 };
+    await seedWallet('ana', streak);
+    await assertSucceeds(spin(db, 'ana', {
+      stake: 100, payout: 100, progress: { ...streak, rounds: 4, xp: 56, pushes: 1 },
+    }));
+
+    await seedWallet('ana', { ...streak, seq: 5 });
+    await assertFails(spin(db, 'ana', { stake: 100, payout: 0, progress: { ...streak, rounds: 4, xp: 56, losses: 1 } }));
+    await assertSucceeds(spin(db, 'ana', {
+      stake: 100, payout: 0, progress: { ...streak, rounds: 4, xp: 56, losses: 1, winStreak: 0 },
+    }));
+  });
+
+  test('un monedero anterior a la progresión sigue funcionando', async () => {
+    await seed('wallets/ana', { uid: 'ana', balance: 10000, seq: 5, lastEntryId: 'anterior' });
+    await assertSucceeds(spin(as('ana'), 'ana', { stake: 100, payout: 200 }));
+  });
+
+  test('los logros solo se desbloquean si se cumple su condición', async () => {
+    const db = as('ana');
+    await seedWallet('ana');
+    await assertFails(spin(db, 'ana', { stake: 100, payout: 0, progress: { unlocked: ['FirstWin'] } }));
+    await assertFails(spin(db, 'ana', { stake: 100, payout: 200, progress: { unlocked: ['Rounds100'] } }));
+    await assertFails(spin(db, 'ana', { stake: 100, payout: 200, progress: { unlocked: ['Inventado'] } }));
+    await assertSucceeds(spin(db, 'ana', { stake: 100, payout: 200, progress: { unlocked: ['FirstWin'] } }));
+  });
+
+  test('la recompensa de un logro se cobra una sola vez y por su importe', async () => {
+    const db = as('ana');
+    const played = { wins: 1, rounds: 1, xp: 14, winStreak: 1, bestWinStreak: 1 };
+    await seedWallet('ana', { ...played, unlocked: ['FirstWin'] });
+    await assertFails(claimAchievement(db, 'ana', { reward: 5000, progress: played }));
+    await assertFails(claimAchievement(db, 'ana', { id: 'Level5', reward: 500, claimed: ['Level5'], progress: played }));
+    await assertSucceeds(claimAchievement(db, 'ana', { progress: played }));
+
+    await seedWallet('ana', { ...played, unlocked: ['FirstWin'], claimed: ['FirstWin'] });
+    await assertFails(claimAchievement(db, 'ana', { progress: played }));
+  });
+
+  test('el bono diario se cobra una vez al día y la racha sigue al día siguiente', async () => {
+    const db = as('ana');
+    await seedWallet('ana');
+    await assertFails(dailyBonus(db, 'ana', { reward: 5000 }));
+    await assertSucceeds(dailyBonus(db, 'ana'));
+
+    await seedWallet('ana', { dailyStreak: 1, lastDailyDay: today(), lastDailyAtMillis: Date.now() - HOUR });
+    await assertFails(dailyBonus(db, 'ana', { streak: 2, reward: 700 }));
+
+    await seedWallet('ana', { dailyStreak: 3, lastDailyDay: today() - 1 });
+    await assertSucceeds(dailyBonus(db, 'ana', { streak: 4, reward: 1100 }));
+  });
+
+  test('saltarse un día reinicia la racha y el día no puede alejarse del servidor', async () => {
+    const db = as('ana');
+    await seedWallet('ana', { dailyStreak: 5, lastDailyDay: today() - 2 });
+    await assertFails(dailyBonus(db, 'ana', { streak: 6, reward: 1500 }));
+    await assertSucceeds(dailyBonus(db, 'ana', { streak: 1, reward: 500 }));
+
+    await seedWallet('ana');
+    // Cambiar la fecha del dispositivo no adelanta bonos: el servidor conoce el día.
+    await assertFails(dailyBonus(db, 'ana', { day: today() + 3 }));
+  });
+
+  test('una semana de bonos paga el tope y desbloquea su logro', async () => {
+    await seedWallet('ana', { dailyStreak: 6, lastDailyDay: today() - 1 });
+    await assertSucceeds(dailyBonus(as('ana'), 'ana', { streak: 7, reward: 1700, unlocked: ['DailyStreak7'] }));
   });
 });
 

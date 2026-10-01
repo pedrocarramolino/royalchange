@@ -1,6 +1,7 @@
 package com.royalchance.domain.economy
 
 import com.royalchance.domain.game.GameType
+import com.royalchance.domain.progression.AchievementId
 import kotlin.time.Instant
 
 /**
@@ -10,6 +11,7 @@ import kotlin.time.Instant
  * @property amount variación del saldo: positiva si entran fichas y negativa si salen.
  * @property stake fichas apostadas en esta operación ([LedgerEntryKind.Bet] y [LedgerEntryKind.InstantRound]).
  * @property payout fichas cobradas, apuesta devuelta incluida ([LedgerEntryKind.Settlement] y [LedgerEntryKind.InstantRound]).
+ * @property achievementId logro cuya recompensa se cobra ([LedgerEntryKind.AchievementReward]).
  */
 data class LedgerEntry(
     val id: String,
@@ -22,6 +24,7 @@ data class LedgerEntry(
     val roundId: String? = null,
     val stake: Chips? = null,
     val payout: Chips? = null,
+    val achievementId: AchievementId? = null,
 )
 
 /** Tipos de asiento. Los nombres son estables: se guardan en la base de datos y las reglas los validan. */
@@ -40,4 +43,10 @@ enum class LedgerEntryKind {
 
     /** Recarga gratuita por quedarse sin fichas. */
     Rescue,
+
+    /** Bono diario. */
+    DailyBonus,
+
+    /** Recompensa de un logro desbloqueado. */
+    AchievementReward,
 }

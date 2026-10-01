@@ -14,12 +14,17 @@ import com.royalchance.domain.economy.LedgerEntryKind
 import com.royalchance.domain.economy.Wallet
 import com.royalchance.domain.economy.WalletState
 import com.royalchance.domain.game.GameType
+import com.royalchance.domain.progression.AchievementId
+import com.royalchance.domain.progression.ProgressEvent
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
+import kotlinx.datetime.TimeZone
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -33,7 +38,7 @@ class InMemoryEconomyRepositoryTest {
     private val auth = InMemoryAuthRepository(simulatedLatency = Duration.ZERO)
 
     private fun test(block: suspend TestScope.(InMemoryEconomyRepository) -> Unit) = runTest(UnconfinedTestDispatcher()) {
-        block(InMemoryEconomyRepository(auth, backgroundScope, clock))
+        block(InMemoryEconomyRepository(auth, backgroundScope, clock, TimeZone.UTC))
     }
 
     private suspend fun register(email: String = "ana@example.com", alias: String = "Ana") {
@@ -111,6 +116,34 @@ class InMemoryEconomyRepositoryTest {
         clock.advanceBy(4.hours)
         assertIs<Outcome.Success<Wallet>>(economy.claimRescue())
         assertEquals(Chips(1_000), economy.current().balance)
+    }
+
+    @Test
+    fun dailyBonusUsesTheDeviceDayAndBuildsTheStreak() = test { economy ->
+        register()
+
+        assertIs<Outcome.Success<Wallet>>(economy.claimDailyBonus())
+        assertEquals(Outcome.Failure(EconomyError.DailyBonusAlreadyClaimed), economy.claimDailyBonus())
+
+        clock.advanceBy(24.hours)
+        economy.claimDailyBonus()
+
+        assertEquals(Chips(10_000 + 500 + 700), economy.current().balance)
+        assertEquals(2, economy.current().progress.dailyStreak)
+    }
+
+    @Test
+    fun roundsAnnounceAchievementsThatCanThenBeClaimed() = test { economy ->
+        register()
+        val events = mutableListOf<ProgressEvent>()
+        backgroundScope.launch { economy.events.toList(events) }
+
+        economy.playInstantRound(GameType.Roulette, Chips(100), Chips(200))
+
+        assertEquals(listOf<ProgressEvent>(ProgressEvent.AchievementUnlocked(AchievementId.FirstWin)), events)
+        assertIs<Outcome.Success<Wallet>>(economy.claimAchievement(AchievementId.FirstWin))
+        assertEquals(Chips(10_100 + 250), economy.current().balance)
+        assertEquals(LedgerEntryKind.AchievementReward, economy.ledger(playerId()).last().kind)
     }
 
     @Test

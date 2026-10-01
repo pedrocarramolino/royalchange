@@ -1,6 +1,7 @@
 package com.royalchance.domain.economy
 
 import com.royalchance.domain.game.GameType
+import com.royalchance.domain.progression.PlayerProgress
 import kotlin.time.Instant
 
 /**
@@ -9,12 +10,15 @@ import kotlin.time.Instant
  *
  * @property balance fichas disponibles. Las apostadas en una ronda abierta ya no cuentan.
  * @property sequence número de movimientos registrados (el asiento de bienvenida es el 1).
+ * @property progress experiencia, contadores, rachas y logros: cambian con las mismas operaciones
+ *   que el saldo y se guardan con él, en una única escritura.
  */
 data class Wallet(
     val balance: Chips,
     val sequence: Long,
     val openRound: OpenRound? = null,
     val lastRescueAt: Instant? = null,
+    val progress: PlayerProgress = PlayerProgress(highestBalance = balance),
 )
 
 /**

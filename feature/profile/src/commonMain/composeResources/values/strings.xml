@@ -1,5 +1,25 @@
 <resources>
     <string name="progress_title">Progreso</string>
-    <string name="progress_empty_title">Tu camino a High Roller</string>
-    <string name="progress_empty_message">Aquí verás tu nivel, tu racha de bono diario y los logros que vayas desbloqueando.</string>
+    <string name="progress_unavailable_title">Progreso no disponible</string>
+    <string name="progress_unavailable_message">No hemos podido cargar tu progreso. Vuelve a intentarlo en unos minutos.</string>
+
+    <string name="progress_level_xp">%1$s / %2$s XP</string>
+    <string name="progress_level_max">Has alcanzado el nivel máximo.</string>
+    <string name="progress_level_next">Te faltan %1$s XP para el nivel %2$d. Cada ronda suma experiencia.</string>
+
+    <string name="progress_stats">Estadísticas</string>
+    <string name="progress_stat_rounds">Rondas</string>
+    <string name="progress_stat_wins">Victorias</string>
+    <string name="progress_stat_losses">Derrotas</string>
+    <string name="progress_stat_pushes">Empates</string>
+    <string name="progress_stat_best_streak">Mejor racha</string>
+    <string name="progress_stat_daily_streak">Días seguidos</string>
+    <string name="progress_stat_highest_balance">Saldo máximo</string>
+
+    <string name="progress_achievements">Logros · %1$d de %2$d</string>
+    <string name="progress_achievement_reward">Recompensa: %1$s</string>
+    <string name="progress_achievement_claimed">Recogido: %1$s</string>
+    <string name="progress_achievement_claim">Recoger %1$s</string>
+    <string name="progress_achievement_progress">%1$s de %2$s</string>
+    <string name="progress_claim_failed">No se pudo recoger la recompensa. Vuelve a intentarlo.</string>
 </resources>

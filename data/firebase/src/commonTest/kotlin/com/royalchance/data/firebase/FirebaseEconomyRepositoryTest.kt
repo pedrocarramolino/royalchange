@@ -13,12 +13,18 @@ import com.royalchance.domain.economy.LedgerEntryKind
 import com.royalchance.domain.economy.Wallet
 import com.royalchance.domain.economy.WalletState
 import com.royalchance.domain.game.GameType
+import com.royalchance.domain.progression.AchievementId
+import com.royalchance.domain.progression.ProgressEvent
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -33,7 +39,7 @@ class FirebaseEconomyRepositoryTest {
     private val wallets = FakeWalletStore()
 
     private fun test(block: suspend TestScope.(FirebaseRepositories) -> Unit) = runTest(UnconfinedTestDispatcher()) {
-        block(FirebaseRepositories.create(authGateway, players, wallets, clock, TestRandomGenerator(seed = 7), backgroundScope))
+        block(FirebaseRepositories.create(authGateway, players, wallets, clock, TimeZone.UTC, TestRandomGenerator(seed = 7), backgroundScope))
     }
 
     private suspend fun FirebaseRepositories.register() {
@@ -52,7 +58,10 @@ class FirebaseEconomyRepositoryTest {
         assertEquals(Chips(10_000), firebase.balance())
         val entry = entries().single()
         assertEquals(LedgerEntryKind.Welcome.name, entry.kind)
-        assertEquals(WalletDocument("uid-1", balance = 10_000, seq = 1, lastEntryId = entry.id), wallets.wallets.value["uid-1"])
+        assertEquals(
+            WalletDocument("uid-1", balance = 10_000, seq = 1, lastEntryId = entry.id, highestBalance = 10_000),
+            wallets.wallets.value["uid-1"],
+        )
     }
 
     @Test
@@ -116,6 +125,36 @@ class FirebaseEconomyRepositoryTest {
     }
 
     @Test
+    fun aWalletFromBeforeProgressionKeepsWorking() = test { firebase ->
+        // Documento de la Fase 5: sin experiencia, contadores ni logros.
+        wallets.wallets.value = mapOf("uid-1" to fromJson<WalletDocument>("""{"uid":"uid-1","balance":12000,"seq":4,"lastEntryId":"x"}"""))
+        firebase.register()
+
+        firebase.economy.playInstantRound(GameType.Dice, Chips(100), Chips(200))
+
+        val document = wallets.wallets.value.getValue("uid-1")
+        assertEquals(1, document.rounds)
+        assertEquals(12_100, document.highestBalance)
+        assertEquals(listOf("FirstWin"), document.unlocked)
+    }
+
+    @Test
+    fun dailyBonusStoresTheDayAndAnnouncesProgress() = test { firebase ->
+        firebase.register()
+        val events = mutableListOf<ProgressEvent>()
+        backgroundScope.launch { firebase.economy.events.toList(events) }
+
+        firebase.economy.claimDailyBonus()
+        firebase.economy.playInstantRound(GameType.Slots, Chips(100), Chips(1_000))
+
+        val document = wallets.wallets.value.getValue("uid-1")
+        assertEquals(LocalDate(2026, 10, 1).toEpochDays().toLong(), document.lastDailyDay)
+        assertEquals(1, document.dailyStreak)
+        assertEquals(listOf("DailyBonus", "InstantRound"), entries().drop(1).map { it.kind })
+        assertEquals(listOf<ProgressEvent>(ProgressEvent.AchievementUnlocked(AchievementId.FirstWin)), events)
+    }
+
+    @Test
     fun validationErrorsWriteNothing() = test { firebase ->
         firebase.register()
 
@@ -153,8 +192,15 @@ class FirebaseEconomyRepositoryTest {
         val wallet = WalletDocument("uid-1", balance = 10, seq = 3, lastEntryId = "e3")
         val entry = LedgerEntryDocument("e3", seq = 3, kind = "Rescue", amount = 1_000, balanceAfter = 1_010, createdAtMillis = 5)
 
-        // Las reglas exigen una forma exacta: los campos opcionales vacíos no se escriben.
-        assertEquals(setOf("uid", "balance", "seq", "lastEntryId"), wallet.toFirestoreMap().keys)
+        // Las reglas exigen una forma exacta: los campos opcionales vacíos no se escriben,
+        // pero los contadores sí, aunque valgan 0.
+        assertEquals(
+            setOf(
+                "uid", "balance", "seq", "lastEntryId", "xp", "rounds", "wins", "losses", "pushes", "winStreak",
+                "bestWinStreak", "highestBalance", "dailyStreak", "unlocked", "claimed",
+            ),
+            wallet.toFirestoreMap().keys,
+        )
         assertEquals(setOf("id", "seq", "kind", "amount", "balanceAfter", "createdAtMillis"), entry.toFirestoreMap().keys)
         assertEquals(wallet, fromFirestoreMap<WalletDocument>(wallet.toFirestoreMap()))
         assertEquals(entry, fromJson<LedgerEntryDocument>(entry.toJson()))

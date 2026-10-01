@@ -18,10 +18,15 @@ import com.royalchance.domain.economy.WalletState
 import com.royalchance.domain.economy.WalletTransition
 import com.royalchance.domain.economy.WalletTransitions
 import com.royalchance.domain.game.GameType
+import com.royalchance.domain.progression.AchievementId
+import com.royalchance.domain.progression.ProgressEvent
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collectLatest
@@ -30,6 +35,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.todayIn
 import kotlin.time.Clock
 
 /**
@@ -45,11 +52,14 @@ internal class FirebaseEconomyRepository(
     private val authRepository: AuthRepository,
     private val store: WalletStore,
     private val clock: Clock,
+    private val timeZone: TimeZone,
     private val random: RandomGenerator,
     private val scope: CoroutineScope,
 ) : EconomyRepository {
 
     private val mutex = Mutex()
+    private val progressEvents = MutableSharedFlow<ProgressEvent>(extraBufferCapacity = EVENT_BUFFER)
+    override val events: Flow<ProgressEvent> = progressEvents.asSharedFlow()
     private val state = MutableStateFlow<WalletState>(WalletState.Loading)
     override val wallet: StateFlow<WalletState> = state.asStateFlow()
 
@@ -80,6 +90,10 @@ internal class FirebaseEconomyRepository(
         execute(EconomyOperation.InstantRound(game, stake, payout))
 
     override suspend fun claimRescue() = execute(EconomyOperation.ClaimRescue)
+
+    override suspend fun claimDailyBonus() = execute(EconomyOperation.ClaimDailyBonus(clock.todayIn(timeZone)))
+
+    override suspend fun claimAchievement(id: AchievementId) = execute(EconomyOperation.ClaimAchievement(id))
 
     private suspend fun observeWallet(playerId: String) {
         var seen = false
@@ -118,6 +132,7 @@ internal class FirebaseEconomyRepository(
             is Outcome.Failure -> result
             is Outcome.Success -> {
                 persist(playerId, result.value) ?: return failure(EconomyError.WalletUnavailable)
+                result.value.events.forEach(progressEvents::tryEmit)
                 Outcome.Success(result.value.wallet)
             }
         }
@@ -149,5 +164,9 @@ internal class FirebaseEconomyRepository(
             }
         }
         return pending
+    }
+
+    private companion object {
+        const val EVENT_BUFFER = 16
     }
 }

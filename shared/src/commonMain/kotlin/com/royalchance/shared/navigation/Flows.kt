@@ -1,11 +1,16 @@
 package com.royalchance.shared.navigation
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -31,6 +36,7 @@ import com.royalchance.core.designsystem.icon.RoyalIcons
 import com.royalchance.core.designsystem.theme.RoyalSpacing
 import com.royalchance.core.ui.AvatarBadge
 import com.royalchance.core.ui.ChipBalance
+import com.royalchance.core.ui.ProgressEventHost
 import com.royalchance.domain.auth.AuthUser
 import com.royalchance.domain.auth.AvatarId
 import com.royalchance.domain.economy.Chips
@@ -116,33 +122,46 @@ internal fun MainFlow(graph: AppGraph, user: AuthUser?) {
         NavigationItem(MainTab.Settings, stringResource(Res.string.tab_settings), RoyalIcons.Settings),
     )
 
-    AdaptiveNavigationScaffold(
-        items = items,
-        selected = currentTab,
-        onSelect = { tab -> backStack.selectTab(tab) },
-        navigationVisible = onTabRoot,
-        drawerHeader = { DrawerHeader(user, balance = (wallet as? WalletState.Ready)?.wallet?.balance) },
-    ) {
-        NavDisplay(
-            backStack = backStack,
-            onBack = { backStack.popIfNotRoot() },
-            entryDecorators = listOf(
-                rememberSaveableStateHolderNavEntryDecorator(),
-                rememberViewModelStoreNavEntryDecorator(),
-            ),
-            entryProvider = entryProvider {
-                lobbyEntry(graph.authRepository, graph.economyRepository, graph.clock)
-                progressEntry()
-                historyEntry()
-                settingsEntry(
-                    authRepository = graph.authRepository,
-                    settingsRepository = graph.settingsRepository,
-                    appVersion = AppInfo.VERSION,
-                    onOpenTerms = { backStack.add(AuthRoute.Legal(LegalDocument.Terms)) },
-                    onOpenPrivacy = { backStack.add(AuthRoute.Legal(LegalDocument.Privacy)) },
-                )
-                legalEntries(back = { backStack.popIfNotRoot() })
-            },
+    Box(Modifier.fillMaxSize()) {
+        AdaptiveNavigationScaffold(
+            items = items,
+            selected = currentTab,
+            onSelect = { tab -> backStack.selectTab(tab) },
+            navigationVisible = onTabRoot,
+            drawerHeader = { DrawerHeader(user, balance = (wallet as? WalletState.Ready)?.wallet?.balance) },
+        ) {
+            NavDisplay(
+                backStack = backStack,
+                onBack = { backStack.popIfNotRoot() },
+                entryDecorators = listOf(
+                    rememberSaveableStateHolderNavEntryDecorator(),
+                    rememberViewModelStoreNavEntryDecorator(),
+                ),
+                entryProvider = entryProvider {
+                    lobbyEntry(
+                        authRepository = graph.authRepository,
+                        economyRepository = graph.economyRepository,
+                        clock = graph.clock,
+                        timeZone = graph.timeZone,
+                        onOpenProgress = { backStack.selectTab(MainTab.Progress) },
+                    )
+                    progressEntry(graph.economyRepository, graph.clock, graph.timeZone)
+                    historyEntry()
+                    settingsEntry(
+                        authRepository = graph.authRepository,
+                        settingsRepository = graph.settingsRepository,
+                        appVersion = AppInfo.VERSION,
+                        onOpenTerms = { backStack.add(AuthRoute.Legal(LegalDocument.Terms)) },
+                        onOpenPrivacy = { backStack.add(AuthRoute.Legal(LegalDocument.Privacy)) },
+                    )
+                    legalEntries(back = { backStack.popIfNotRoot() })
+                },
+            )
+        }
+        // Subidas de nivel y logros, sobre cualquier pantalla del casino.
+        ProgressEventHost(
+            events = graph.economyRepository.events,
+            modifier = Modifier.align(Alignment.TopCenter).windowInsetsPadding(WindowInsets.safeDrawing),
         )
     }
 }

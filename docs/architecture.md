@@ -57,15 +57,16 @@ Los módulos se crean cuando una fase los necesita. Existentes tras la Fase 3:
 | Módulo | Contenido |
 |---|---|
 | `core:common` | `RandomGenerator` e ids aleatorios, `Outcome` (errores tipados), formato de números, nombres de países (CLDR) |
-| `core:designsystem` | Tema "Noir & Oro", tipografía, iconos, palos de la baraja, ficha de casino, componentes, navegación adaptativa |
-| `core:ui` | Avatares, selector de país y saldo de fichas (componentes que conocen el dominio) |
+| `core:designsystem` | Tema "Noir & Oro", tipografía, iconos, palos de la baraja, ficha de casino, barras de avance, componentes, navegación adaptativa |
+| `core:ui` | Avatares, selector de país, saldo de fichas, textos de niveles y logros, avisos de progreso |
 | `core:testing` | Generadores aleatorios deterministas, `TestClock` |
-| `domain` | Autenticación, reglas del registro, países, ajustes, `GameType` y economía (`Chips`, monedero, asientos, reglas) |
+| `domain` | Autenticación, reglas del registro, países, ajustes, `GameType`, economía (`Chips`, monedero, asientos, reglas) y progresión (niveles, experiencia, bono diario, logros) |
 | `data` | Repositorios en memoria (escritorio y tests), incluida la economía, y ajustes persistentes (`KeyValueStore`) |
 | `data:firebase` | Autenticación, perfil y economía con Firebase (Android y web); lógica común sobre pasarelas por plataforma |
 | `feature:auth` | Bienvenida, inicio de sesión, registro completo, completar perfil, recuperar contraseña, legales |
-| `feature:lobby` | Saludo, saldo, avisos de cuenta, recarga gratuita y catálogo de juegos |
-| `feature:profile`, `feature:history` | Pestañas de progreso e historial (estado vacío hasta las Fases 6 y 11) |
+| `feature:lobby` | Saludo, saldo, nivel, bono diario, avisos de cuenta y de logros, recarga gratuita y catálogo de juegos |
+| `feature:profile` | Progreso: nivel, estadísticas, racha de bono diario y logros con el cobro de sus recompensas |
+| `feature:history` | Pestaña de historial (estado vacío hasta la Fase 11) |
 | `feature:settings` | Cuenta, tema, documentos legales, cerrar sesión y eliminar cuenta |
 | `shared` | `App()`, `AppGraph` (DI manual) y flujos de navegación |
 
@@ -114,10 +115,13 @@ ajeno.
 - Firebase Auth solo con email y contraseña. Firestore con caché offline como almacenamiento local-first.
 - Cada operación económica cuesta 2 escrituras de documento (monedero y asiento); cuota gratuita:
   20.000 escrituras/día en total.
-- Reglas de seguridad (`firebase/firestore.rules`, con 26 tests en `firebase/tests`): solo el
+- Reglas de seguridad (`firebase/firestore.rules`, con 34 tests en `firebase/tests`): solo el
   propietario accede a sus datos, forma exacta de cada documento (no se pueden añadir campos),
-  alias válido y único, avatar conocido, mayoría de edad comprobada con la hora del servidor y
-  cada movimiento de fichas justificado y dentro de los límites. El bono diario llegará en la Fase 6.
+  alias válido y único, avatar conocido, mayoría de edad comprobada con la hora del servidor,
+  cada movimiento de fichas justificado y dentro de los límites, y la progresión coherente con
+  cada movimiento (sección 8).
+- Las reglas tienen un límite de 1.000 expresiones evaluadas por petición: la validación de un
+  movimiento elige el validador por el tipo de asiento y solo revisa los logros si cambian.
 - Limitación conocida: sin Cloud Functions (plan Blaze) el cliente decide los resultados; los
   rankings no serán fiables hasta tener lógica en servidor. Los motores puros podrán ejecutarse allí.
 - Región de Firestore: UE (irreversible una vez creada la base de datos).
@@ -165,11 +169,43 @@ vuelve al último válido.
 reglas solo permiten borrar el monedero junto con el perfil (no se puede reiniciar el saldo para
 cobrar otra bienvenida) y los asientos cuando el monedero ya no existe.
 
-**Pendiente:** bono diario y rachas (Fase 6); fichas en la mesa de póker (sentarse y levantarse,
-Fase 10). El saldo mostrado durante una animación (que no revele el resultado antes de tiempo) se
+**Pendiente:** fichas en la mesa de póker (sentarse y levantarse, Fase 10). El saldo mostrado durante una animación (que no revele el resultado antes de tiempo) se
 resolverá con el primer juego (Fase 7).
 
-## 8. Autenticación (Fase 3: interfaz y reglas; Fase 4: Firebase)
+## 8. Progresión (Fase 6)
+
+La progresión se guarda en el mismo documento que el saldo: cada ronda los cambia a la vez y así
+sigue siendo una única escritura. Las mismas operaciones de `EconomyRepository` la actualizan
+(`WalletTransitions`), y las reglas de Firestore comprueban cada cambio contra el asiento.
+
+**Experiencia y niveles** (`ExperienceRules`, `Levels`):
+- Cada ronda cerrada da 10 puntos más un extra por tramos de apuesta: +2 desde 50, +4 desde 100,
+  +6 desde 500, +8 desde 1.000, +10 desde 5.000 y +12 desde 25.000 (casi logarítmico). El
+  resultado no influye: falsear victorias no da experiencia.
+- Nivel `n` a partir de `50 · (n − 1)²` puntos (nivel 5 ≈ 60 rondas, 10 ≈ 300, 25 ≈ 2.000).
+  Máximo 99. El nivel se deriva de la experiencia; no se guarda.
+- Títulos: Novato (1), Jugador (5), VIP (10), High Roller (25) y Leyenda (50).
+
+**Contadores:** rondas, victorias, derrotas, empates (ganar es cobrar más de lo apostado), racha
+de victorias (un empate no la rompe ni la alarga), mejor racha y saldo máximo alcanzado. Una ronda
+por turnos cuenta al liquidarse, con todo lo apostado en ella.
+
+**Bono diario** (`DailyBonusRules`): por día natural en la zona horaria del dispositivo, una vez
+al día. Si el último cobro fue ayer, la racha sube; si se salta un día, vuelve a 1. Premio
+500 + 200 · (día − 1), con tope a partir del día 7 (1.700). Si el reloj marca una hora anterior al
+último cobro, queda bloqueado. El servidor exige que el día del dispositivo esté a un día como mucho
+del día UTC del servidor: adelantar la fecha no adelanta bonos.
+
+**Logros** (`Achievements`): catálogo de 14 con id estable, condición tipada y recompensa (de 250
+a 10.000 fichas): primera victoria, 10/100/1.000 rondas, 50 victorias, rachas de 5 y 10, niveles
+5/10/25, saldos de 50.000 y 250.000, y 7 y 30 días seguidos de bono. Se desbloquean solos en la
+operación que cumple la condición (las reglas la comprueban) y la recompensa se recoge después,
+una sola vez, como una operación más con su asiento.
+
+**Avisos:** `EconomyRepository.events` emite subidas de nivel y logros desbloqueados; un aviso
+no bloqueante los muestra sobre cualquier pantalla del casino.
+
+## 9. Autenticación (Fase 3: interfaz y reglas; Fase 4: Firebase)
 
 Decisiones confirmadas: **solo email y contraseña** (sin modo invitado ni Google Sign-In, retirados
 a petición del producto) y la verificación de email no bloquea el juego.
@@ -189,7 +225,7 @@ a petición del producto) y la verificación de email no bloquea el juego.
 - Los textos legales incluidos son un **borrador** marcado como tal en la app: deben sustituirse por
   la versión revisada antes de publicar. Cada aceptación guarda la versión del documento y la fecha.
 
-## 9. Navegación
+## 10. Navegación
 
 Navigation 3 (estable en Compose Multiplatform desde 1.10), con rutas `@Serializable` registradas
 para serialización polimórfica (necesario fuera de Android).
@@ -213,7 +249,7 @@ Implementación:
   ocultan la navegación principal. El contenido se traslada con `movableContentOf` para no perder su estado
   al cambiar de diseño (móvil ↔ escritorio) ni al mostrar/ocultar la navegación.
 
-## 10. Plan de fases
+## 11. Plan de fases
 
 | Fase | Contenido | Estado |
 |---|---|---|
@@ -222,7 +258,7 @@ Implementación:
 | 3 | Sistema de diseño, navegación y pantallas de login/registro (con datos simulados) | Hecha |
 | 4 | Firebase: autenticación real + Firestore + reglas de seguridad | Hecha |
 | 5 | Economía de fichas | Hecha |
-| 6 | Niveles, bono diario, rachas y logros | — |
+| 6 | Niveles, bono diario, rachas y logros | Hecha |
 | 7 | Blackjack | — |
 | 8 | Ruleta | — |
 | 9 | Slots y Dados | — |
@@ -233,7 +269,7 @@ Implementación:
 | 14 | Cobertura de tests | — |
 | 15 | Builds y despliegue | — |
 
-## 11. Reglas de juego acordadas (Fase 1)
+## 12. Reglas de juego acordadas (Fase 1)
 
 - Blackjack: 6 barajas, crupier se planta en 17 blando, blackjack 3:2, doblar con 2 cartas,
   split hasta 4 manos (ases: una carta), sin seguro ni rendición en la v1.
@@ -244,7 +280,7 @@ Implementación:
 - Fichas: `Long`, apuesta mínima 10, denominaciones 10/50/100/500/1K/5K/25K.
 - DI manual (composition root en `shared`).
 
-## 12. Problemas conocidos
+## 13. Problemas conocidos
 
 - El SDK de Firebase añade unos 210 KB comprimidos a la PWA.
 

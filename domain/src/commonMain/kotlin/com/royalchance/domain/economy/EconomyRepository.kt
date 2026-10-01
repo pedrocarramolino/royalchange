@@ -2,6 +2,9 @@ package com.royalchance.domain.economy
 
 import com.royalchance.core.common.result.Outcome
 import com.royalchance.domain.game.GameType
+import com.royalchance.domain.progression.AchievementId
+import com.royalchance.domain.progression.ProgressEvent
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 
 /**
@@ -31,4 +34,13 @@ interface EconomyRepository {
 
     /** Recarga gratuita cuando el saldo no llega a la apuesta mínima (ver [rescueStatus]). */
     suspend fun claimRescue(): Outcome<Wallet, EconomyError>
+
+    /** Bono diario del día actual en la zona horaria del dispositivo. */
+    suspend fun claimDailyBonus(): Outcome<Wallet, EconomyError>
+
+    /** Recompensa de un logro ya desbloqueado. */
+    suspend fun claimAchievement(id: AchievementId): Outcome<Wallet, EconomyError>
+
+    /** Subidas de nivel y logros desbloqueados, en el momento en que ocurren. */
+    val events: Flow<ProgressEvent>
 }

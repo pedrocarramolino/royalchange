@@ -7,6 +7,7 @@ import com.royalchance.data.firebase.gateway.WalletStore
 import com.royalchance.domain.auth.AuthRepository
 import com.royalchance.domain.economy.EconomyRepository
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.datetime.TimeZone
 import kotlin.time.Clock
 
 /** Repositorios respaldados por Firebase. Comparten la misma instancia de Auth y Firestore. */
@@ -20,13 +21,14 @@ class FirebaseRepositories internal constructor(
             playerStore: PlayerStore,
             walletStore: WalletStore,
             clock: Clock,
+            timeZone: TimeZone,
             random: RandomGenerator,
             scope: CoroutineScope,
         ): FirebaseRepositories {
             val auth = FirebaseAuthRepository(authGateway, playerStore, clock, scope)
             return FirebaseRepositories(
                 auth = auth,
-                economy = FirebaseEconomyRepository(auth, walletStore, clock, random, scope),
+                economy = FirebaseEconomyRepository(auth, walletStore, clock, timeZone, random, scope),
             )
         }
     }

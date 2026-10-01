@@ -1,6 +1,8 @@
 package com.royalchance.domain.economy
 
 import com.royalchance.domain.game.GameType
+import com.royalchance.domain.progression.AchievementId
+import kotlinx.datetime.LocalDate
 import kotlin.time.Instant
 
 /** Operaciones con intención que admite el monedero. No existe "fijar el saldo". */
@@ -16,6 +18,12 @@ sealed interface EconomyOperation {
     data class InstantRound(val game: GameType, val stake: Chips, val payout: Chips) : EconomyOperation
 
     data object ClaimRescue : EconomyOperation
+
+    /** Bono diario de [today], el día actual en la zona horaria del dispositivo. */
+    data class ClaimDailyBonus(val today: LocalDate) : EconomyOperation
+
+    /** Cobra la recompensa de un logro ya desbloqueado. */
+    data class ClaimAchievement(val id: AchievementId) : EconomyOperation
 }
 
 sealed interface EconomyError {
@@ -41,4 +49,13 @@ sealed interface EconomyError {
     data object RescueNotNeeded : EconomyError
 
     data class RescueCoolingDown(val availableAt: Instant) : EconomyError
+
+    data object DailyBonusAlreadyClaimed : EconomyError
+
+    /** El reloj del dispositivo marca una hora anterior al último cobro. */
+    data object DailyBonusClockMovedBack : EconomyError
+
+    data object AchievementLocked : EconomyError
+
+    data object AchievementAlreadyClaimed : EconomyError
 }

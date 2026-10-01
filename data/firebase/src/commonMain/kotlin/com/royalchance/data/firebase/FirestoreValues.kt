@@ -30,12 +30,14 @@ internal const val MAX_BATCH_WRITES = 500
 internal fun aliasDocument(uid: String, alias: String): Map<String, Any?> = mapOf("uid" to uid, "alias" to alias)
 
 /**
- * Formato de los documentos: los campos opcionales vacíos no se escriben (las reglas exigen una
- * forma exacta y no admiten nulos) y los campos desconocidos se ignoran al leer.
+ * Formato de los documentos: los campos opcionales vacíos (nulos) no se escriben, porque las reglas
+ * exigen una forma exacta y no admiten nulos; los valores por defecto sí (un contador a 0 es un dato).
+ * Los campos desconocidos se ignoran al leer.
  */
 @PublishedApi
 internal val FirestoreJson: Json = Json {
     explicitNulls = false
+    encodeDefaults = true
     ignoreUnknownKeys = true
 }
 

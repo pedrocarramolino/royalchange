@@ -65,7 +65,7 @@ import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
-internal fun LobbyScreen(viewModel: LobbyViewModel) {
+internal fun LobbyScreen(viewModel: LobbyViewModel, onOpenProgress: () -> Unit) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     // En escritorio el contenido se centra con un ancho máximo cómodo de leer.
@@ -82,6 +82,26 @@ internal fun LobbyScreen(viewModel: LobbyViewModel) {
             }
             item(span = { GridItemSpan(maxLineSpan) }) {
                 BalanceCard(state.balance)
+            }
+            state.level?.let { level ->
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    LevelSummary(level, onOpenProgress = onOpenProgress)
+                }
+            }
+            state.dailyBonus?.let { dailyBonus ->
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    DailyBonusCard(
+                        status = dailyBonus,
+                        claiming = state.isClaimingDailyBonus,
+                        failed = state.dailyBonusFailed,
+                        onClaim = viewModel::claimDailyBonus,
+                    )
+                }
+            }
+            if (state.claimableAchievements > 0) {
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    ClaimableAchievementsBanner(state.claimableAchievements, onOpenProgress = onOpenProgress)
+                }
             }
             if (state.showWelcomeGrant) {
                 item(span = { GridItemSpan(maxLineSpan) }) {

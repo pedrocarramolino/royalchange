@@ -10,7 +10,8 @@ rules_version = '2';
 // Colecciones:
 // - players/{uid}: perfil del jugador (solo cuentas con email y contraseña).
 // - aliases/{aliasKey}: reserva de alias (en minúsculas) para que sean únicos.
-// - wallets/{uid}: saldo de fichas. Solo cambia junto a un asiento que lo justifique.
+// - wallets/{uid}: saldo de fichas y progresión (experiencia, contadores, rachas, logros). Solo
+//   cambia junto a un asiento que lo justifique.
 // - wallets/{uid}/ledger/{entryId}: asientos contables, inmutables.
 //
 // Límite conocido: sin lógica en el servidor (Cloud Functions, plan de pago) el cliente decide el
@@ -79,7 +80,29 @@ service cloud.firestore {
     // Margen para relojes de dispositivo algo adelantados respecto al servidor.
     function clockSkewMillis() { return 5 * 60 * 1000; }
     function games() { return ['Blackjack', 'Roulette', 'Slots', 'Poker', 'Dice']; }
-    function entryKinds() { return ['Welcome', 'Bet', 'Settlement', 'InstantRound', 'Rescue']; }
+    function entryKinds() {
+      return ['Welcome', 'Bet', 'Settlement', 'InstantRound', 'Rescue', 'DailyBonus', 'AchievementReward'];
+    }
+
+    // Progresión: repite ExperienceRules, Levels, DailyBonusRules y Achievements (módulo domain).
+    function achievementRewards() {
+      return {
+        'FirstWin': 250, 'Rounds10': 250, 'Rounds100': 1000, 'Rounds1000': 5000, 'Wins50': 1000,
+        'WinStreak5': 1000, 'WinStreak10': 5000, 'Level5': 500, 'Level10': 2000, 'Level25': 10000,
+        'Balance50k': 2500, 'Balance250k': 10000, 'DailyStreak7': 1000, 'DailyStreak30': 5000
+      };
+    }
+    function achievementIds() { return achievementRewards().keys(); }
+
+    // Experiencia por ronda: 10 fijos y un extra por tramos de apuesta (casi logarítmico).
+    function xpForStake(stake) {
+      return 10 + (stake >= 25000 ? 12 : stake >= 5000 ? 10 : stake >= 1000 ? 8
+        : stake >= 500 ? 6 : stake >= 100 ? 4 : stake >= 50 ? 2 : 0);
+    }
+
+    function counters() {
+      return ['xp', 'rounds', 'wins', 'losses', 'pushes', 'winStreak', 'bestWinStreak', 'highestBalance', 'dailyStreak'];
+    }
 
     function playerPath(uid) {
       return /databases/$(database)/documents/players/$(uid);
@@ -103,21 +126,34 @@ service cloud.firestore {
     }
 
     function validWallet(data, uid) {
-      return data.keys().hasAll(['uid', 'balance', 'seq', 'lastEntryId'])
-        && data.keys().hasOnly(['uid', 'balance', 'seq', 'lastEntryId', 'openRound', 'lastRescueAtMillis'])
+      return data.keys().hasAll(['uid', 'balance', 'seq', 'lastEntryId', 'unlocked', 'claimed'])
+        && data.keys().hasAll(counters())
+        && data.keys().hasOnly([
+          'uid', 'balance', 'seq', 'lastEntryId', 'openRound', 'lastRescueAtMillis', 'xp', 'rounds',
+          'wins', 'losses', 'pushes', 'winStreak', 'bestWinStreak', 'highestBalance', 'dailyStreak',
+          'lastDailyDay', 'lastDailyAtMillis', 'unlocked', 'claimed'
+        ])
         && data.uid == uid
         && data.balance is int && data.balance >= 0
         && data.seq is int
         && data.lastEntryId is string
         && (!('openRound' in data) || validOpenRound(data.openRound))
-        && (!('lastRescueAtMillis' in data) || data.lastRescueAtMillis is int);
+        && (!('lastRescueAtMillis' in data) || data.lastRescueAtMillis is int)
+        && data.xp is int && data.rounds is int && data.wins is int && data.losses is int
+        && data.pushes is int && data.winStreak is int && data.bestWinStreak is int
+        && data.highestBalance is int && data.highestBalance >= data.balance
+        && data.dailyStreak is int
+        && (!('lastDailyDay' in data) || data.lastDailyDay is int)
+        && (!('lastDailyAtMillis' in data) || data.lastDailyAtMillis is int)
+        && data.unlocked is list && data.unlocked.toSet().hasOnly(achievementIds())
+        && data.claimed is list && data.claimed.toSet().hasOnly(data.unlocked);
     }
 
     function validEntry(data, entryId) {
       return data.keys().hasAll(['id', 'seq', 'kind', 'amount', 'balanceAfter', 'createdAtMillis'])
         && data.keys().hasOnly([
           'id', 'seq', 'kind', 'amount', 'balanceAfter', 'createdAtMillis',
-          'game', 'roundId', 'stake', 'payout'
+          'game', 'roundId', 'stake', 'payout', 'achievementId'
         ])
         && data.id == entryId
         && data.seq is int
@@ -130,11 +166,87 @@ service cloud.firestore {
         && (!('game' in data) || data.game in games())
         && (!('roundId' in data) || data.roundId is string)
         && (!('stake' in data) || data.stake is int)
-        && (!('payout' in data) || data.payout is int);
+        && (!('payout' in data) || data.payout is int)
+        && (!('achievementId' in data) || data.achievementId in achievementIds());
     }
 
     function keepsRescueTime(before, after) {
       return after.get('lastRescueAtMillis', null) == before.get('lastRescueAtMillis', null);
+    }
+
+    // Valor anterior de un contador. Los monederos creados antes de la Fase 6 no los tienen.
+    function previous(before, field) {
+      return before.get(field, 0);
+    }
+
+    function previousHighest(before) {
+      return before.get('highestBalance', before.balance);
+    }
+
+    function keepsCounters(before, after) {
+      return after.xp == previous(before, 'xp')
+        && after.rounds == previous(before, 'rounds')
+        && after.wins == previous(before, 'wins')
+        && after.losses == previous(before, 'losses')
+        && after.pushes == previous(before, 'pushes')
+        && after.winStreak == previous(before, 'winStreak')
+        && after.bestWinStreak == previous(before, 'bestWinStreak');
+    }
+
+    function keepsDailyBonus(before, after) {
+      return after.dailyStreak == previous(before, 'dailyStreak')
+        && after.get('lastDailyDay', null) == before.get('lastDailyDay', null)
+        && after.get('lastDailyAtMillis', null) == before.get('lastDailyAtMillis', null);
+    }
+
+    function keepsClaims(before, after) {
+      return after.claimed.toSet() == before.get('claimed', []).toSet();
+    }
+
+    // Una ronda cerrada: experiencia por la apuesta, contadores y racha según el resultado.
+    // Ganar es cobrar más de lo apostado; un empate no rompe ni alarga la racha.
+    function validRoundProgress(before, after, stake, payout) {
+      let win = payout > stake;
+      let loss = payout < stake;
+      let streak = win ? previous(before, 'winStreak') + 1 : (loss ? 0 : previous(before, 'winStreak'));
+      let best = previous(before, 'bestWinStreak');
+      return after.xp == previous(before, 'xp') + xpForStake(stake)
+        && after.rounds == previous(before, 'rounds') + 1
+        && after.wins == previous(before, 'wins') + (win ? 1 : 0)
+        && after.losses == previous(before, 'losses') + (loss ? 1 : 0)
+        && after.pushes == previous(before, 'pushes') + (win || loss ? 0 : 1)
+        && after.winStreak == streak
+        && after.bestWinStreak == (streak > best ? streak : best)
+        && keepsDailyBonus(before, after)
+        && keepsClaims(before, after);
+    }
+
+    // Solo se desbloquean logros cuya condición se cumple con los datos ya validados. La mayoría
+    // de los movimientos no desbloquea nada: entonces basta con comprobar que la lista no cambia
+    // (las reglas tienen un límite de 1.000 expresiones evaluadas por petición).
+    function validUnlocks(before, after) {
+      let earlier = before.get('unlocked', []);
+      return after.unlocked == earlier || validNewUnlocks(earlier.toSet(), after);
+    }
+
+    // Los umbrales de nivel son la experiencia necesaria: 50 · (nivel − 1)².
+    function validNewUnlocks(earlier, after) {
+      let added = after.unlocked.toSet().difference(earlier);
+      return after.unlocked.toSet().hasAll(earlier)
+        && (!('FirstWin' in added) || after.wins >= 1)
+        && (!('Rounds10' in added) || after.rounds >= 10)
+        && (!('Rounds100' in added) || after.rounds >= 100)
+        && (!('Rounds1000' in added) || after.rounds >= 1000)
+        && (!('Wins50' in added) || after.wins >= 50)
+        && (!('WinStreak5' in added) || after.bestWinStreak >= 5)
+        && (!('WinStreak10' in added) || after.bestWinStreak >= 10)
+        && (!('Level5' in added) || after.xp >= 800)
+        && (!('Level10' in added) || after.xp >= 4050)
+        && (!('Level25' in added) || after.xp >= 28800)
+        && (!('Balance50k' in added) || after.highestBalance >= 50000)
+        && (!('Balance250k' in added) || after.highestBalance >= 250000)
+        && (!('DailyStreak7' in added) || after.dailyStreak >= 7)
+        && (!('DailyStreak30' in added) || after.dailyStreak >= 30);
     }
 
     // Apuesta de una ronda por turnos: abre la ronda o añade fichas a la abierta del mismo juego.
@@ -150,7 +262,10 @@ service cloud.firestore {
         && e.roundId == roundId
         && roundStake <= maximumRoundStake()
         && after.get('openRound', null) == {'id': roundId, 'game': e.game, 'stake': roundStake}
-        && keepsRescueTime(before, after);
+        && keepsRescueTime(before, after)
+        && keepsCounters(before, after)
+        && keepsDailyBonus(before, after)
+        && keepsClaims(before, after);
     }
 
     // Liquidación de la ronda abierta: el pago no puede superar su apuesta por el techo global.
@@ -165,7 +280,8 @@ service cloud.firestore {
         && e.payout == payout
         && payout <= round.stake * maximumPayoutMultiplier()
         && !('openRound' in after)
-        && keepsRescueTime(before, after);
+        && keepsRescueTime(before, after)
+        && validRoundProgress(before, after, round.stake, payout);
     }
 
     // Ronda instantánea (ruleta, slots, dados): apuesta y pago en un solo asiento.
@@ -179,7 +295,8 @@ service cloud.firestore {
         && e.payout >= 0 && e.payout <= e.stake * maximumPayoutMultiplier()
         && after.balance - before.balance == e.payout - e.stake
         && after.get('openRound', null) == before.get('openRound', null)
-        && keepsRescueTime(before, after);
+        && keepsRescueTime(before, after)
+        && validRoundProgress(before, after, e.stake, e.payout);
     }
 
     // Recarga gratuita: sin fichas para apostar ni en la mesa, y como mucho una cada 4 horas
@@ -193,18 +310,69 @@ service cloud.firestore {
         && after.balance - before.balance == rescueGrant()
         && (last == null || request.time.toMillis() + clockSkewMillis() >= last + rescueCooldownMillis())
         && after.lastRescueAtMillis == e.createdAtMillis
-        && (last == null || after.lastRescueAtMillis >= last + rescueCooldownMillis());
+        && (last == null || after.lastRescueAtMillis >= last + rescueCooldownMillis())
+        && keepsCounters(before, after)
+        && keepsDailyBonus(before, after)
+        && keepsClaims(before, after);
     }
 
-    // El asiento cuadra con el cambio de saldo y es una de las operaciones permitidas.
+    // Bono diario: un día del dispositivo posterior al último cobro y, como mucho, un día de
+    // diferencia con el día UTC del servidor (las zonas horarias van de UTC−12 a UTC+14). Racha +1
+    // si es el día siguiente; si no, vuelve a 1. Premio 500 + 200 · (día − 1), con tope en el día 7.
+    function validDailyBonus(before, after, e) {
+      let lastDay = before.get('lastDailyDay', null);
+      let streak = (lastDay != null && after.lastDailyDay == lastDay + 1) ? previous(before, 'dailyStreak') + 1 : 1;
+      let rewardDay = streak > 7 ? 7 : streak;
+      let serverDay = math.floor(request.time.toMillis() / 86400000);
+      return e.kind == 'DailyBonus'
+        && after.lastDailyDay is int
+        && (lastDay == null || after.lastDailyDay > lastDay)
+        && after.lastDailyDay >= serverDay - 1
+        && after.lastDailyDay <= serverDay + 1
+        && after.dailyStreak == streak
+        && after.lastDailyAtMillis == e.createdAtMillis
+        && after.balance - before.balance == 500 + 200 * (rewardDay - 1)
+        && after.get('openRound', null) == before.get('openRound', null)
+        && keepsRescueTime(before, after)
+        && keepsCounters(before, after)
+        && keepsClaims(before, after);
+    }
+
+    // Recompensa de un logro desbloqueado antes y aún sin cobrar.
+    function validAchievementClaim(before, after, e) {
+      let earlier = before.get('claimed', []).toSet();
+      return e.kind == 'AchievementReward'
+        && e.achievementId in before.get('unlocked', [])
+        && !(e.achievementId in earlier)
+        && after.claimed.toSet() == earlier.union([e.achievementId].toSet())
+        && after.balance - before.balance == achievementRewards()[e.achievementId]
+        && after.get('openRound', null) == before.get('openRound', null)
+        && keepsRescueTime(before, after)
+        && keepsCounters(before, after)
+        && keepsDailyBonus(before, after);
+    }
+
+    // El asiento cuadra con el cambio de saldo y es una de las operaciones permitidas. El saldo
+    // máximo y los logros se actualizan con cualquier operación.
     function validMovement(before, after, e) {
+      let highest = previousHighest(before);
       return e.seq == after.seq
         && e.amount == after.balance - before.balance
         && e.balanceAfter == after.balance
-        && (validBet(before, after, e)
-          || validSettlement(before, after, e)
-          || validInstantRound(before, after, e)
-          || validRescue(before, after, e));
+        && after.highestBalance == (after.balance > highest ? after.balance : highest)
+        && validUnlocks(before, after)
+        && validOperation(before, after, e);
+    }
+
+    // Solo se evalúa el validador del tipo de asiento (límite de expresiones por petición).
+    function validOperation(before, after, e) {
+      return e.kind == 'Bet' ? validBet(before, after, e)
+        : e.kind == 'Settlement' ? validSettlement(before, after, e)
+        : e.kind == 'InstantRound' ? validInstantRound(before, after, e)
+        : e.kind == 'Rescue' ? validRescue(before, after, e)
+        : e.kind == 'DailyBonus' ? validDailyBonus(before, after, e)
+        : e.kind == 'AchievementReward' ? validAchievementClaim(before, after, e)
+        : false;
     }
 
     function validWelcome(after, e) {
@@ -212,6 +380,12 @@ service cloud.firestore {
         && after.balance == welcomeGrant()
         && !('openRound' in after)
         && !('lastRescueAtMillis' in after)
+        && after.xp == 0 && after.rounds == 0 && after.wins == 0 && after.losses == 0
+        && after.pushes == 0 && after.winStreak == 0 && after.bestWinStreak == 0
+        && after.highestBalance == welcomeGrant()
+        && after.dailyStreak == 0
+        && !('lastDailyDay' in after) && !('lastDailyAtMillis' in after)
+        && after.unlocked.size() == 0 && after.claimed.size() == 0
         && e.kind == 'Welcome'
         && e.seq == 1
         && e.amount == welcomeGrant()

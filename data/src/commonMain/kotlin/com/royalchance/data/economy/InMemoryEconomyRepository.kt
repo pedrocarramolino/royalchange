@@ -18,9 +18,14 @@ import com.royalchance.domain.economy.WalletState
 import com.royalchance.domain.economy.WalletTransition
 import com.royalchance.domain.economy.WalletTransitions
 import com.royalchance.domain.game.GameType
+import com.royalchance.domain.progression.AchievementId
+import com.royalchance.domain.progression.ProgressEvent
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -32,6 +37,8 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.todayIn
 import kotlin.time.Clock
 
 /**
@@ -44,10 +51,13 @@ class InMemoryEconomyRepository(
     private val authRepository: AuthRepository,
     scope: CoroutineScope,
     private val clock: Clock = Clock.System,
+    private val timeZone: TimeZone = TimeZone.currentSystemDefault(),
     private val random: RandomGenerator = ProductionRandomGenerator(),
 ) : EconomyRepository {
 
     private val mutex = Mutex()
+    private val progressEvents = MutableSharedFlow<ProgressEvent>(extraBufferCapacity = EVENT_BUFFER)
+    override val events: Flow<ProgressEvent> = progressEvents.asSharedFlow()
     private val wallets = MutableStateFlow<Map<String, Wallet>>(emptyMap())
     private val ledgers = mutableMapOf<String, List<LedgerEntry>>()
 
@@ -84,6 +94,10 @@ class InMemoryEconomyRepository(
 
     override suspend fun claimRescue() = execute(EconomyOperation.ClaimRescue)
 
+    override suspend fun claimDailyBonus() = execute(EconomyOperation.ClaimDailyBonus(clock.todayIn(timeZone)))
+
+    override suspend fun claimAchievement(id: AchievementId) = execute(EconomyOperation.ClaimAchievement(id))
+
     private suspend fun execute(operation: EconomyOperation): Outcome<Wallet, EconomyError> = mutex.withLock {
         val playerId = authRepository.authState.value.playerId ?: return failure(EconomyError.WalletUnavailable)
         val current = wallets.value[playerId] ?: return failure(EconomyError.WalletUnavailable)
@@ -99,5 +113,10 @@ class InMemoryEconomyRepository(
     private fun record(playerId: String, transition: WalletTransition) {
         ledgers[playerId] = ledger(playerId) + transition.entry
         wallets.update { it + (playerId to transition.wallet) }
+        transition.events.forEach(progressEvents::tryEmit)
+    }
+
+    private companion object {
+        const val EVENT_BUFFER = 16
     }
 }
