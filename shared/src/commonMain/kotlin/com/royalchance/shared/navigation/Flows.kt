@@ -33,6 +33,7 @@ import com.royalchance.domain.auth.AvatarId
 import com.royalchance.feature.auth.legal.LegalDocument
 import com.royalchance.feature.auth.navigation.AuthRoute
 import com.royalchance.feature.auth.navigation.authEntries
+import com.royalchance.feature.auth.navigation.legalEntries
 import com.royalchance.feature.history.HistoryRoute
 import com.royalchance.feature.history.historyEntry
 import com.royalchance.feature.lobby.LobbyRoute
@@ -44,7 +45,6 @@ import com.royalchance.feature.settings.settingsEntry
 import com.royalchance.shared.AppGraph
 import com.royalchance.shared.AppInfo
 import com.royalchance.shared.resources.Res
-import com.royalchance.shared.resources.drawer_guest
 import com.royalchance.shared.resources.tab_casino
 import com.royalchance.shared.resources.tab_history
 import com.royalchance.shared.resources.tab_progress
@@ -57,7 +57,7 @@ internal fun AuthFlow(graph: AppGraph) {
     AuthOnlyFlow(graph, start = AuthRoute.Welcome)
 }
 
-/** Cuenta autenticada sin perfil (p. ej. tras entrar con Google por primera vez). */
+/** Cuenta creada sin perfil: el registro se interrumpió antes de guardarlo (p. ej. alias ya ocupado). */
 @Composable
 internal fun CompleteProfileFlow(graph: AppGraph) {
     AuthOnlyFlow(graph, start = AuthRoute.CompleteProfile)
@@ -93,7 +93,7 @@ private enum class MainTab(val route: NavKey) {
 /**
  * Casino con sesión iniciada. La pila siempre empieza en el lobby; cambiar de pestaña deja
  * `[lobby, pestaña]`, de modo que "atrás" desde cualquier pestaña vuelve al lobby.
- * Las pantallas empujadas encima (p. ej. crear cuenta) ocultan la navegación principal.
+ * Las pantallas empujadas encima (p. ej. los documentos legales) ocultan la navegación principal.
  */
 @Composable
 internal fun MainFlow(graph: AppGraph, user: AuthUser?) {
@@ -125,25 +125,17 @@ internal fun MainFlow(graph: AppGraph, user: AuthUser?) {
                 rememberViewModelStoreNavEntryDecorator(),
             ),
             entryProvider = entryProvider {
-                val openCreateAccount: () -> Unit = { backStack.add(AuthRoute.Register) }
-                lobbyEntry(graph.authRepository, onCreateAccount = openCreateAccount)
+                lobbyEntry(graph.authRepository)
                 progressEntry()
                 historyEntry()
                 settingsEntry(
                     authRepository = graph.authRepository,
                     settingsRepository = graph.settingsRepository,
                     appVersion = AppInfo.VERSION,
-                    onCreateAccount = openCreateAccount,
                     onOpenTerms = { backStack.add(AuthRoute.Legal(LegalDocument.Terms)) },
                     onOpenPrivacy = { backStack.add(AuthRoute.Legal(LegalDocument.Privacy)) },
                 )
-                // Un invitado puede crear su cuenta sin salir del casino; al terminar vuelve atrás.
-                authEntries(
-                    dependencies = graph.authDependencies,
-                    navigate = { backStack.add(it) },
-                    back = { backStack.popIfNotRoot() },
-                    onRegistrationCompleted = { backStack.popIfNotRoot() },
-                )
+                legalEntries(back = { backStack.popIfNotRoot() })
             },
         )
     }
@@ -164,7 +156,7 @@ private fun DrawerHeader(user: AuthUser?) {
             AvatarBadge(avatar = user?.profile?.avatar ?: AvatarId.SpadeGold, size = 40.dp)
             Spacer(Modifier.width(RoyalSpacing.m))
             Text(
-                text = user?.profile?.alias ?: stringResource(Res.string.drawer_guest),
+                text = user?.profile?.alias ?: user?.email.orEmpty(),
                 style = MaterialTheme.typography.titleMedium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,

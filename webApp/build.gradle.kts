@@ -17,6 +17,8 @@ kotlin {
     sourceSets {
         wasmJsMain.dependencies {
             implementation(projects.shared)
+            implementation(projects.data)
+            implementation(projects.data.firebase)
             implementation(libs.compose.ui)
         }
     }

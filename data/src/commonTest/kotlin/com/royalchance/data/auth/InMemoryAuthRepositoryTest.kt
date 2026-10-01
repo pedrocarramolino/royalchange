@@ -71,43 +71,33 @@ class InMemoryAuthRepositoryTest {
     }
 
     @Test
-    fun guestKeepsIdentifierWhenRegistering() = runTest {
-        repository.continueAsGuest(consents)
-        val guest = signedInUser()
-        assertTrue(guest.isGuest)
-        assertFalse(guest.needsProfileCompletion)
-
-        repository.register(account())
-
-        val registered = signedInUser()
-        assertEquals(guest.id, registered.id)
-        assertFalse(registered.isGuest)
-    }
-
-    @Test
-    fun googleSignInRequiresProfileCompletionOnlyOnce() = runTest {
-        repository.signInWithGoogle()
-        val firstTime = signedInUser()
-        assertTrue(firstTime.needsProfileCompletion)
-        assertTrue(firstTime.isEmailVerified)
-
-        assertEquals(Outcome.Success(Unit), repository.completeProfile(profile("GoogleAce")))
-        repository.signOut()
-        repository.signInWithGoogle()
-
-        assertEquals("GoogleAce", signedInUser().profile?.alias)
-    }
-
-    @Test
     fun passwordResetNeverRevealsWhetherAccountExists() = runTest {
         assertEquals(Outcome.Success(Unit), repository.sendPasswordReset("nadie@example.com"))
+    }
+
+    @Test
+    fun emailVerificationIsDetectedOnRefresh() = runTest {
+        repository.register(account())
+        assertFalse(signedInUser().isEmailVerified)
+
+        repository.refreshUser()
+
+        assertTrue(signedInUser().isEmailVerified)
+    }
+
+    @Test
+    fun deletingEmailAccountRequiresPassword() = runTest {
+        repository.register(account())
+
+        assertEquals(Outcome.Failure(AuthError.InvalidCredentials), repository.deleteAccount(password = "Incorrecta1"))
+        assertIs<AuthState.SignedIn>(repository.authState.value)
     }
 
     @Test
     fun deletingAccountFreesEmailAndAlias() = runTest {
         repository.register(account())
 
-        assertEquals(Outcome.Success(Unit), repository.deleteAccount())
+        assertEquals(Outcome.Success(Unit), repository.deleteAccount(password = "Secreto123"))
         assertIs<AuthState.SignedOut>(repository.authState.value)
 
         assertEquals(Outcome.Success(Unit), repository.register(account()))
@@ -115,8 +105,21 @@ class InMemoryAuthRepositoryTest {
 
     @Test
     fun operationsWithoutSessionFail() = runTest {
-        assertEquals(Outcome.Failure(AuthError.NotSignedIn), repository.deleteAccount())
+        assertEquals(Outcome.Failure(AuthError.NotSignedIn), repository.deleteAccount(password = "Secreto123"))
         assertEquals(Outcome.Failure(AuthError.NotSignedIn), repository.sendEmailVerification())
         assertEquals(Outcome.Failure(AuthError.NotSignedIn), repository.completeProfile(profile("Nadie")))
+    }
+
+    @Test
+    fun completeProfileRejectsAliasOfAnotherPlayerButNotItsOwn() = runTest {
+        repository.register(account(email = "otra@example.com", alias = "Otra"))
+        repository.signOut()
+        repository.register(account())
+        val id = signedInUser().id
+
+        assertEquals(Outcome.Failure(AuthError.AliasTaken), repository.completeProfile(profile("otra")))
+        assertEquals(Outcome.Success(Unit), repository.completeProfile(profile("ANA")))
+        assertEquals("ANA", signedInUser().profile?.alias)
+        assertEquals(id, signedInUser().id)
     }
 }

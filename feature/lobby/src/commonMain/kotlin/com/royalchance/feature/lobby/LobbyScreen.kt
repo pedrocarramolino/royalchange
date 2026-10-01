@@ -53,21 +53,18 @@ import com.royalchance.feature.lobby.resources.game_slots_description
 import com.royalchance.feature.lobby.resources.lobby_coming_soon
 import com.royalchance.feature.lobby.resources.lobby_games
 import com.royalchance.feature.lobby.resources.lobby_greeting
-import com.royalchance.feature.lobby.resources.lobby_greeting_guest
-import com.royalchance.feature.lobby.resources.lobby_guest_action
-import com.royalchance.feature.lobby.resources.lobby_guest_banner
+import com.royalchance.feature.lobby.resources.lobby_greeting_default
 import com.royalchance.feature.lobby.resources.lobby_subtitle
 import com.royalchance.feature.lobby.resources.lobby_verify_action
 import com.royalchance.feature.lobby.resources.lobby_verify_banner
-import com.royalchance.feature.lobby.resources.lobby_verify_sent
+import com.royalchance.feature.lobby.resources.lobby_verify_check
+import com.royalchance.feature.lobby.resources.lobby_verify_done
+import com.royalchance.feature.lobby.resources.lobby_verify_pending
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
-internal fun LobbyScreen(
-    viewModel: LobbyViewModel,
-    onCreateAccount: () -> Unit,
-) {
+internal fun LobbyScreen(viewModel: LobbyViewModel) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     // En escritorio el contenido se centra con un ancho máximo cómodo de leer.
@@ -82,27 +79,13 @@ internal fun LobbyScreen(
             item(span = { GridItemSpan(maxLineSpan) }) {
                 LobbyHeader(alias = state.user?.profile?.alias, avatar = state.user?.profile?.avatar ?: AvatarId.SpadeGold)
             }
-            if (state.showGuestBanner) {
+            state.verificationBanner?.let { banner ->
                 item(span = { GridItemSpan(maxLineSpan) }) {
-                    InfoBanner(
-                        message = stringResource(Res.string.lobby_guest_banner),
-                        tone = BannerTone.Warning,
-                        actionLabel = stringResource(Res.string.lobby_guest_action),
-                        onAction = onCreateAccount,
-                    )
-                }
-            }
-            if (state.verificationJustConfirmed) {
-                item(span = { GridItemSpan(maxLineSpan) }) {
-                    InfoBanner(message = stringResource(Res.string.lobby_verify_sent), tone = BannerTone.Success, icon = RoyalIcons.Check)
-                }
-            } else if (state.showVerificationBanner) {
-                item(span = { GridItemSpan(maxLineSpan) }) {
-                    InfoBanner(
-                        message = stringResource(Res.string.lobby_verify_banner),
-                        icon = RoyalIcons.Mail,
-                        actionLabel = stringResource(Res.string.lobby_verify_action).takeUnless { state.isSendingVerification },
-                        onAction = viewModel::sendVerification,
+                    VerificationBannerItem(
+                        banner = banner,
+                        busy = state.isVerificationBusy,
+                        onSend = viewModel::sendVerification,
+                        onCheck = viewModel::checkVerification,
                     )
                 }
             }
@@ -111,6 +94,34 @@ internal fun LobbyScreen(
             }
             items(state.games, key = { it.name }) { game -> GameCard(game) }
         }
+    }
+}
+
+@Composable
+private fun VerificationBannerItem(
+    banner: VerificationBanner,
+    busy: Boolean,
+    onSend: () -> Unit,
+    onCheck: () -> Unit,
+) {
+    when (banner) {
+        VerificationBanner.NotSent -> InfoBanner(
+            message = stringResource(Res.string.lobby_verify_banner),
+            icon = RoyalIcons.Mail,
+            actionLabel = stringResource(Res.string.lobby_verify_action).takeUnless { busy },
+            onAction = onSend,
+        )
+        VerificationBanner.Pending -> InfoBanner(
+            message = stringResource(Res.string.lobby_verify_pending),
+            icon = RoyalIcons.Mail,
+            actionLabel = stringResource(Res.string.lobby_verify_check).takeUnless { busy },
+            onAction = onCheck,
+        )
+        VerificationBanner.JustVerified -> InfoBanner(
+            message = stringResource(Res.string.lobby_verify_done),
+            tone = BannerTone.Success,
+            icon = RoyalIcons.Check,
+        )
     }
 }
 
@@ -124,7 +135,7 @@ private fun LobbyHeader(alias: String?, avatar: AvatarId) {
         Spacer(Modifier.padding(horizontal = RoyalSpacing.s))
         Column {
             Text(
-                text = alias?.let { stringResource(Res.string.lobby_greeting, it) } ?: stringResource(Res.string.lobby_greeting_guest),
+                text = alias?.let { stringResource(Res.string.lobby_greeting, it) } ?: stringResource(Res.string.lobby_greeting_default),
                 style = MaterialTheme.typography.headlineSmall,
                 modifier = Modifier.semantics { heading() },
             )

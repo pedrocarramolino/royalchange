@@ -14,11 +14,8 @@ fun PolymorphicModuleBuilder<NavKey>.lobbyRoutes() {
     subclass(LobbyRoute::class, LobbyRoute.serializer())
 }
 
-fun EntryProviderScope<NavKey>.lobbyEntry(
-    authRepository: AuthRepository,
-    onCreateAccount: () -> Unit,
-) {
+fun EntryProviderScope<NavKey>.lobbyEntry(authRepository: AuthRepository) {
     entry<LobbyRoute> {
-        LobbyScreen(viewModel = viewModel { LobbyViewModel(authRepository) }, onCreateAccount = onCreateAccount)
+        LobbyScreen(viewModel = viewModel { LobbyViewModel(authRepository) })
     }
 }

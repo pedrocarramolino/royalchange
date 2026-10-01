@@ -2,17 +2,18 @@ package com.royalchance.domain.auth
 
 import kotlin.time.Instant
 
-/** Usuario autenticado. Los invitados no tienen email ni perfil. */
+/** Usuario autenticado con email y contraseña. */
 data class AuthUser(
     val id: String,
-    val email: String?,
-    val isGuest: Boolean,
+    val email: String,
     val isEmailVerified: Boolean,
-    /** `null` hasta que el jugador completa su perfil (p. ej. tras entrar con Google por primera vez). */
+    /**
+     * `null` solo si el registro se interrumpió después de crear la cuenta y antes de guardar el
+     * perfil (p. ej. otro jugador reservó el alias en ese instante): se pide completarlo.
+     */
     val profile: PlayerProfile?,
 ) {
-    /** Una cuenta registrada sin perfil debe completarlo antes de jugar. Los invitados, no. */
-    val needsProfileCompletion: Boolean get() = !isGuest && profile == null
+    val needsProfileCompletion: Boolean get() = profile == null
 }
 
 /** Datos públicos y de cumplimiento del jugador. */

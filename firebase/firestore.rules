@@ -1,0 +1,96 @@
+rules_version = '2';
+
+// Reglas de seguridad de Royal Chance.
+//
+// Principios:
+// - Denegado por defecto: solo se permite lo que aparece aquí.
+// - Cada jugador solo accede a su propio documento.
+// - Los datos se validan en el servidor: el cliente no es de fiar (nunca lo es).
+//
+// Colecciones:
+// - players/{uid}: perfil del jugador (solo cuentas con email y contraseña).
+// - aliases/{aliasKey}: reserva de alias (en minúsculas) para que sean únicos.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function aliasPath(aliasKey) {
+      return /databases/$(database)/documents/aliases/$(aliasKey);
+    }
+
+    function validConsents(consents) {
+      return consents is map
+        && consents.keys().hasOnly(['termsVersion', 'privacyVersion', 'acceptedAtMillis'])
+        && consents.termsVersion is string && consents.termsVersion.size() > 0
+        && consents.privacyVersion is string && consents.privacyVersion.size() > 0
+        && consents.acceptedAtMillis is int;
+    }
+
+    function validPlayer(data, uid) {
+      return data.keys().hasOnly([
+          'uid', 'alias', 'aliasKey', 'avatar', 'countryCode', 'birthYear',
+          'marketingOptIn', 'consents', 'createdAtMillis'
+        ])
+        && data.uid == uid
+        && validConsents(data.consents)
+        && data.createdAtMillis is int
+        // Alias: 3–20 caracteres, empieza por letra; letras, números y guion bajo.
+        && data.alias is string
+        && data.alias.matches('^[A-Za-z][A-Za-z0-9_]{2,19}$')
+        && data.aliasKey == data.alias.lower()
+        // El alias debe estar reservado por este mismo jugador (en esta misma escritura o antes).
+        && getAfter(aliasPath(data.aliasKey)).data.uid == uid
+        && data.avatar in [
+          'SpadeGold', 'HeartRuby', 'DiamondGold', 'ClubEmerald',
+          'SpadeIvory', 'HeartGold', 'DiamondRuby', 'ClubGold'
+        ]
+        && data.countryCode is string && data.countryCode.matches('^[A-Z]{2}$')
+        // Mayoría de edad comprobada también en el servidor (con la granularidad del año).
+        && data.birthYear is int
+        && data.birthYear <= request.time.year() - 18
+        && data.birthYear >= request.time.year() - 120
+        && data.marketingOptIn is bool;
+    }
+
+    match /players/{uid} {
+      allow read: if isOwner(uid);
+      allow create, update: if isOwner(uid) && validPlayer(request.resource.data, uid);
+      allow delete: if isOwner(uid);
+    }
+
+    match /aliases/{aliasKey} {
+      // Cualquiera puede comprobar si un alias está libre (el alias es público de todos modos),
+      // pero nadie puede listar la colección.
+      allow get: if true;
+      allow list: if false;
+
+      // Reservar: solo para uno mismo y solo si el perfil que se escribe a la vez usa este alias.
+      // Si el alias ya existe, la escritura es una actualización y solo la puede hacer su dueño.
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['uid', 'alias'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.alias is string
+        && request.resource.data.alias.lower() == aliasKey
+        && getAfter(/databases/$(database)/documents/players/$(request.auth.uid)).data.aliasKey == aliasKey;
+      allow update: if signedIn()
+        && resource.data.uid == request.auth.uid
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['uid', 'alias'])
+        && request.resource.data.alias.lower() == aliasKey;
+      allow delete: if signedIn() && resource.data.uid == request.auth.uid;
+    }
+
+    // Todo lo demás, denegado.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

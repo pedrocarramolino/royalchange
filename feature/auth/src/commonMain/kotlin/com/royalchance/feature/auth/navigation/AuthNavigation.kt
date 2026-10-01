@@ -17,7 +17,6 @@ import com.royalchance.feature.auth.login.LoginViewModel
 import com.royalchance.feature.auth.register.RegisterScreen
 import com.royalchance.feature.auth.register.RegisterViewModel
 import com.royalchance.feature.auth.welcome.WelcomeScreen
-import com.royalchance.feature.auth.welcome.WelcomeViewModel
 import kotlinx.datetime.TimeZone
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.modules.PolymorphicModuleBuilder
@@ -62,23 +61,18 @@ class AuthDependencies(
 )
 
 /**
- * Pantallas de acceso. Tras un inicio de sesión correcto no hace falta navegar: la raíz de la app
+ * Pantallas de acceso. Tras iniciar sesión o registrarse no hace falta navegar: la raíz de la app
  * observa el estado de sesión y cambia de flujo sola.
- *
- * @param onRegistrationCompleted qué hacer al terminar el registro dentro de la app (p. ej. un
- *   invitado que crea su cuenta): normalmente volver atrás.
  */
 fun EntryProviderScope<NavKey>.authEntries(
     dependencies: AuthDependencies,
     navigate: (NavKey) -> Unit,
     back: () -> Unit,
-    onRegistrationCompleted: () -> Unit = {},
 ) {
     val openLegal: (LegalDocument) -> Unit = { navigate(AuthRoute.Legal(it)) }
 
     entry<AuthRoute.Welcome> {
         WelcomeScreen(
-            viewModel = viewModel { WelcomeViewModel(dependencies.authRepository, dependencies.clock) },
             onCreateAccount = { navigate(AuthRoute.Register) },
             onSignIn = { navigate(AuthRoute.Login) },
             onOpenLegal = openLegal,
@@ -96,7 +90,6 @@ fun EntryProviderScope<NavKey>.authEntries(
         RegisterScreen(
             viewModel = viewModel { registerViewModel(dependencies, RegistrationMode.EmailAccount) },
             onBack = back,
-            onCompleted = onRegistrationCompleted,
             onOpenLegal = openLegal,
         )
     }
@@ -104,7 +97,6 @@ fun EntryProviderScope<NavKey>.authEntries(
         RegisterScreen(
             viewModel = viewModel { registerViewModel(dependencies, RegistrationMode.CompleteProfile) },
             onBack = null,
-            onCompleted = {},
             onOpenLegal = openLegal,
         )
     }
@@ -114,6 +106,11 @@ fun EntryProviderScope<NavKey>.authEntries(
             onBack = back,
         )
     }
+    legalEntries(back)
+}
+
+/** Términos y privacidad, también accesibles desde los ajustes con la sesión iniciada. */
+fun EntryProviderScope<NavKey>.legalEntries(back: () -> Unit) {
     entry<AuthRoute.Legal> { route ->
         LegalDocumentScreen(document = route.document, onBack = back)
     }

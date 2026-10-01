@@ -15,36 +15,65 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+/** Estado del aviso de verificación de email del lobby. */
+enum class VerificationBanner {
+    /** El email no está verificado y aún no se ha enviado el enlace en esta sesión. */
+    NotSent,
+
+    /** Enlace enviado: el jugador debe abrirlo y volver para comprobarlo. */
+    Pending,
+
+    /** Se acaba de confirmar: se agradece una vez. */
+    JustVerified,
+}
+
 data class LobbyUiState(
     val user: AuthUser? = null,
-    val isSendingVerification: Boolean = false,
-    val verificationJustConfirmed: Boolean = false,
+    val verificationBanner: VerificationBanner? = null,
+    val isVerificationBusy: Boolean = false,
     val games: List<GameType> = GameType.entries,
-) {
-    val showGuestBanner: Boolean get() = user?.isGuest == true
-    val showVerificationBanner: Boolean get() = user != null && !user.isGuest && user.email != null && !user.isEmailVerified
-}
+)
 
 class LobbyViewModel(private val authRepository: AuthRepository) : ViewModel() {
 
     private val verification = MutableStateFlow(VerificationState())
 
     val state: StateFlow<LobbyUiState> = combine(authRepository.authState, verification) { auth, verification ->
+        val user = (auth as? AuthState.SignedIn)?.user
+        val needsVerification = user != null && !user.isEmailVerified
         LobbyUiState(
-            user = (auth as? AuthState.SignedIn)?.user,
-            isSendingVerification = verification.sending,
-            verificationJustConfirmed = verification.confirmed,
+            user = user,
+            verificationBanner = when {
+                needsVerification && verification.sent -> VerificationBanner.Pending
+                needsVerification -> VerificationBanner.NotSent
+                verification.sent -> VerificationBanner.JustVerified
+                else -> null
+            },
+            isVerificationBusy = verification.busy,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LobbyUiState())
 
-    fun sendVerification() {
-        if (verification.value.sending) return
-        verification.update { it.copy(sending = true) }
-        viewModelScope.launch {
-            val result = authRepository.sendEmailVerification()
-            verification.update { VerificationState(sending = false, confirmed = result is Outcome.Success) }
+    init {
+        // El jugador puede haber confirmado su email fuera de la app desde la última vez.
+        viewModelScope.launch { authRepository.refreshUser() }
+    }
+
+    fun sendVerification() = runVerification {
+        if (authRepository.sendEmailVerification() is Outcome.Success) {
+            verification.update { it.copy(sent = true) }
         }
     }
 
-    private data class VerificationState(val sending: Boolean = false, val confirmed: Boolean = false)
+    fun checkVerification() = runVerification { authRepository.refreshUser() }
+
+    private fun runVerification(action: suspend () -> Unit) {
+        if (verification.value.busy) return
+        verification.update { it.copy(busy = true) }
+        viewModelScope.launch {
+            action()
+            verification.update { it.copy(busy = false) }
+        }
+    }
+
+    private data class VerificationState(val sent: Boolean = false, val busy: Boolean = false)
 }

@@ -8,7 +8,6 @@ Registro de los recursos de terceros incluidos en la app y su licencia. Cualquie
 | Cinzel (fuente variable) | Títulos y marca | SIL Open Font License 1.1 | github.com/google/fonts (`ofl/cinzel`) |
 | Manrope (fuente variable) | Interfaz y textos | SIL Open Font License 1.1 | github.com/google/fonts (`ofl/manrope`) |
 | Trazados de Material Icons | Iconos de interfaz (`RoyalIcons`) | Apache License 2.0 | Google Material Icons |
-| Logotipo "G" de Google | Botón "Continuar con Google" | Uso según las guías de marca de Google Sign-In | Recursos oficiales de Google Identity |
 
 Los textos completos de la licencia OFL se distribuyen con la app en
 `core/designsystem/src/commonMain/composeResources/files/licenses/`.

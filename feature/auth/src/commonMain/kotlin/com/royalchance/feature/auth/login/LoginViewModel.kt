@@ -20,10 +20,7 @@ data class LoginUiState(
     val passwordError: FieldError? = null,
     val authError: AuthError? = null,
     val isSubmitting: Boolean = false,
-    val isGoogleLoading: Boolean = false,
-) {
-    val isBusy: Boolean get() = isSubmitting || isGoogleLoading
-}
+)
 
 class LoginViewModel(private val authRepository: AuthRepository) : ViewModel() {
 
@@ -40,7 +37,7 @@ class LoginViewModel(private val authRepository: AuthRepository) : ViewModel() {
 
     fun submit() {
         val current = _state.value
-        if (current.isBusy) return
+        if (current.isSubmitting) return
         val errors = LoginValidator.validate(current.email, current.password)
         if (errors.isNotEmpty()) {
             _state.update {
@@ -56,15 +53,6 @@ class LoginViewModel(private val authRepository: AuthRepository) : ViewModel() {
             // Si tiene éxito, la raíz de la app cambia sola al casino: aquí solo se gestiona el fallo.
             val result = authRepository.signIn(current.email, current.password)
             _state.update { it.copy(isSubmitting = false, authError = (result as? Outcome.Failure)?.error) }
-        }
-    }
-
-    fun signInWithGoogle() {
-        if (_state.value.isBusy) return
-        _state.update { it.copy(isGoogleLoading = true, authError = null) }
-        viewModelScope.launch {
-            val result = authRepository.signInWithGoogle()
-            _state.update { it.copy(isGoogleLoading = false, authError = (result as? Outcome.Failure)?.error) }
         }
     }
 }

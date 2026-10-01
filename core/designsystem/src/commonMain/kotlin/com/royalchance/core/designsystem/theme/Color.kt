@@ -16,10 +16,11 @@ private val GoldDeep = Color(0xFF9C7A3C)
 private val Felt = Color(0xFF0F5B45)
 private val FeltShadow = Color(0xFF07100D)
 private val Ruby = Color(0xFFB3263B)
+private val OnGold = Color(0xFF231905)
 
 internal val DarkColorScheme = darkColorScheme(
     primary = Gold,
-    onPrimary = Color(0xFF231905),
+    onPrimary = OnGold,
     primaryContainer = Color(0xFF3B2E12),
     onPrimaryContainer = GoldLight,
     secondary = Color(0xFF5CC79E),
@@ -102,6 +103,8 @@ data class CasinoColors(
     val goldLight: Color,
     val gold: Color,
     val goldDeep: Color,
+    /** Texto sobre el degradado dorado: siempre oscuro, en ambos temas (contraste ≥ 7:1). */
+    val onGold: Color,
     val ruby: Color,
     val ivory: Color,
     val suitRed: Color,
@@ -124,6 +127,7 @@ internal val DarkCasinoColors = CasinoColors(
     goldLight = GoldLight,
     gold = Gold,
     goldDeep = GoldDeep,
+    onGold = OnGold,
     ruby = Ruby,
     ivory = Ivory,
     suitRed = Color(0xFFE0485E),
@@ -140,6 +144,7 @@ internal val LightCasinoColors = CasinoColors(
     goldLight = GoldLight,
     gold = Gold,
     goldDeep = GoldDeep,
+    onGold = OnGold,
     ruby = Ruby,
     ivory = Ivory,
     suitRed = Ruby,

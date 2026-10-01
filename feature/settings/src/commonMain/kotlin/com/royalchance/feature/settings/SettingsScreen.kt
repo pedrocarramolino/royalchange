@@ -26,6 +26,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -35,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.royalchance.core.designsystem.component.BannerTone
 import com.royalchance.core.designsystem.component.InfoBanner
+import com.royalchance.core.designsystem.component.RoyalPasswordField
 import com.royalchance.core.designsystem.component.RoyalTextButton
 import com.royalchance.core.designsystem.component.RoyalTopBar
 import com.royalchance.core.designsystem.component.SectionHeader
@@ -48,22 +52,21 @@ import com.royalchance.domain.auth.AvatarId
 import com.royalchance.domain.settings.ThemePreference
 import com.royalchance.feature.settings.resources.Res
 import com.royalchance.feature.settings.resources.settings_cancel
-import com.royalchance.feature.settings.resources.settings_create_account
 import com.royalchance.feature.settings.resources.settings_delete_account
 import com.royalchance.feature.settings.resources.settings_delete_confirm
 import com.royalchance.feature.settings.resources.settings_delete_message
+import com.royalchance.feature.settings.resources.settings_delete_password
+import com.royalchance.feature.settings.resources.settings_delete_password_hint
 import com.royalchance.feature.settings.resources.settings_delete_title
 import com.royalchance.feature.settings.resources.settings_email_unverified
 import com.royalchance.feature.settings.resources.settings_email_verified
 import com.royalchance.feature.settings.resources.settings_error
-import com.royalchance.feature.settings.resources.settings_guest_banner
-import com.royalchance.feature.settings.resources.settings_guest_name
+import com.royalchance.feature.settings.resources.settings_error_recent_login
 import com.royalchance.feature.settings.resources.settings_privacy
 import com.royalchance.feature.settings.resources.settings_section_account
 import com.royalchance.feature.settings.resources.settings_section_appearance
 import com.royalchance.feature.settings.resources.settings_section_info
 import com.royalchance.feature.settings.resources.settings_sign_out
-import com.royalchance.feature.settings.resources.settings_sign_out_guest_message
 import com.royalchance.feature.settings.resources.settings_sign_out_message
 import com.royalchance.feature.settings.resources.settings_sign_out_title
 import com.royalchance.feature.settings.resources.settings_terms
@@ -72,15 +75,16 @@ import com.royalchance.feature.settings.resources.settings_theme_dark
 import com.royalchance.feature.settings.resources.settings_theme_light
 import com.royalchance.feature.settings.resources.settings_theme_system
 import com.royalchance.feature.settings.resources.settings_title
+import com.royalchance.feature.settings.resources.settings_verification_sent
 import com.royalchance.feature.settings.resources.settings_verify_email
 import com.royalchance.feature.settings.resources.settings_version
+import com.royalchance.feature.settings.resources.settings_wrong_password
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
 internal fun SettingsScreen(
     viewModel: SettingsViewModel,
     appVersion: String,
-    onCreateAccount: () -> Unit,
     onOpenTerms: () -> Unit,
     onOpenPrivacy: () -> Unit,
 ) {
@@ -97,19 +101,24 @@ internal fun SettingsScreen(
                     .fillMaxWidth()
                     .padding(horizontal = RoyalSpacing.l, vertical = RoyalSpacing.s),
             ) {
-                if (state.showError) InfoBanner(message = stringResource(Res.string.settings_error), tone = BannerTone.Error)
+                when (state.error) {
+                    SettingsError.Generic -> InfoBanner(message = stringResource(Res.string.settings_error), tone = BannerTone.Error)
+                    SettingsError.RequiresRecentLogin ->
+                        InfoBanner(message = stringResource(Res.string.settings_error_recent_login), tone = BannerTone.Error)
+                    // El error de contraseña se muestra dentro del diálogo de confirmación.
+                    SettingsError.WrongPassword, null -> Unit
+                }
+                if (state.verificationSent) {
+                    InfoBanner(
+                        message = stringResource(Res.string.settings_verification_sent),
+                        tone = BannerTone.Success,
+                        icon = RoyalIcons.Mail,
+                    )
+                }
 
                 SectionHeader(stringResource(Res.string.settings_section_account))
                 if (user != null) AccountCard(user)
-                if (user?.isGuest == true) {
-                    InfoBanner(
-                        message = stringResource(Res.string.settings_guest_banner),
-                        tone = BannerTone.Warning,
-                        actionLabel = stringResource(Res.string.settings_create_account),
-                        onAction = onCreateAccount,
-                    )
-                }
-                if (user != null && !user.isGuest && !user.isEmailVerified) {
+                if (user != null && !user.isEmailVerified) {
                     SettingsRow(
                         icon = RoyalIcons.Mail,
                         label = stringResource(Res.string.settings_verify_email),
@@ -123,7 +132,7 @@ internal fun SettingsScreen(
                     enabled = !state.isBusy,
                     onClick = { viewModel.request(PendingConfirmation.SignOut) },
                 )
-                if (user != null && !user.isGuest) {
+                if (user != null) {
                     SettingsRow(
                         icon = RoyalIcons.Delete,
                         label = stringResource(Res.string.settings_delete_account),
@@ -152,23 +161,55 @@ internal fun SettingsScreen(
     when (state.pendingConfirmation) {
         PendingConfirmation.SignOut -> ConfirmationDialog(
             title = stringResource(Res.string.settings_sign_out_title),
-            message = stringResource(
-                if (user?.isGuest == true) Res.string.settings_sign_out_guest_message else Res.string.settings_sign_out_message,
-            ),
+            message = stringResource(Res.string.settings_sign_out_message),
             confirmLabel = stringResource(Res.string.settings_sign_out),
-            destructive = user?.isGuest == true,
-            onConfirm = viewModel::confirm,
+            destructive = false,
+            busy = state.isBusy,
+            onConfirm = viewModel::confirmSignOut,
             onDismiss = viewModel::dismissConfirmation,
         )
-        PendingConfirmation.DeleteAccount -> ConfirmationDialog(
-            title = stringResource(Res.string.settings_delete_title),
-            message = stringResource(Res.string.settings_delete_message),
-            confirmLabel = stringResource(Res.string.settings_delete_confirm),
-            destructive = true,
-            onConfirm = viewModel::confirm,
+        PendingConfirmation.DeleteAccount -> DeleteAccountDialog(
+            busy = state.isBusy,
+            wrongPassword = state.error == SettingsError.WrongPassword,
+            onPasswordChange = viewModel::onDeletionPasswordChange,
+            onConfirm = viewModel::confirmDeletion,
             onDismiss = viewModel::dismissConfirmation,
         )
         null -> Unit
+    }
+}
+
+/** Confirmación de borrado con la contraseña de la cuenta. */
+@Composable
+private fun DeleteAccountDialog(
+    busy: Boolean,
+    wrongPassword: Boolean,
+    onPasswordChange: () -> Unit,
+    onConfirm: (password: String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var password by rememberSaveable { mutableStateOf("") }
+    ConfirmationDialog(
+        title = stringResource(Res.string.settings_delete_title),
+        message = stringResource(Res.string.settings_delete_message),
+        confirmLabel = stringResource(Res.string.settings_delete_confirm),
+        destructive = true,
+        busy = busy,
+        confirmEnabled = password.isNotEmpty(),
+        onConfirm = { onConfirm(password) },
+        onDismiss = onDismiss,
+    ) {
+        RoyalPasswordField(
+            value = password,
+            onValueChange = {
+                password = it
+                onPasswordChange()
+            },
+            label = stringResource(Res.string.settings_delete_password),
+            supportingText = stringResource(Res.string.settings_delete_password_hint),
+            error = if (wrongPassword) stringResource(Res.string.settings_wrong_password) else null,
+            enabled = !busy,
+        )
     }
 }
 
@@ -179,18 +220,15 @@ private fun AccountCard(user: AuthUser) {
             AvatarBadge(avatar = user.profile?.avatar ?: AvatarId.SpadeGold, size = 56.dp)
             Spacer(Modifier.width(RoyalSpacing.l))
             Column(verticalArrangement = Arrangement.spacedBy(RoyalSpacing.xxs)) {
-                Text(
-                    text = user.profile?.alias ?: stringResource(Res.string.settings_guest_name),
-                    style = MaterialTheme.typography.titleLarge,
-                )
-                user.email?.let { email ->
-                    Text(email, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(
-                        text = stringResource(if (user.isEmailVerified) Res.string.settings_email_verified else Res.string.settings_email_unverified),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = if (user.isEmailVerified) RoyalTheme.casinoColors.success else RoyalTheme.casinoColors.warning,
-                    )
+                user.profile?.let { profile ->
+                    Text(text = profile.alias, style = MaterialTheme.typography.titleLarge)
                 }
+                Text(user.email, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    text = stringResource(if (user.isEmailVerified) Res.string.settings_email_verified else Res.string.settings_email_unverified),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (user.isEmailVerified) RoyalTheme.casinoColors.success else RoyalTheme.casinoColors.warning,
+                )
             }
         }
     }
@@ -255,17 +293,26 @@ private fun ConfirmationDialog(
     message: String,
     confirmLabel: String,
     destructive: Boolean,
+    busy: Boolean,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
+    confirmEnabled: Boolean = true,
+    extraContent: @Composable () -> Unit = {},
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
-        text = { Text(message) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(RoyalSpacing.m)) {
+                Text(message)
+                extraContent()
+            }
+        },
         confirmButton = {
             RoyalTextButton(
                 text = confirmLabel,
                 onClick = onConfirm,
+                enabled = confirmEnabled && !busy,
                 color = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
             )
         },

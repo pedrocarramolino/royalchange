@@ -9,12 +9,13 @@ import com.royalchance.domain.auth.validation.PasswordRequirement
 import com.royalchance.domain.auth.validation.PasswordStrength
 import com.royalchance.feature.auth.resources.Res
 import com.royalchance.feature.auth.resources.auth_error_alias_taken
-import com.royalchance.feature.auth.resources.auth_error_cancelled
 import com.royalchance.feature.auth.resources.auth_error_email_in_use
 import com.royalchance.feature.auth.resources.auth_error_invalid_credentials
 import com.royalchance.feature.auth.resources.auth_error_network
 import com.royalchance.feature.auth.resources.auth_error_not_signed_in
+import com.royalchance.feature.auth.resources.auth_error_requires_recent_login
 import com.royalchance.feature.auth.resources.auth_error_too_many_attempts
+import com.royalchance.feature.auth.resources.auth_error_unavailable
 import com.royalchance.feature.auth.resources.auth_error_unknown
 import com.royalchance.feature.auth.resources.auth_error_weak_password
 import com.royalchance.feature.auth.resources.error_alias_characters
@@ -74,8 +75,9 @@ internal fun AuthError.message(): String = stringResource(
         AuthError.WeakPassword -> Res.string.auth_error_weak_password
         AuthError.TooManyAttempts -> Res.string.auth_error_too_many_attempts
         AuthError.Network -> Res.string.auth_error_network
-        AuthError.Cancelled -> Res.string.auth_error_cancelled
         AuthError.NotSignedIn -> Res.string.auth_error_not_signed_in
+        AuthError.RequiresRecentLogin -> Res.string.auth_error_requires_recent_login
+        AuthError.Unavailable -> Res.string.auth_error_unavailable
         AuthError.Unknown -> Res.string.auth_error_unknown
     },
 )

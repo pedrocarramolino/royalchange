@@ -23,7 +23,7 @@ Navegadores soportados: los que implementan WasmGC (Chrome/Edge y Firefox actual
 | UI | Compose Multiplatform 1.12.1, Material 3 (1.9.0, última estable), fuentes Cinzel y Manrope (OFL) |
 | Navegación y estado | Navigation 3 (1.1.2), ViewModel multiplataforma (lifecycle 2.11.0) |
 | Build | Gradle 9.7.0, AGP 9.3.3 (`com.android.kotlin.multiplatform.library`), convention plugins en `build-logic` |
-| Datos (Fase 4) | Firebase: Auth + Firestore con caché offline, vía GitLive firebase-kotlin-sdk (no existe SDK oficial KMP) |
+| Datos | Firebase Auth + Firestore con caché offline, mediante los **SDK oficiales** de cada plataforma (Android BoM 34.19, JavaScript 12.19) detrás de una interfaz común |
 | Hosting | Firebase Hosting (plan Spark, gratuito) |
 | Tests | kotlin.test y kotlinx-coroutines-test en `commonTest`, ejecutados en JVM y en Wasm (Node.js o Chrome headless) |
 
@@ -61,7 +61,8 @@ Los módulos se crean cuando una fase los necesita. Existentes tras la Fase 3:
 | `core:ui` | Avatares y selector de país (componentes que conocen el dominio) |
 | `core:testing` | Generadores aleatorios deterministas, `TestClock` |
 | `domain` | Contrato de autenticación, reglas del registro, países, ajustes, `GameType` |
-| `data` | Repositorios en memoria (Fase 3 y escritorio de desarrollo) |
+| `data` | Repositorios en memoria (escritorio y tests) y ajustes persistentes (`KeyValueStore`) |
+| `data:firebase` | Autenticación y perfil con Firebase (Android y web); lógica común sobre pasarelas por plataforma |
 | `feature:auth` | Bienvenida, inicio de sesión, registro completo, completar perfil, recuperar contraseña, legales |
 | `feature:lobby` | Saludo, avisos de cuenta y catálogo de juegos |
 | `feature:profile`, `feature:history` | Pestañas de progreso e historial (estado vacío hasta las Fases 6 y 11) |
@@ -93,11 +94,28 @@ iOS se añadirá en un único punto (`KotlinMultiplatform.kt`) cuando haya un Ma
 
 ## 6. Datos e integridad (Firebase, plan Spark)
 
-- Inicio de sesión con Firebase Auth. Firestore con caché offline como almacenamiento local-first.
+**SDK oficiales, no GitLive.** La versión estable del SDK de GitLive (2.7.0) no soporta Wasm; solo
+una alpha lo hace. Se usan los SDK oficiales: `com.google.firebase` en Android y el paquete npm
+`firebase` en la web (declarado con `external` de Kotlin/Wasm). La lógica (`FirebaseAuthRepository`)
+se escribe una vez sobre dos pasarelas (`AuthGateway`, `PlayerStore`) que cada plataforma implementa.
+El escritorio no incluye Firebase: usa los repositorios en memoria.
+
+**Configuración.** `firebase.properties` (valores públicos) genera `FirebaseProjectConfig`. Por
+defecto la app usa el proyecto real (`royalchance-92769`, Firestore en `eur3`); con
+`-Proyalchance.firebase.emulators=true` usa los emuladores locales con el proyecto aislado
+`demo-royalchance`.
+
+**Modelo.** `players/{uid}` (perfil del jugador) y `aliases/{aliasKey}` (reserva del
+alias). El alias se reserva y el perfil se guarda en una única escritura atómica; las reglas impiden
+reservar un alias ajeno.
+
+- Firebase Auth solo con email y contraseña. Firestore con caché offline como almacenamiento local-first.
 - Un documento por jugador (saldo, progreso, contadores); historial archivado por bloques.
   Objetivo: ~1 escritura por ronda (cuota gratuita: 20.000 escrituras/día en total).
-- Reglas de seguridad: solo el propietario accede a sus datos, saldo ≥ 0, límites de variación y
-  bono diario validado con la hora del servidor (`request.time`).
+- Reglas de seguridad (`firebase/firestore.rules`, con 15 tests en `firebase/tests`): solo el
+  propietario accede a sus datos, forma exacta de cada documento (no se pueden añadir campos),
+  alias válido y único, avatar conocido y mayoría de edad comprobada con la hora del servidor.
+  El saldo, sus límites y el bono diario se añadirán en las Fases 5 y 6.
 - Limitación conocida: sin Cloud Functions (plan Blaze) el cliente decide los resultados; los
   rankings no serán fiables hasta tener lógica en servidor. Los motores puros podrán ejecutarse allí.
 - Región de Firestore: UE (irreversible una vez creada la base de datos).
@@ -105,20 +123,20 @@ iOS se añadirá en un único punto (`KotlinMultiplatform.kt`) cuando haya un Ma
 
 ## 7. Autenticación (Fase 3: interfaz y reglas; Fase 4: Firebase)
 
-Decisiones confirmadas: modo invitado sí (con confirmación de mayoría de edad), Google Sign-In sí,
-la verificación de email no bloquea el juego.
+Decisiones confirmadas: **solo email y contraseña** (sin modo invitado ni Google Sign-In, retirados
+a petición del producto) y la verificación de email no bloquea el juego.
 
 - **Registro**: alias único, email, contraseña + confirmación (requisitos y medidor de fortaleza),
   fecha de nacimiento (verificación 18+, se guarda solo el año), país, avatar predefinido,
   aceptación de Términos y Política de privacidad, aviso de fichas sin valor monetario,
   comunicaciones opcionales (desmarcadas por defecto) y verificación de email.
-- **Login**: email + contraseña, mostrar contraseña, recuperación de contraseña, Google Sign-In,
-  modo invitado opcional con vinculación posterior.
-- **Cuenta**: cerrar sesión y **eliminar cuenta** (exigido por Google Play y por el RGPD).
+- **Login**: email + contraseña, mostrar contraseña y recuperación de contraseña.
+- **Cuenta**: cerrar sesión y **eliminar cuenta** (exigido por Google Play y por el RGPD), que se
+  confirma con la contraseña porque Firebase exige una autenticación reciente.
 - Avatares predefinidos: subir fotos requeriría Cloud Storage, que exige plan de pago.
-- Tras entrar con Google por primera vez, la cuenta completa su perfil (mismo formulario sin email
-  ni contraseña) antes de acceder al casino.
-- Un invitado que crea su cuenta conserva su identificador y, por tanto, su progreso.
+- Si el registro se interrumpe tras crear la cuenta y antes de guardar el perfil (p. ej. otro
+  jugador reserva el alias en ese instante), la cuenta completa su perfil (mismo formulario sin
+  email ni contraseña) antes de acceder al casino.
 - Los errores de inicio de sesión y de recuperación no revelan si un email está registrado.
 - Los textos legales incluidos son un **borrador** marcado como tal en la app: deben sustituirse por
   la versión revisada antes de publicar. Cada aceptación guarda la versión del documento y la fecha.
@@ -129,7 +147,7 @@ Navigation 3 (estable en Compose Multiplatform desde 1.10), con rutas `@Serializ
 para serialización polimórfica (necesario fuera de Android).
 
 ```
-Arranque ─► ¿sesión? ─ no ─► Bienvenida ─► Login | Registro | (Invitado)
+Arranque ─► ¿sesión? ─ no ─► Bienvenida ─► Login | Registro
                       └ sí ─► Shell adaptativo
 Shell: Casino (lobby) · Progreso · Historial · Ajustes
        Juegos a pantalla completa desde el lobby
@@ -143,8 +161,8 @@ Implementación:
 - Cada flujo tiene su propia pila de Navigation 3; los ViewModels se asocian a cada entrada de la
   pila y se destruyen al salir de ella.
 - La pila del casino siempre empieza en el lobby: "atrás" desde cualquier pestaña vuelve a él.
-- Las pantallas apiladas sobre una pestaña (p. ej. crear cuenta desde el lobby) ocultan la
-  navegación principal. El contenido se traslada con `movableContentOf` para no perder su estado
+- Las pantallas apiladas sobre una pestaña (p. ej. los documentos legales desde los ajustes)
+  ocultan la navegación principal. El contenido se traslada con `movableContentOf` para no perder su estado
   al cambiar de diseño (móvil ↔ escritorio) ni al mostrar/ocultar la navegación.
 
 ## 9. Plan de fases
@@ -154,7 +172,7 @@ Implementación:
 | 1 | Análisis y arquitectura | Hecha |
 | 2 | Proyecto KMP: Gradle, Android, escritorio, PWA, Hosting | Hecha |
 | 3 | Sistema de diseño, navegación y pantallas de login/registro (con datos simulados) | Hecha |
-| 4 | Firebase: autenticación real + Firestore + reglas de seguridad | — |
+| 4 | Firebase: autenticación real + Firestore + reglas de seguridad | Hecha (falta desplegar las reglas al proyecto real) |
 | 5 | Economía de fichas | — |
 | 6 | Niveles, bono diario, rachas y logros | — |
 | 7 | Blackjack | — |
@@ -179,6 +197,8 @@ Implementación:
 - DI manual (composition root en `shared`).
 
 ## 11. Problemas conocidos
+
+- El SDK de Firebase añade unos 210 KB comprimidos a la PWA.
 
 - **Clics perdidos en pruebas automatizadas de la web**: si el puntero salta y pulsa en el mismo
   instante (así actúan las herramientas de automatización), Compose para web puede ignorar esa

@@ -62,12 +62,13 @@ fun BrandWordmark(
     modifier: Modifier = Modifier,
     style: TextStyle = MaterialTheme.typography.headlineMedium,
     letterSpacing: TextUnit = 4.sp,
+    color: Color = MaterialTheme.colorScheme.primary,
 ) {
     val name = stringResource(Res.string.ds_brand_name)
     Text(
         text = name.uppercase(),
         style = style.copy(letterSpacing = letterSpacing),
-        color = MaterialTheme.colorScheme.primary,
+        color = color,
         textAlign = TextAlign.Center,
         maxLines = 1,
         modifier = modifier.semantics {
@@ -77,21 +78,30 @@ fun BrandWordmark(
     )
 }
 
-/** Emblema y nombre centrados, para pantallas de bienvenida y cabeceras. */
+/**
+ * Emblema y nombre centrados, para pantallas de bienvenida y cabeceras.
+ * [onFelt] usa colores fijos pensados para el tapete (mismo contraste en tema claro y oscuro).
+ */
 @Composable
-fun BrandLockup(modifier: Modifier = Modifier, emblemSize: Dp = 96.dp, tagline: String? = null) {
+fun BrandLockup(
+    modifier: Modifier = Modifier,
+    emblemSize: Dp = 96.dp,
+    tagline: String? = null,
+    onFelt: Boolean = false,
+) {
+    val casino = RoyalTheme.casinoColors
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(RoyalSpacing.l),
         modifier = modifier,
     ) {
         BrandEmblem(size = emblemSize)
-        BrandWordmark()
+        BrandWordmark(color = if (onFelt) casino.gold else MaterialTheme.colorScheme.primary)
         if (tagline != null) {
             Text(
                 text = tagline,
                 style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = if (onFelt) casino.onFelt.copy(alpha = 0.85f) else MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
             )
         }

@@ -1,9 +1,30 @@
 package com.royalchance.android
 
 import android.app.Application
+import com.royalchance.data.firebase.AndroidFirebase
+import com.royalchance.data.firebase.FirebaseEnvironment
+import com.royalchance.data.settings.PersistentSettingsRepository
 import com.royalchance.shared.AppGraph
+import kotlinx.coroutines.MainScope
 
-/** Mantiene una única raíz de dependencias durante toda la vida del proceso (sobrevive a rotaciones). */
+/** Raíz de dependencias de Android: una sola instancia durante toda la vida del proceso. */
 class RoyalChanceApplication : Application() {
-    val graph: AppGraph by lazy { AppGraph.inMemory() }
+
+    private val appScope = MainScope()
+
+    val graph: AppGraph by lazy {
+        AppGraph(
+            authRepository = AndroidFirebase.authRepository(
+                context = this,
+                environment = FirebaseEnvironment.fromConfig(emulatorHost = ANDROID_EMULATOR_HOST),
+                scope = appScope,
+            ),
+            settingsRepository = PersistentSettingsRepository(SharedPreferencesKeyValueStore(this)),
+        )
+    }
+
+    private companion object {
+        /** Desde el emulador de Android, 10.0.2.2 es el localhost del ordenador anfitrión. */
+        const val ANDROID_EMULATOR_HOST = "10.0.2.2"
+    }
 }

@@ -40,7 +40,10 @@ enum class RegistrationMode {
     /** Registro completo con email y contraseña. */
     EmailAccount,
 
-    /** Cuenta ya autenticada (p. ej. con Google) que solo necesita su perfil. */
+    /**
+     * Cuenta ya creada que aún no tiene perfil: ocurre si el registro se interrumpe entre crear la
+     * cuenta y guardar el perfil (p. ej. otro jugador reservó el alias en ese instante).
+     */
     CompleteProfile,
 }
 

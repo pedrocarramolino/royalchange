@@ -40,5 +40,7 @@ kotlin {
 
 dependencies {
     implementation(projects.shared)
+    implementation(projects.data)
+    implementation(projects.data.firebase)
     implementation(libs.androidx.activity.compose)
 }

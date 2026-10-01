@@ -70,6 +70,7 @@ internal fun AuthScaffold(
                     BrandLockup(
                         emblemSize = 140.dp,
                         tagline = stringResource(Res.string.auth_tagline),
+                        onFelt = true,
                         modifier = Modifier.padding(RoyalSpacing.xxl),
                     )
                 }

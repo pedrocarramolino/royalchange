@@ -7,12 +7,36 @@ Decisiones técnicas: [docs/architecture.md](docs/architecture.md).
 
 ## Requisitos
 
-- JDK 17 o superior (probado con JDK 21).
+- JDK 17 o superior (probado con JDK 21). Los emuladores de Firebase también lo usan.
 - Android SDK (Android Studio o IntelliJ IDEA 2026.1.2+ con el plugin de Kotlin Multiplatform).
 - Google Chrome (tests de módulos con UI y generación de iconos).
-- Node.js + Firebase CLI (`npm install -g firebase-tools`) para desplegar.
+- Node.js + Firebase CLI (`npm install -g firebase-tools`).
 
 El wrapper de Gradle descarga la versión correcta de Gradle; no hace falta instalarlo.
+
+## Datos: emuladores o proyecto real
+
+La web y Android usan Firebase (Auth + Firestore). El escritorio usa siempre datos en memoria.
+
+Por defecto la app usa el **proyecto real** (`royalchance-92769`, configurado en
+`firebase.properties`). Para desarrollar sin tocar datos reales, usa los **emuladores locales**:
+arráncalos y compila con `-Proyalchance.firebase.emulators=true` (usan el proyecto aislado
+`demo-royalchance`, que nunca llega a la nube).
+
+```bash
+firebase emulators:start --only auth,firestore --project demo-royalchance
+```
+```bash
+./gradlew :webApp:wasmJsBrowserDevelopmentRun -Proyalchance.firebase.emulators=true
+```
+
+Para que sea el comportamiento por defecto en tu equipo, añade `royalchance.firebase.emulators=true`
+a `~/.gradle/gradle.properties`.
+
+Interfaz de los emuladores (usuarios, documentos, emails de verificación): http://127.0.0.1:4000
+
+Desde el emulador de Android, la app llega a los emuladores de Firebase por `10.0.2.2`. En un
+móvil físico hace falta el proyecto real.
 
 ## Ejecutar
 
@@ -21,10 +45,29 @@ En Windows usa `.\gradlew.bat`; en macOS/Linux, `./gradlew`.
 | Qué | Comando |
 |---|---|
 | Escritorio con Hot Reload | `.\gradlew.bat :desktopApp:hotRun` |
-| Escritorio (normal) | `.\gradlew.bat :desktopApp:run` |
 | Web en desarrollo (http://localhost:8080) | `.\gradlew.bat :webApp:wasmJsBrowserDevelopmentRun` |
 | Android (dispositivo o emulador conectado) | `.\gradlew.bat :androidApp:installDebug` |
-| Todos los tests (JVM + Wasm) | `.\gradlew.bat allTests` |
+| Tests de Kotlin (JVM + Wasm) | `.\gradlew.bat allTests` |
+| Tests de las reglas de Firestore | ver abajo |
+
+Tests de las reglas de seguridad (la primera vez: `npm --prefix firebase/tests install`):
+
+```bash
+firebase emulators:exec --only firestore --project demo-royalchance "npm --prefix firebase/tests test"
+```
+
+## Proyecto real de Firebase
+
+Hecho: apps web y Android registradas y su configuración pública en `firebase.properties`;
+Authentication con el proveedor **Email/contraseña** (el único que usa la app) y Firestore en `eur3`.
+La app no usa `google-services.json` ni su plugin: se inicializa con esos valores.
+
+Pendiente:
+
+1. Desplegar las reglas: `firebase deploy --only firestore:rules`. Hasta entonces Firestore
+   aplica las reglas con las que se creó la base de datos.
+2. Recomendado: en Google Cloud Console, restringir cada API key a su app (dominios de la web y
+   paquete + SHA-1 de Android).
 
 ## Publicar la PWA
 
@@ -33,19 +76,16 @@ En Windows usa `.\gradlew.bat`; en macOS/Linux, `./gradlew`.
 firebase deploy --only hosting
 ```
 
-Primera vez: crea el proyecto en la consola de Firebase (plan Spark), ejecuta `firebase login`
-y `firebase use --add` para vincularlo (genera `.firebaserc`, que sí se sube al repositorio).
-
-Probar la build de producción en local, sin cuenta de Firebase:
+Probar la build de producción en local contra los emuladores:
 
 ```bash
-firebase emulators:start --only hosting --project demo-royalchance
+firebase emulators:start --only auth,firestore,hosting --project demo-royalchance
 ```
 
 ## Estructura
 
 ```
-androidApp/          host Android
+androidApp/          host Android (Firebase)
 desktopApp/          host de escritorio (desarrollo, datos en memoria)
 webApp/              host web: index.html, manifest, service worker, iconos
 shared/              App(), AppGraph (inyección de dependencias) y navegación
@@ -54,19 +94,18 @@ core/designsystem    tema "Noir & Oro", tipografía, iconos y componentes
 core/ui              componentes con conocimiento del dominio (avatares, país)
 core/testing         dobles de prueba: generadores deterministas, TestClock
 domain/              contratos y reglas de negocio (Kotlin puro)
-data/                implementaciones de los repositorios
+data/                repositorios en memoria y ajustes persistentes
+data/firebase        Firebase con los SDK oficiales de Android y JavaScript
 feature/auth         bienvenida, login, registro completo, recuperación, legales
 feature/lobby        lobby del casino
 feature/profile      progreso (Fase 6)
 feature/history      historial (Fase 11)
 feature/settings     ajustes y cuenta
+firebase/            reglas de Firestore, índices y sus tests
 build-logic/         convention plugins de Gradle
 branding/            SVG maestros del icono y script de generación de PNG
 docs/                arquitectura, decisiones y recursos de terceros
 ```
-
-Hasta la Fase 4 los datos viven en memoria: al cerrar la app se pierden las cuentas creadas.
-El inicio de sesión con Google está simulado (entra con una cuenta de ejemplo).
 
 Regenerar los iconos de la PWA tras cambiar `branding/*.svg`:
 

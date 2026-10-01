@@ -85,7 +85,6 @@ import org.jetbrains.compose.resources.stringResource
 internal fun RegisterScreen(
     viewModel: RegisterViewModel,
     onBack: (() -> Unit)?,
-    onCompleted: () -> Unit,
     onOpenLegal: (LegalDocument) -> Unit,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -97,7 +96,6 @@ internal fun RegisterScreen(
     fun Modifier.anchor(field: RegistrationField) = bringIntoViewRequester(requesters.getValue(field))
     fun errorOf(field: RegistrationField): FieldError? = state.errors[field]
 
-    LaunchedEffect(state.completed) { if (state.completed) onCompleted() }
     LaunchedEffect(state.failedSubmissions) {
         if (state.failedSubmissions == 0) return@LaunchedEffect
         // Espera a que se dibujen los mensajes de error para medir sobre el diseño definitivo.
@@ -213,7 +211,8 @@ internal fun RegisterScreen(
         RoyalPrimaryButton(
             text = stringResource(if (emailMode) Res.string.register_submit else Res.string.complete_profile_submit),
             onClick = viewModel::submit,
-            loading = state.isSubmitting,
+            // Tras el éxito la raíz de la app cambia sola al casino: el botón sigue ocupado hasta entonces.
+            loading = state.isSubmitting || state.completed,
             modifier = Modifier.fillMaxWidth(),
         )
         if (!emailMode) {

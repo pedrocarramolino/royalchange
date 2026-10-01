@@ -16,14 +16,13 @@ fun PolymorphicModuleBuilder<NavKey>.settingsRoutes() {
 }
 
 /**
- * Ajustes. Las acciones que llevan a otras features (crear cuenta, documentos legales) se reciben
+ * Ajustes. Las acciones que llevan a otras features (los documentos legales) se reciben
  * como funciones: esta feature no conoce las rutas de las demás.
  */
 fun EntryProviderScope<NavKey>.settingsEntry(
     authRepository: AuthRepository,
     settingsRepository: SettingsRepository,
     appVersion: String,
-    onCreateAccount: () -> Unit,
     onOpenTerms: () -> Unit,
     onOpenPrivacy: () -> Unit,
 ) {
@@ -31,7 +30,6 @@ fun EntryProviderScope<NavKey>.settingsEntry(
         SettingsScreen(
             viewModel = viewModel { SettingsViewModel(authRepository, settingsRepository) },
             appVersion = appVersion,
-            onCreateAccount = onCreateAccount,
             onOpenTerms = onOpenTerms,
             onOpenPrivacy = onOpenPrivacy,
         )

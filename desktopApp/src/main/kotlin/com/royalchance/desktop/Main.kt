@@ -6,13 +6,19 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
+import com.royalchance.data.auth.InMemoryAuthRepository
+import com.royalchance.data.settings.JvmPreferencesKeyValueStore
+import com.royalchance.data.settings.PersistentSettingsRepository
 import com.royalchance.shared.App
 import com.royalchance.shared.AppGraph
 import java.awt.Dimension
 
 fun main() {
-    // El escritorio es el entorno de desarrollo: usa siempre datos en memoria.
-    val graph = AppGraph.inMemory()
+    // Entorno de desarrollo: cuentas en memoria (se pierden al cerrar) y preferencias persistentes.
+    val graph = AppGraph(
+        authRepository = InMemoryAuthRepository(),
+        settingsRepository = PersistentSettingsRepository(JvmPreferencesKeyValueStore()),
+    )
     application {
         Window(
             onCloseRequest = ::exitApplication,

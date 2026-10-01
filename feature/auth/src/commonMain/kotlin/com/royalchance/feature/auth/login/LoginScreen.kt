@@ -4,10 +4,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -21,19 +19,15 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.royalchance.core.designsystem.component.BannerTone
-import com.royalchance.core.designsystem.component.GoogleSignInButton
 import com.royalchance.core.designsystem.component.InfoBanner
 import com.royalchance.core.designsystem.component.RoyalPasswordField
 import com.royalchance.core.designsystem.component.RoyalPrimaryButton
 import com.royalchance.core.designsystem.component.RoyalTextButton
 import com.royalchance.core.designsystem.component.RoyalTextField
 import com.royalchance.core.designsystem.icon.RoyalIcons
-import com.royalchance.core.designsystem.theme.RoyalSpacing
 import com.royalchance.feature.auth.components.AuthScaffold
 import com.royalchance.feature.auth.message
 import com.royalchance.feature.auth.resources.Res
-import com.royalchance.feature.auth.resources.auth_continue_with_google
-import com.royalchance.feature.auth.resources.auth_or
 import com.royalchance.feature.auth.resources.field_email
 import com.royalchance.feature.auth.resources.field_password
 import com.royalchance.feature.auth.resources.login_create_account
@@ -68,7 +62,7 @@ internal fun LoginScreen(
             contentType = ContentType.EmailAddress,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next, autoCorrectEnabled = false),
             keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
-            enabled = !state.isBusy,
+            enabled = !state.isSubmitting,
         )
         RoyalPasswordField(
             value = state.password,
@@ -78,7 +72,7 @@ internal fun LoginScreen(
             contentType = ContentType.Password,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
             keyboardActions = KeyboardActions(onDone = { viewModel.submit() }),
-            enabled = !state.isBusy,
+            enabled = !state.isSubmitting,
         )
         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
             RoyalTextButton(
@@ -91,15 +85,6 @@ internal fun LoginScreen(
             text = stringResource(Res.string.login_submit),
             onClick = viewModel::submit,
             loading = state.isSubmitting,
-            enabled = !state.isGoogleLoading,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        OrDivider()
-        GoogleSignInButton(
-            text = stringResource(Res.string.auth_continue_with_google),
-            onClick = viewModel::signInWithGoogle,
-            loading = state.isGoogleLoading,
-            enabled = !state.isSubmitting,
             modifier = Modifier.fillMaxWidth(),
         )
         Row(
@@ -114,19 +99,5 @@ internal fun LoginScreen(
             )
             RoyalTextButton(text = stringResource(Res.string.login_create_account), onClick = onCreateAccount)
         }
-    }
-}
-
-@Composable
-internal fun OrDivider() {
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-        HorizontalDivider(Modifier.weight(1f), color = MaterialTheme.colorScheme.outlineVariant)
-        Text(
-            text = stringResource(Res.string.auth_or),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = RoyalSpacing.m),
-        )
-        HorizontalDivider(Modifier.weight(1f), color = MaterialTheme.colorScheme.outlineVariant)
     }
 }

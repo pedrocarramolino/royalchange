@@ -1,17 +1,12 @@
 package com.royalchance.core.designsystem.component
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LocalContentColor
@@ -29,7 +24,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.royalchance.core.designsystem.icon.RoyalIcons
 import com.royalchance.core.designsystem.resources.Res
 import com.royalchance.core.designsystem.resources.ds_loading
 import com.royalchance.core.designsystem.theme.RoyalSizes
@@ -57,7 +51,7 @@ fun RoyalPrimaryButton(
         enabled = active,
         shape = shape,
         color = Color.Transparent,
-        contentColor = MaterialTheme.colorScheme.onPrimary,
+        contentColor = casino.onGold,
         modifier = modifier
             .heightIn(min = RoyalSizes.primaryActionHeight)
             .background(
@@ -69,7 +63,7 @@ fun RoyalPrimaryButton(
         ButtonContent(
             text = text,
             loading = loading,
-            contentColor = if (enabled) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+            contentColor = if (enabled) casino.onGold else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
         )
     }
 }
@@ -112,44 +106,6 @@ fun RoyalTextButton(
         modifier = modifier.heightIn(min = RoyalSizes.minTouchTarget),
     ) {
         Text(text, style = MaterialTheme.typography.labelLarge, textAlign = TextAlign.Center)
-    }
-}
-
-/**
- * Botón "Continuar con Google" según las guías de marca de Google: logotipo oficial y colores
- * neutros definidos para tema claro y oscuro.
- */
-@Composable
-fun GoogleSignInButton(
-    text: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-    loading: Boolean = false,
-) {
-    val dark = RoyalTheme.casinoColors.isDark
-    Surface(
-        onClick = onClick,
-        enabled = enabled && !loading,
-        shape = MaterialTheme.shapes.medium,
-        color = if (dark) Color(0xFF131314) else Color.White,
-        contentColor = if (dark) Color(0xFFE3E3E3) else Color(0xFF1F1F1F),
-        border = BorderStroke(1.dp, if (dark) Color(0xFF8E918F) else Color(0xFF747775)),
-        modifier = modifier.heightIn(min = RoyalSizes.primaryActionHeight),
-    ) {
-        Row(
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(horizontal = RoyalSpacing.xl),
-        ) {
-            if (loading) {
-                LoadingSpinner(color = LocalContentColor.current)
-            } else {
-                Image(RoyalIcons.GoogleLogo, contentDescription = null, modifier = Modifier.size(20.dp))
-                Spacer(Modifier.width(RoyalSpacing.m))
-                Text(text, style = MaterialTheme.typography.labelLarge)
-            }
-        }
     }
 }
 

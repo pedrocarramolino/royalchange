@@ -75,7 +75,7 @@ class RegisterViewModel(
         }
     }
 
-    /** Permite salir de "completar perfil" (p. ej. si se entró con la cuenta de Google equivocada). */
+    /** Permite salir de "completar perfil" sin terminarlo (p. ej. para entrar con otra cuenta). */
     fun signOut() {
         viewModelScope.launch { authRepository.signOut() }
     }

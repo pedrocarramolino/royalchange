@@ -1,15 +1,15 @@
 <resources>
     <string name="lobby_title">Casino</string>
     <string name="lobby_greeting">Hola, %1$s</string>
-    <string name="lobby_greeting_guest">Hola, invitado</string>
+    <string name="lobby_greeting_default">Hola</string>
     <string name="lobby_subtitle">Elige tu mesa</string>
     <string name="lobby_games">Juegos</string>
     <string name="lobby_coming_soon">Próximamente</string>
-    <string name="lobby_guest_banner">Juegas como invitado. Crea una cuenta para no perder tu progreso.</string>
-    <string name="lobby_guest_action">Crear cuenta</string>
-    <string name="lobby_verify_banner">Confirma tu email para proteger tu cuenta.</string>
-    <string name="lobby_verify_action">Verificar</string>
-    <string name="lobby_verify_sent">Email verificado. ¡Gracias!</string>
+    <string name="lobby_verify_banner">Confirma tu email con el enlace que te enviamos al registrarte.</string>
+    <string name="lobby_verify_action">Reenviar</string>
+    <string name="lobby_verify_pending">Te hemos enviado un enlace de confirmación. Ábrelo y vuelve aquí.</string>
+    <string name="lobby_verify_check">Ya lo he confirmado</string>
+    <string name="lobby_verify_done">Email verificado. ¡Gracias!</string>
 
     <string name="game_blackjack">Blackjack</string>
     <string name="game_blackjack_description">Llega a 21 sin pasarte y gana al crupier.</string>

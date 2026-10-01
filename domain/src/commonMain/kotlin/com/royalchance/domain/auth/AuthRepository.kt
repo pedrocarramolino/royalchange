@@ -6,8 +6,8 @@ import kotlinx.coroutines.flow.StateFlow
 /**
  * Autenticación y cuenta del jugador.
  *
- * La UI solo conoce este contrato. En la Fase 3 lo implementa un repositorio en memoria; en la
- * Fase 4, Firebase Auth. Cambiar la implementación no afecta a ninguna pantalla.
+ * La UI solo conoce este contrato. Lo implementan Firebase (Android y web) y un repositorio en
+ * memoria (escritorio de desarrollo y tests). Cambiar la implementación no afecta a ninguna pantalla.
  */
 interface AuthRepository {
 
@@ -16,14 +16,10 @@ interface AuthRepository {
 
     suspend fun signIn(email: String, password: String): Outcome<Unit, AuthError>
 
-    /** Crea una cuenta con email. Si hay una sesión de invitado activa, conserva su progreso. */
+    /** Crea una cuenta con email y contraseña y guarda su perfil. */
     suspend fun register(account: NewAccount): Outcome<Unit, AuthError>
 
-    suspend fun signInWithGoogle(): Outcome<Unit, AuthError>
-
-    suspend fun continueAsGuest(consents: LegalConsents): Outcome<Unit, AuthError>
-
-    /** Completa el perfil de una cuenta que aún no lo tiene (p. ej. tras entrar con Google). */
+    /** Completa el perfil de una cuenta que no llegó a guardarlo durante el registro. */
     suspend fun completeProfile(profile: PlayerProfile): Outcome<Unit, AuthError>
 
     /** Siempre responde con éxito si el email es válido, exista o no la cuenta (evita revelar usuarios). */
@@ -31,10 +27,19 @@ interface AuthRepository {
 
     suspend fun sendEmailVerification(): Outcome<Unit, AuthError>
 
+    /**
+     * Vuelve a leer el usuario del servidor. Necesario para detectar que el jugador ha confirmado
+     * su email desde el enlace recibido (ocurre fuera de la app).
+     */
+    suspend fun refreshUser(): Outcome<Unit, AuthError>
+
     suspend fun signOut()
 
-    /** Elimina la cuenta y sus datos de forma permanente. */
-    suspend fun deleteAccount(): Outcome<Unit, AuthError>
+    /**
+     * Elimina la cuenta y sus datos de forma permanente. Por seguridad exige confirmar la
+     * [password] (Firebase pide una autenticación reciente para esta operación).
+     */
+    suspend fun deleteAccount(password: String): Outcome<Unit, AuthError>
 }
 
 data class NewAccount(
@@ -61,7 +66,12 @@ enum class AuthError {
     WeakPassword,
     TooManyAttempts,
     Network,
-    Cancelled,
     NotSignedIn,
+
+    /** La operación exige haber iniciado sesión hace poco: hay que volver a identificarse. */
+    RequiresRecentLogin,
+
+    /** El servicio no está disponible en esta configuración (p. ej. proveedor desactivado en Firebase). */
+    Unavailable,
     Unknown,
 }

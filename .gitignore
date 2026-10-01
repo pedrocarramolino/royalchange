@@ -29,3 +29,10 @@ ui-debug.log*
 
 # Node
 node_modules/
+
+# Dependencias de los tests de reglas
+firebase/tests/node_modules/
+
+# Configuración de Firebase descargada de la consola: la app no la usa (ver firebase.properties)
+google-services.json
+GoogleService-Info.plist

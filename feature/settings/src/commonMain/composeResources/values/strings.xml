@@ -2,9 +2,6 @@
     <string name="settings_title">Ajustes</string>
 
     <string name="settings_section_account">Cuenta</string>
-    <string name="settings_guest_name">Invitado</string>
-    <string name="settings_guest_banner">Estás jugando como invitado. Crea una cuenta para guardar tu progreso.</string>
-    <string name="settings_create_account">Crear cuenta</string>
     <string name="settings_email_unverified">Email sin verificar</string>
     <string name="settings_email_verified">Email verificado</string>
     <string name="settings_verify_email">Verificar email</string>
@@ -24,10 +21,14 @@
 
     <string name="settings_sign_out_title">¿Cerrar sesión?</string>
     <string name="settings_sign_out_message">Podrás volver a entrar con tu email y contraseña.</string>
-    <string name="settings_sign_out_guest_message">Juegas como invitado: si cierras sesión perderás tu progreso de forma permanente.</string>
     <string name="settings_delete_title">¿Eliminar tu cuenta?</string>
     <string name="settings_delete_message">Se borrarán de forma permanente tu cuenta, tus fichas, tu progreso y tus datos. Esta acción no se puede deshacer.</string>
     <string name="settings_delete_confirm">Eliminar definitivamente</string>
     <string name="settings_cancel">Cancelar</string>
     <string name="settings_error">No se pudo completar la acción. Vuelve a intentarlo.</string>
+    <string name="settings_error_recent_login">Por seguridad, cierra sesión, vuelve a entrar y repite la acción.</string>
+    <string name="settings_wrong_password">Contraseña incorrecta.</string>
+    <string name="settings_delete_password">Contraseña</string>
+    <string name="settings_delete_password_hint">Escribe tu contraseña para confirmar.</string>
+    <string name="settings_verification_sent">Te hemos enviado un enlace de confirmación. Ábrelo y vuelve a la app.</string>
 </resources>
