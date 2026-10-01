@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
-/** Preferencias en memoria. La persistencia en el dispositivo llega en la Fase 4. */
+/** Preferencias en memoria (tests). */
 class InMemorySettingsRepository(initial: AppSettings = AppSettings()) : SettingsRepository {
 
     private val state = MutableStateFlow(initial)
@@ -16,5 +16,13 @@ class InMemorySettingsRepository(initial: AppSettings = AppSettings()) : Setting
 
     override suspend fun setTheme(theme: ThemePreference) {
         state.update { it.copy(theme = theme) }
+    }
+
+    override suspend fun setSoundEnabled(enabled: Boolean) {
+        state.update { it.copy(soundEnabled = enabled) }
+    }
+
+    override suspend fun setReducedMotion(enabled: Boolean) {
+        state.update { it.copy(reducedMotion = enabled) }
     }
 }

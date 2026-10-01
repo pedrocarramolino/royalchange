@@ -24,6 +24,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.royalchance.core.designsystem.motion.WinCelebration
+import com.royalchance.core.audio.SoundOnIncrease
+import com.royalchance.core.audio.resultSound
+import com.royalchance.core.audio.SoundOnChange
+import com.royalchance.core.audio.Sound
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -128,6 +133,13 @@ internal fun BlackjackScreen(viewModel: BlackjackViewModel, eventGate: ProgressE
     // Los avisos de logros esperan a que el crupier termine: no deben adelantar el resultado.
     HoldProgressEvents(eventGate, held = state.animating)
 
+    // Sonido de cada carta que aparece y del resultado; un blackjack natural se celebra.
+    // La carta oculta del crupier suena también al voltearse.
+    SoundOnIncrease(state.table.hands.sumOf { it.cards.size } + state.dealerCardsShown + if (state.holeCardShown) 1 else 0, Sound.Card)
+    val roundKey = if (state.showResults && state.table.results.isNotEmpty()) state.table.shoe?.position else null
+    val natural = state.table.results.any { it.outcome == HandOutcome.Blackjack }
+    SoundOnChange(roundKey, resultSound(state.table.totalPayout - state.table.totalStake, bigWin = natural))
+
     Column(
         Modifier
             .fillMaxSize()
@@ -156,6 +168,7 @@ internal fun BlackjackScreen(viewModel: BlackjackViewModel, eventGate: ProgressE
                 )
                 PlayerArea(state, cardWidth)
             }
+            WinCelebration(trigger = roundKey?.takeIf { natural }?.toLong(), modifier = Modifier.matchParentSize())
         }
         Controls(state, viewModel)
     }

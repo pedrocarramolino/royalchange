@@ -23,6 +23,21 @@ class PersistentSettingsRepositoryTest {
     }
 
     @Test
+    fun soundAndMotionPreferencesSurviveRestart() = runTest {
+        val store = InMemoryKeyValueStore()
+        val repository = PersistentSettingsRepository(store)
+        assertEquals(true, repository.settings.value.soundEnabled)
+        assertEquals(false, repository.settings.value.reducedMotion)
+
+        repository.setSoundEnabled(false)
+        repository.setReducedMotion(true)
+        val reopened = PersistentSettingsRepository(store).settings.value
+
+        assertEquals(false, reopened.soundEnabled)
+        assertEquals(true, reopened.reducedMotion)
+    }
+
+    @Test
     fun unknownStoredValueFallsBackToDefault() {
         val store = InMemoryKeyValueStore().apply { putString("settings.theme", "Neon") }
 

@@ -23,6 +23,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.royalchance.core.designsystem.motion.WinCelebration
+import com.royalchance.core.audio.BIG_WIN_MULTIPLIER
+import com.royalchance.core.audio.resultSound
+import com.royalchance.core.audio.SoundOnChange
+import com.royalchance.core.audio.Sound
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -95,6 +100,13 @@ internal fun SlotsScreen(viewModel: SlotsViewModel, eventGate: ProgressEventGate
     // Los avisos de logros esperan a que paren los rodillos.
     HoldProgressEvents(eventGate, held = state.spinning)
 
+    val lastSpin = state.lastSpin
+    SoundOnChange(if (state.spinning) lastSpin?.id else null, Sound.Spin)
+    val bigWin = lastSpin != null && lastSpin.spin.totalPayout >= BIG_WIN_MULTIPLIER * lastSpin.spin.totalBet
+    val resultKey = if (state.showResult) lastSpin?.id else null
+    // En la tragaperras perder es lo habitual: solo suenan los premios.
+    SoundOnChange(resultKey, lastSpin?.let { resultSound((it.spin.totalPayout - it.spin.totalBet).coerceAtLeast(0), bigWin) })
+
     Column(
         Modifier
             .fillMaxSize()
@@ -134,6 +146,7 @@ internal fun SlotsScreen(viewModel: SlotsViewModel, eventGate: ProgressEventGate
                 )
                 ResultPanel(state)
             }
+            WinCelebration(trigger = resultKey?.takeIf { bigWin }, modifier = Modifier.matchParentSize())
         }
         Controls(state, viewModel, onShowPaytable = { showPaytable = true })
     }

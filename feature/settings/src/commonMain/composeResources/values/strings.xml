@@ -31,4 +31,8 @@
     <string name="settings_delete_password">Contraseña</string>
     <string name="settings_delete_password_hint">Escribe tu contraseña para confirmar.</string>
     <string name="settings_verification_sent">Te hemos enviado un enlace de confirmación. Ábrelo y vuelve a la app.</string>
+    <string name="settings_sound">Sonido</string>
+    <string name="settings_sound_hint">Efectos de cartas, fichas, ruleta y premios.</string>
+    <string name="settings_reduced_motion">Animaciones reducidas</string>
+    <string name="settings_reduced_motion_hint">Sin celebraciones ni movimientos decorativos. Las mesas siguen mostrando cada resultado.</string>
 </resources>

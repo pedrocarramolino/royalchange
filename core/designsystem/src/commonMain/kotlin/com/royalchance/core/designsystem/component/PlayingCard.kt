@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.royalchance.core.designsystem.graphics.SuitGlyph
 import com.royalchance.core.designsystem.graphics.SuitShape
+import com.royalchance.core.designsystem.motion.dealIn
 import com.royalchance.core.designsystem.theme.RoyalTheme
 
 /** Proporción de una carta de póker real (63 × 88 mm). */
@@ -39,7 +40,7 @@ private val CardRed = Color(0xFFB3263B)
 private val CardBlack = Color(0xFF15171D)
 
 /**
- * Carta de la baraja francesa. Boca abajo muestra el reverso de la casa; al voltearse
+ * Carta de la baraja francesa. Entra con una animación de reparto ([dealIn]). Boca abajo muestra el reverso de la casa; al voltearse
  * ([faceDown] pasa a `false`) cambia con una transición corta.
  *
  * @param rank símbolo del valor ("A", "10", "K"…).
@@ -55,7 +56,7 @@ fun PlayingCard(
     width: Dp = 64.dp,
 ) {
     val shape = RoundedCornerShape(width * 0.12f)
-    Box(modifier.size(width, width * CARD_ASPECT).semantics { contentDescription = description }) {
+    Box(modifier.dealIn().size(width, width * CARD_ASPECT).semantics { contentDescription = description }) {
         AnimatedContent(
             targetState = faceDown,
             transitionSpec = { (fadeIn(tween(220)) + scaleIn(tween(220), initialScale = 0.92f)) togetherWith fadeOut(tween(120)) },

@@ -8,6 +8,8 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             api(libs.kotlinx.datetime)
+            // Los componentes con sonido propio (fichas) lo reproducen directamente.
+            api(projects.core.audio)
         }
     }
 }

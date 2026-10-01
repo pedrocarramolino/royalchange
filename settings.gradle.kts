@@ -40,6 +40,7 @@ include(":webApp")
 include(":shared")
 
 // Núcleo
+include(":core:audio")
 include(":core:common")
 include(":core:designsystem")
 include(":core:testing")

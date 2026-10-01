@@ -24,6 +24,8 @@ enum class SettingsError { Generic, WrongPassword, RequiresRecentLogin }
 data class SettingsUiState(
     val user: AuthUser? = null,
     val theme: ThemePreference = ThemePreference.Dark,
+    val soundEnabled: Boolean = true,
+    val reducedMotion: Boolean = false,
     val pendingConfirmation: PendingConfirmation? = null,
     val isBusy: Boolean = false,
     val error: SettingsError? = null,
@@ -45,6 +47,8 @@ class SettingsViewModel(
         SettingsUiState(
             user = (auth as? AuthState.SignedIn)?.user,
             theme = settings.theme,
+            soundEnabled = settings.soundEnabled,
+            reducedMotion = settings.reducedMotion,
             pendingConfirmation = local.pending,
             isBusy = local.busy,
             error = local.error,
@@ -54,6 +58,14 @@ class SettingsViewModel(
 
     fun setTheme(theme: ThemePreference) {
         viewModelScope.launch { settingsRepository.setTheme(theme) }
+    }
+
+    fun setSoundEnabled(enabled: Boolean) {
+        viewModelScope.launch { settingsRepository.setSoundEnabled(enabled) }
+    }
+
+    fun setReducedMotion(enabled: Boolean) {
+        viewModelScope.launch { settingsRepository.setReducedMotion(enabled) }
     }
 
     fun sendVerification() = runAction {

@@ -32,17 +32,31 @@ class PersistentSettingsRepository(private val store: KeyValueStore) : SettingsR
         state.update { it.copy(theme = theme) }
     }
 
+    override suspend fun setSoundEnabled(enabled: Boolean) {
+        store.putString(KEY_SOUND, enabled.toString())
+        state.update { it.copy(soundEnabled = enabled) }
+    }
+
+    override suspend fun setReducedMotion(enabled: Boolean) {
+        store.putString(KEY_REDUCED_MOTION, enabled.toString())
+        state.update { it.copy(reducedMotion = enabled) }
+    }
+
     private fun load(): AppSettings {
         val defaults = AppSettings()
         return AppSettings(
             // Un valor desconocido (p. ej. de una versión futura) no debe romper el arranque.
             theme = store.getString(KEY_THEME)?.let { name -> ThemePreference.entries.firstOrNull { it.name == name } }
                 ?: defaults.theme,
+            soundEnabled = store.getString(KEY_SOUND)?.toBooleanStrictOrNull() ?: defaults.soundEnabled,
+            reducedMotion = store.getString(KEY_REDUCED_MOTION)?.toBooleanStrictOrNull() ?: defaults.reducedMotion,
         )
     }
 
     private companion object {
         const val KEY_THEME = "settings.theme"
+        const val KEY_SOUND = "settings.sound"
+        const val KEY_REDUCED_MOTION = "settings.reducedMotion"
     }
 }
 

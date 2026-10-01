@@ -31,6 +31,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.royalchance.core.designsystem.motion.WinCelebration
+import com.royalchance.core.audio.BIG_WIN_MULTIPLIER
+import com.royalchance.core.audio.resultSound
+import com.royalchance.core.audio.SoundOnChange
+import com.royalchance.core.audio.Sound
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -115,6 +120,12 @@ internal fun DiceScreen(viewModel: DiceViewModel, eventGate: ProgressEventGate, 
     // Los avisos de logros esperan a que se paren los dados.
     HoldProgressEvents(eventGate, held = state.rolling)
 
+    val thrown = state.lastThrow
+    SoundOnChange(if (state.rolling) thrown?.id else null, Sound.Dice)
+    val bigWin = thrown != null && thrown.result.totalPayout >= BIG_WIN_MULTIPLIER * thrown.result.totalStake
+    val resultKey = if (state.showResult) thrown?.id else null
+    SoundOnChange(resultKey, thrown?.let { resultSound(it.result.totalPayout - it.result.totalStake, bigWin) })
+
     Column(
         Modifier
             .fillMaxSize()
@@ -151,6 +162,7 @@ internal fun DiceScreen(viewModel: DiceViewModel, eventGate: ProgressEventGate, 
                 History(state)
                 DiceBoard(state, viewModel::place, Modifier.widthIn(max = 560.dp))
             }
+            WinCelebration(trigger = resultKey?.takeIf { bigWin }, modifier = Modifier.matchParentSize())
         }
         Controls(state, viewModel)
     }

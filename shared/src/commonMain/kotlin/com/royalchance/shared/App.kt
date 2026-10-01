@@ -10,6 +10,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import com.royalchance.core.designsystem.motion.LocalReducedMotion
+import com.royalchance.core.audio.SwitchableSoundPlayer
+import com.royalchance.core.audio.LocalSoundPlayer
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -39,19 +45,25 @@ fun App(graph: AppGraph) {
         ThemePreference.System -> isSystemInDarkTheme()
     }
 
-    RoyalChanceTheme(darkTheme = darkTheme) {
-        Surface(color = MaterialTheme.colorScheme.background, modifier = Modifier.fillMaxSize()) {
-            ProvideWindowWidthClass {
-                AnimatedContent(
-                    targetState = authState.toRootScreen(),
-                    transitionSpec = { fadeIn(tween(300)) togetherWith fadeOut(tween(200)) },
-                    label = "root",
-                ) { screen ->
-                    when (screen) {
-                        RootScreen.Loading -> FullScreenLoading()
-                        RootScreen.SignedOut -> AuthFlow(graph)
-                        RootScreen.CompleteProfile -> CompleteProfileFlow(graph)
-                        RootScreen.Casino -> MainFlow(graph, user = (authState as? AuthState.SignedIn)?.user)
+    // El reproductor consulta la preferencia en cada sonido: desactivarla silencia al instante.
+    val currentSettings by rememberUpdatedState(settings)
+    val sound = remember(graph) { SwitchableSoundPlayer(graph.soundPlayer) { currentSettings.soundEnabled } }
+
+    CompositionLocalProvider(LocalSoundPlayer provides sound, LocalReducedMotion provides settings.reducedMotion) {
+        RoyalChanceTheme(darkTheme = darkTheme) {
+            Surface(color = MaterialTheme.colorScheme.background, modifier = Modifier.fillMaxSize()) {
+                ProvideWindowWidthClass {
+                    AnimatedContent(
+                        targetState = authState.toRootScreen(),
+                        transitionSpec = { fadeIn(tween(300)) togetherWith fadeOut(tween(200)) },
+                        label = "root",
+                    ) { screen ->
+                        when (screen) {
+                            RootScreen.Loading -> FullScreenLoading()
+                            RootScreen.SignedOut -> AuthFlow(graph)
+                            RootScreen.CompleteProfile -> CompleteProfileFlow(graph)
+                            RootScreen.Casino -> MainFlow(graph, user = (authState as? AuthState.SignedIn)?.user)
+                        }
                     }
                 }
             }

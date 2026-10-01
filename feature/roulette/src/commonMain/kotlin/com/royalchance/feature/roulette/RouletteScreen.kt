@@ -23,6 +23,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.royalchance.core.designsystem.motion.WinCelebration
+import com.royalchance.core.audio.BIG_WIN_MULTIPLIER
+import com.royalchance.core.audio.resultSound
+import com.royalchance.core.audio.SoundOnChange
+import com.royalchance.core.audio.Sound
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -87,6 +92,12 @@ internal fun RouletteScreen(viewModel: RouletteViewModel, eventGate: ProgressEve
     // Los avisos de logros esperan a que la bola se pare: no deben adelantar el resultado.
     HoldProgressEvents(eventGate, held = state.spinning)
 
+    val spin = state.lastSpin
+    SoundOnChange(if (state.spinning) spin?.id else null, Sound.Spin)
+    val bigWin = spin != null && spin.spin.totalPayout >= BIG_WIN_MULTIPLIER * spin.spin.totalStake
+    val resultKey = if (state.showResult) spin?.id else null
+    SoundOnChange(resultKey, spin?.let { resultSound(it.spin.totalPayout - it.spin.totalStake, bigWin) })
+
     Column(
         Modifier
             .fillMaxSize()
@@ -143,6 +154,7 @@ internal fun RouletteScreen(viewModel: RouletteViewModel, eventGate: ProgressEve
                     }
                 }
             }
+            WinCelebration(trigger = resultKey?.takeIf { bigWin }, modifier = Modifier.matchParentSize())
         }
         Controls(state, viewModel)
     }

@@ -20,6 +20,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.royalchance.core.audio.Sound
+import com.royalchance.core.audio.rememberSoundPlayer
 import com.royalchance.core.designsystem.theme.RoyalTheme
 
 /**
@@ -39,13 +41,17 @@ fun BetChip(
     size: Dp = 52.dp,
 ) {
     val casino = RoyalTheme.casinoColors
+    val sound = rememberSoundPlayer()
     val ring = when {
         selected -> casino.gold
         enabled -> Color.White.copy(alpha = 0.85f)
         else -> Color.White.copy(alpha = 0.3f)
     }
     Surface(
-        onClick = onClick,
+        onClick = {
+            sound.play(Sound.Chip)
+            onClick()
+        },
         enabled = enabled,
         shape = CircleShape,
         color = chipColor(value).copy(alpha = if (enabled) 1f else 0.4f),

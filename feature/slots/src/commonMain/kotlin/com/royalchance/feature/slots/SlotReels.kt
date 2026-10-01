@@ -16,6 +16,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.royalchance.core.audio.rememberSoundPlayer
+import com.royalchance.core.audio.Sound
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -65,6 +67,7 @@ internal fun SlotReels(
     modifier: Modifier = Modifier,
 ) {
     val casino = RoyalTheme.casinoColors
+    val sound = rememberSoundPlayer()
     val positions = remember { List(SlotMachine.REELS) { reel -> Animatable(stops?.get(reel)?.toFloat() ?: (reel * 7f)) } }
 
     LaunchedEffect(spinId) {
@@ -84,6 +87,7 @@ internal fun SlotReels(
                     val duration = (durationMillis * (0.55f + 0.1125f * reel)).toInt()
                     position.animateTo(target, tween(duration, easing = ReelEasing))
                     position.snapTo(stops[reel].toFloat())
+                    sound.play(Sound.ReelStop)
                 }
             }.awaitAll()
         }

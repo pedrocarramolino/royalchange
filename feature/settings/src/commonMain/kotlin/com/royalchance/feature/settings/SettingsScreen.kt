@@ -25,6 +25,12 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.royalchance.feature.settings.resources.settings_reduced_motion_hint
+import com.royalchance.feature.settings.resources.settings_reduced_motion
+import com.royalchance.feature.settings.resources.settings_sound_hint
+import com.royalchance.feature.settings.resources.settings_sound
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.material3.Switch
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -144,6 +150,18 @@ internal fun SettingsScreen(
 
                 SectionHeader(stringResource(Res.string.settings_section_appearance))
                 ThemeSelector(selected = state.theme, onSelect = viewModel::setTheme)
+                SwitchRow(
+                    label = stringResource(Res.string.settings_sound),
+                    description = stringResource(Res.string.settings_sound_hint),
+                    checked = state.soundEnabled,
+                    onCheckedChange = viewModel::setSoundEnabled,
+                )
+                SwitchRow(
+                    label = stringResource(Res.string.settings_reduced_motion),
+                    description = stringResource(Res.string.settings_reduced_motion_hint),
+                    checked = state.reducedMotion,
+                    onCheckedChange = viewModel::setReducedMotion,
+                )
 
                 SectionHeader(stringResource(Res.string.settings_section_info))
                 SettingsRow(icon = RoyalIcons.Info, label = stringResource(Res.string.settings_terms), onClick = onOpenTerms)
@@ -256,6 +274,24 @@ private fun SettingsRow(
             Text(label, style = MaterialTheme.typography.bodyLarge, color = color)
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+    }
+}
+
+/** Fila con interruptor; toda la fila es pulsable y se anuncia como interruptor. */
+@Composable
+private fun SwitchRow(label: String, description: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = RoyalSizes.minTouchTarget)
+            .toggleable(value = checked, role = Role.Switch, onValueChange = onCheckedChange),
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(label, style = MaterialTheme.typography.titleSmall)
+            Text(description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Switch(checked = checked, onCheckedChange = null)
     }
 }
 

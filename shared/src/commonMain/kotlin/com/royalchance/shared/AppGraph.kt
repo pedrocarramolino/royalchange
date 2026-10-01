@@ -1,5 +1,7 @@
 package com.royalchance.shared
 
+import com.royalchance.core.audio.SoundPlayer
+import com.royalchance.core.audio.platformSoundPlayer
 import com.royalchance.core.common.random.ProductionRandomGenerator
 import com.royalchance.core.common.random.RandomGenerator
 import com.royalchance.domain.auth.AuthRepository
@@ -31,6 +33,7 @@ class AppGraph(
     val clock: Clock = Clock.System,
     val timeZone: TimeZone = TimeZone.currentSystemDefault(),
     val random: RandomGenerator = ProductionRandomGenerator(),
+    val soundPlayer: SoundPlayer = platformSoundPlayer(),
 ) {
     internal val authDependencies = AuthDependencies(authRepository, clock, timeZone)
     internal val blackjackDependencies = BlackjackDependencies(authRepository, economyRepository, gameSessions, random)

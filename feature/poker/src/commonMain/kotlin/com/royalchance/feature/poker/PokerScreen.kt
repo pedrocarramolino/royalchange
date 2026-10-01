@@ -20,6 +20,12 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.layout.Box
+import com.royalchance.core.designsystem.motion.WinCelebration
+import com.royalchance.core.audio.SoundOnIncrease
+import com.royalchance.core.audio.resultSound
+import com.royalchance.core.audio.SoundOnChange
+import com.royalchance.core.audio.Sound
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
@@ -108,11 +114,41 @@ internal fun PokerScreen(viewModel: PokerViewModel, eventGate: ProgressEventGate
         if (table == null) {
             SitDownPanel(state, viewModel, Modifier.weight(1f))
         } else {
-            PokerTableView(table, Modifier.weight(1f).fillMaxWidth().padding(RoyalSpacing.s))
+            val celebration = PokerSounds(table)
+            Box(Modifier.weight(1f).fillMaxWidth()) {
+                PokerTableView(table, Modifier.fillMaxSize().padding(RoyalSpacing.s))
+                WinCelebration(trigger = celebration, modifier = Modifier.matchParentSize())
+            }
             Controls(state, table, viewModel)
         }
     }
 }
+
+/**
+ * Sonidos de la mesa: cartas repartidas, fichas que pone el jugador y el resultado de su mano.
+ * Devuelve la clave de la celebración si el jugador gana un bote grande.
+ */
+@Composable
+private fun PokerSounds(table: PokerState): Long? {
+    val hero = table.seats[HERO]
+    SoundOnChange(table.handNumber.takeIf { hero.hole.isNotEmpty() }, Sound.Card)
+    SoundOnIncrease(table.board.size, Sound.Card)
+    SoundOnIncrease(hero.committed.toInt(), Sound.Chip)
+    val handOver = table.phase == PokerPhase.HandOver
+    val won = table.awards.filter { HERO in it.winners }.sumOf { it.amount / it.winners.size }
+    val bigWin = handOver && won >= BIG_POT_IN_BIG_BLINDS * table.rules.bigBlind
+    val net = when {
+        !handOver -> 0L
+        won > 0 -> won - hero.committed
+        hero.committed > 0 && !hero.folded -> -hero.committed
+        else -> 0L
+    }
+    SoundOnChange(if (handOver) table.handNumber else null, resultSound(net, bigWin))
+    return table.handNumber.toLong().takeIf { bigWin }
+}
+
+/** Bote "grande" para celebrarlo: desde 25 ciegas grandes. */
+private const val BIG_POT_IN_BIG_BLINDS = 25
 
 @Composable
 private fun SitDownPanel(state: PokerUiState, viewModel: PokerViewModel, modifier: Modifier) {
