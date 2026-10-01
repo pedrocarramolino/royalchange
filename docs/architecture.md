@@ -412,6 +412,13 @@ Implementación:
 ## 13. Problemas conocidos
 
 - El SDK de Firebase añade unos 210 KB comprimidos a la PWA.
+- **Teclado en iPhone/iPad (resuelto en la web, `webApp/.../ios-keyboard.js`):** Safari en iOS no
+  abre el teclado cuando Compose enfoca su campo oculto por programa (tampoco dentro del toque). Se
+  coloca un `<input>` real sobre cada campo de texto de Compose (posiciones de su capa de
+  accesibilidad, `role="textbox"`): el dedo lo toca, iOS abre el teclado, los eventos de puntero se
+  reenvían al canvas y el foco pasa al campo de Compose. El input debe tener opacidad 1 (fondo,
+  texto y cursor transparentes): con opacidad casi nula Safari lo considera oculto. Con
+  `?diagnostico=teclado` se ven los inputs y un registro en pantalla. Revisar al actualizar Compose.
 - Los tests de reglas borran la base de datos del emulador: no hay que lanzarlos contra el
   emulador que usa la app en desarrollo (`firebase emulators:exec` arranca uno propio).
 - En Wasm, los errores de JavaScript no son `Exception`: donde se llama a la API de Firebase se
