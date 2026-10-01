@@ -3,7 +3,6 @@ package com.royalchance.feature.blackjack
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -21,7 +20,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -31,10 +29,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.LiveRegionMode
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
-import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
@@ -42,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.royalchance.core.common.text.formatGrouped
 import com.royalchance.core.designsystem.component.BannerTone
+import com.royalchance.core.designsystem.component.BetChip
 import com.royalchance.core.designsystem.component.InfoBanner
 import com.royalchance.core.designsystem.component.PlayingCard
 import com.royalchance.core.designsystem.component.RoyalPrimaryButton
@@ -330,7 +326,14 @@ private fun BetControls(state: BlackjackUiState, viewModel: BlackjackViewModel) 
         style = MaterialTheme.typography.titleMedium,
     )
     FlowRow(horizontalArrangement = Arrangement.spacedBy(RoyalSpacing.s), verticalArrangement = Arrangement.spacedBy(RoyalSpacing.s)) {
-        CHIP_VALUES.forEach { value -> BetChip(value, enabled = state.canBet) { viewModel.addChip(value) } }
+        CHIP_VALUES.forEach { value ->
+            BetChip(
+                value = value,
+                description = stringResource(Res.string.blackjack_add_chip, chipsText(Chips(value))),
+                onClick = { viewModel.addChip(value) },
+                enabled = state.canBet,
+            )
+        }
     }
     Row(verticalAlignment = Alignment.CenterVertically) {
         RoyalTextButton(text = stringResource(Res.string.blackjack_clear_bet), onClick = viewModel::clearBet, enabled = state.canBet && state.bet > 0)
@@ -364,37 +367,6 @@ private fun MoveButtons(state: BlackjackUiState, viewModel: BlackjackViewModel) 
         RoyalPrimaryButton(stringResource(Res.string.blackjack_stand), viewModel::stand, Modifier.weight(1f), enabled = BlackjackMove.Stand in moves)
         RoyalSecondaryButton(stringResource(Res.string.blackjack_double), viewModel::double, Modifier.weight(1f), enabled = BlackjackMove.Double in moves)
         RoyalSecondaryButton(stringResource(Res.string.blackjack_split), viewModel::split, Modifier.weight(1f), enabled = BlackjackMove.Split in moves)
-    }
-}
-
-/** Ficha de apuesta: círculo con el valor, en el color de su denominación. */
-@Composable
-private fun BetChip(value: Long, enabled: Boolean, onClick: () -> Unit) {
-    val casino = RoyalTheme.casinoColors
-    val color = when (value) {
-        10L -> Color(0xFF3E6FB0)
-        50L -> casino.ruby
-        100L -> Color(0xFF1F1F23)
-        500L -> Color(0xFF6B3FA0)
-        1_000L -> casino.goldDeep
-        else -> Color(0xFF0F5B45)
-    }
-    val label = if (value >= 1_000) "${value / 1_000}K" else value.toString()
-    val description = stringResource(Res.string.blackjack_add_chip, chipsText(Chips(value)))
-    Surface(
-        onClick = onClick,
-        enabled = enabled,
-        shape = CircleShape,
-        color = color.copy(alpha = if (enabled) 1f else 0.4f),
-        border = BorderStroke(3.dp, Color.White.copy(alpha = if (enabled) 0.85f else 0.3f)),
-        modifier = Modifier.size(52.dp).semantics {
-            contentDescription = description
-            role = Role.Button
-        },
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            Text(label, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = Color.White)
-        }
     }
 }
 

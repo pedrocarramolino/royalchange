@@ -4,6 +4,7 @@ import androidx.navigation3.runtime.NavKey
 import androidx.savedstate.serialization.SavedStateConfiguration
 import com.royalchance.feature.auth.navigation.authRoutes
 import com.royalchance.feature.blackjack.blackjackRoutes
+import com.royalchance.feature.roulette.rouletteRoutes
 import com.royalchance.feature.history.historyRoutes
 import com.royalchance.feature.lobby.lobbyRoutes
 import com.royalchance.feature.profile.progressRoutes
@@ -20,6 +21,7 @@ internal val NavigationConfiguration = SavedStateConfiguration {
         polymorphic(NavKey::class) {
             authRoutes()
             blackjackRoutes()
+            rouletteRoutes()
             lobbyRoutes()
             progressRoutes()
             historyRoutes()

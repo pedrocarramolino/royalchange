@@ -8,6 +8,7 @@ import com.royalchance.domain.game.GameSessionStore
 import com.royalchance.domain.settings.SettingsRepository
 import com.royalchance.feature.auth.navigation.AuthDependencies
 import com.royalchance.feature.blackjack.BlackjackDependencies
+import com.royalchance.feature.roulette.RouletteDependencies
 import kotlinx.datetime.TimeZone
 import kotlin.time.Clock
 
@@ -27,6 +28,7 @@ class AppGraph(
 ) {
     internal val authDependencies = AuthDependencies(authRepository, clock, timeZone)
     internal val blackjackDependencies = BlackjackDependencies(authRepository, economyRepository, gameSessions, random)
+    internal val rouletteDependencies = RouletteDependencies(authRepository, economyRepository, gameSessions, random)
 }
 
 object AppInfo {

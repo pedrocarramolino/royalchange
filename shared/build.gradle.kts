@@ -14,6 +14,7 @@ kotlin {
             implementation(projects.data)
             implementation(projects.feature.auth)
             implementation(projects.feature.blackjack)
+            implementation(projects.feature.roulette)
             implementation(projects.feature.lobby)
             implementation(projects.feature.profile)
             implementation(projects.feature.history)

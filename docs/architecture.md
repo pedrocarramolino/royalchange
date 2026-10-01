@@ -52,22 +52,24 @@ Las features no se conocen entre sí: cuando una necesita abrir una pantalla de 
 Ajustes → documentos legales), recibe una función y es `shared` quien conoce la ruta.
 Excepción controlada: los tests de `feature:auth` usan `:data` (repositorio en memoria) como doble.
 
-Los módulos se crean cuando una fase los necesita. Existentes tras la Fase 7:
+Los módulos se crean cuando una fase los necesita. Existentes tras la Fase 8:
 
 | Módulo | Contenido |
 |---|---|
 | `core:common` | `RandomGenerator` e ids aleatorios, `Outcome` (errores tipados), formato de números, nombres de países (CLDR) |
-| `core:designsystem` | Tema "Noir & Oro", tipografía, iconos, palos de la baraja, naipe, ficha de casino, barras de avance, componentes, navegación adaptativa |
+| `core:designsystem` | Tema "Noir & Oro", tipografía, iconos, palos de la baraja, naipe, ficha de casino, fichas de apuesta, barras de avance, componentes, navegación adaptativa |
 | `core:ui` | Avatares, selector de país, saldo de fichas, textos de niveles y logros, avisos de progreso (con retención mientras una mesa anima) |
 | `core:testing` | Generadores aleatorios deterministas, `TestClock` |
 | `domain` | Autenticación, reglas del registro, países, ajustes, `GameType`, `GameSessionStore`, economía (`Chips`, monedero, asientos, reglas) y progresión (niveles, experiencia, bono diario, logros) |
 | `engine:cards` | Cartas, baraja y zapato serializable con carta de corte |
 | `engine:blackjack` | Motor de blackjack: reglas, valor de manos, acciones, eventos y liquidación |
+| `engine:roulette` | Ruleta europea: rueda, apuestas (todas las del tapete), validación, giro y pagos |
 | `data` | Repositorios en memoria (escritorio y tests), incluida la economía, ajustes persistentes (`KeyValueStore`) y sesiones de mesa guardadas en el dispositivo |
 | `data:firebase` | Autenticación, perfil y economía con Firebase (Android y web); lógica común sobre pasarelas por plataforma |
 | `feature:auth` | Bienvenida, inicio de sesión, registro completo, completar perfil, recuperar contraseña, legales |
 | `feature:lobby` | Saludo, saldo, nivel, bono diario, avisos de cuenta y de logros, recarga gratuita y catálogo de juegos (abre los disponibles) |
 | `feature:blackjack` | Mesa de blackjack: apuesta con fichas, jugadas, animación del crupier y reanudación de la mano |
+| `feature:roulette` | Mesa de ruleta: tapete, rueda animada, deshacer/repetir y últimos números |
 | `feature:profile` | Progreso: nivel, estadísticas, racha de bono diario y logros con el cobro de sus recompensas |
 | `feature:history` | Pestaña de historial (estado vacío hasta la Fase 11) |
 | `feature:settings` | Cuenta, tema, documentos legales, cerrar sesión y eliminar cuenta |
@@ -235,6 +237,27 @@ techo de pago, una ronda abierta a la vez), pero un cliente manipulado podría e
 dentro de esos límites. Con fichas sin valor es asumible; un servidor de juego exigiría Cloud
 Functions (plan de pago).
 
+## 8 ter. Ruleta (Fase 8)
+
+**Reglas:** ruleta europea (0–36). Cada apuesta paga `36 / números cubiertos` veces lo apostado,
+apuesta incluida: pleno 35:1, caballo 17:1, transversal 11:1, cuadro 8:1, seisena 5:1, docena y
+columna 2:1, sencillas 1:1. Con el 0 las sencillas pierden enteras (sin *la partage*). La ventaja de
+la casa es 1/37 en todas las apuestas (lo comprueban los tests recorriendo los 37 números). Mesa:
+fichas de 10 en adelante, máximo 25.000 por giro; el pago máximo (36×) queda muy por debajo del
+techo de 1.000× del servidor.
+
+**Motor** (`engine:roulette`): el giro es el único punto con azar (un entero uniforme en 0–36);
+validar y pagar es aritmética pura. Admite todas las apuestas del tapete; la pantalla ofrece en
+esta versión plenos y apuestas exteriores (caballos, cuadros, transversales y seisenas exigen
+tocar entre casillas, poco usable en móvil: se añadirán con un modo de apuesta propio).
+
+**Flujo:** el motor decide el número → `playInstantRound` contabiliza apuesta y pago en un solo
+asiento → la rueda gira. Si el cobro falla, no se muestra ningún número y las apuestas siguen en
+la mesa. El resultado se muestra cuando la pantalla avisa de que la bola se ha parado (con un
+margen de seguridad si la pantalla no anima, p. ej. en segundo plano); hasta entonces el saldo
+mostrado y los avisos de progreso esperan. No hay ronda abierta: cerrar la app a mitad del giro
+no pierde nada. Se guardan en el dispositivo los últimos 12 números y la última apuesta (Repetir).
+
 ## 9. Autenticación (Fase 3: interfaz y reglas; Fase 4: Firebase)
 
 Decisiones confirmadas: **solo email y contraseña** (sin modo invitado ni Google Sign-In, retirados
@@ -290,7 +313,7 @@ Implementación:
 | 5 | Economía de fichas | Hecha |
 | 6 | Niveles, bono diario, rachas y logros | Hecha |
 | 7 | Blackjack | Hecha |
-| 8 | Ruleta | — |
+| 8 | Ruleta | Hecha |
 | 9 | Slots y Dados | — |
 | 10 | Póker contra bots | — |
 | 11 | Estadísticas e historial | — |
