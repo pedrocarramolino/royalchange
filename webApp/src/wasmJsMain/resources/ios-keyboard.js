@@ -1,28 +1,32 @@
 // Teclado en iPhone/iPad.
 //
-// Safari en iOS solo abre el teclado si un campo editable recibe el foco dentro del propio toque.
-// Compose pinta en un canvas y enfoca su campo oculto (`.compose-backing-field`) fuera de ese
-// momento, así que el teclado no aparece.
+// Safari en iOS solo abre el teclado cuando el dedo toca un campo de texto real o cuando un campo
+// recibe el foco en ciertos momentos del gesto. Compose pinta en un canvas y enfoca su campo oculto
+// (`.compose-backing-field`) por programa, y en iOS eso no abre el teclado.
 //
-// Al terminar el toque (todavía dentro del gesto):
-// - si Compose ya enfocó su campo oculto (lo habitual), se enfoca un campo invisible y se devuelve
-//   el foco a Compose: el cambio a un campo distinto es lo que hace que iOS abra el teclado;
-// - si no, y el dedo cae sobre un campo de texto (la capa de accesibilidad de Compose replica cada
-//   campo con role="textbox"), se enfoca un campo invisible en ese punto: iOS abre el teclado y,
-//   cuando Compose enfoca su campo, el teclado se queda. Si ningún campo de Compose toma el foco
-//   (p. ej. uno de solo lectura), el campo invisible se suelta enseguida.
+// Solución: encima de cada campo de texto de Compose se coloca un <input> real transparente (las
+// posiciones salen de la capa de accesibilidad de Compose, que replica cada campo con
+// role="textbox"). El dedo toca ese input real, así que iOS abre el teclado. Los eventos del dedo se
+// reenvían al canvas, de modo que Compose ve el toque donde se hizo (enfoca su campo, mueve el
+// cursor o pulsa el icono que hubiera) y, cuando el input real recibe el foco, se le pasa a Compose,
+// con el teclado ya abierto. Si Compose no enfoca ningún campo (p. ej. uno de solo lectura), el
+// input real se suelta para no dejar el teclado abierto.
 //
-// Con `?diagnostico=teclado` en la dirección se activa en cualquier navegador y se muestra en
-// pantalla lo que ocurre en cada toque.
+// Con `?diagnostico=teclado` en la dirección se activa en cualquier navegador, los inputs se ven
+// con un borde y se muestra en pantalla lo que ocurre.
 (function () {
     var ua = navigator.userAgent;
     var isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     var diagnostics = /[?&]diagnostico=teclado/.test(location.search);
     if (!isIOS && !diagnostics) return;
 
-    var RELEASE_AFTER_MS = 600;
-    var primer = null;
+    var FORWARDED = ['pointerdown', 'pointermove', 'pointerup', 'pointercancel'];
+    var overlays = [];
     var panel = null;
+    // Con ratón el foco llega antes de soltar el botón; con el dedo, después. Si el puntero sigue
+    // abajo, el traspaso de foco espera a que Compose reciba el `pointerup`.
+    var pointerDown = false;
+    var pendingHandOver = null;
 
     function log(message) {
         if (!diagnostics) return;
@@ -36,20 +40,6 @@
         panel.textContent = (time + ' ' + message + '\n' + panel.textContent).substring(0, 3000);
     }
 
-    function getPrimer() {
-        if (primer) return primer;
-        primer = document.createElement('input');
-        primer.type = 'text';
-        primer.tabIndex = -1;
-        primer.setAttribute('aria-hidden', 'true');
-        primer.setAttribute('autocomplete', 'off');
-        // 16 px como mínimo: con menos, Safari amplía la página al enfocar.
-        primer.style.cssText = 'position:fixed;left:0;top:0;width:1px;height:1px;padding:0;border:0;' +
-            'opacity:0;pointer-events:none;font-size:16px;';
-        document.body.appendChild(primer);
-        return primer;
-    }
-
     function composeShadowRoot() {
         var nodes = document.querySelectorAll('#composeTarget *');
         for (var i = 0; i < nodes.length; i++) {
@@ -58,61 +48,119 @@
         return null;
     }
 
-    function isInside(rect, x, y) {
-        return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
-    }
-
     function describe(element) {
         if (!element) return 'ninguno';
         return element.tagName + (element.className ? '.' + element.className : '') + (element.id ? '#' + element.id : '');
     }
 
-    log('activo · iOS=' + isIOS + ' · ' + ua);
-
-    document.addEventListener('touchend', function (event) {
+    /** Reenvía al canvas de Compose un evento de puntero recibido en un input superpuesto. */
+    function forward(event) {
         var root = composeShadowRoot();
-        var touch = event.changedTouches && event.changedTouches[0];
-        if (!root || !touch) {
-            log('toque sin raíz de Compose o sin coordenadas');
-            return;
-        }
-        var x = Math.round(touch.clientX);
-        var y = Math.round(touch.clientY);
-        var fields = root.querySelectorAll('[role="textbox"]');
-        var backing = root.querySelector('.compose-backing-field');
-        var active = root.activeElement;
-        log('toque ' + x + ',' + y + ' · campos=' + fields.length + ' · oculto=' + describe(backing) + ' · foco=' + describe(active));
+        var canvas = root && root.querySelector('canvas');
+        if (!canvas) return;
+        canvas.dispatchEvent(new PointerEvent(event.type, {
+            bubbles: true,
+            cancelable: true,
+            composed: true,
+            clientX: event.clientX,
+            clientY: event.clientY,
+            screenX: event.screenX,
+            screenY: event.screenY,
+            pointerId: event.pointerId,
+            pointerType: event.pointerType,
+            isPrimary: event.isPrimary,
+            button: event.button,
+            buttons: event.buttons,
+            width: event.width,
+            height: event.height,
+            pressure: event.pressure,
+        }));
+    }
 
-        // Compose ya enfocó su campo, pero iOS no abrió el teclado. Volver a enfocar el mismo campo
-        // no basta (para iOS ya tenía el foco): se pasa por el campo invisible, que lo abre, y se
-        // devuelve el foco a Compose, todo dentro del gesto.
-        if (backing && active === backing) {
-            var bridge = getPrimer();
-            bridge.style.left = x + 'px';
-            bridge.style.top = y + 'px';
-            bridge.focus({ preventScroll: true });
+    /** El input real tiene el foco (y el teclado): se le pasa a Compose, o se suelta. */
+    function handOver(overlay) {
+        var root = composeShadowRoot();
+        var backing = root && root.querySelector('.compose-backing-field');
+        if (backing && root.activeElement === backing) {
+            // Compose ya enfocó su campo con el toque reenviado: se le devuelve el foco.
             backing.focus({ preventScroll: true });
-            log('foco: invisible → Compose dentro del gesto (foco=' + describe(root.activeElement) + ')');
-            return;
+            log('teclado abierto · foco devuelto a Compose');
+        } else if (backing) {
+            backing.focus({ preventScroll: true });
+            log('foco pasado al campo de Compose (no estaba activo)');
+        } else {
+            overlay.blur();
+            log('Compose no enfocó ningún campo: se suelta el teclado');
         }
+    }
 
+    function createOverlay() {
+        var input = document.createElement('input');
+        input.type = 'text';
+        input.tabIndex = -1;
+        input.setAttribute('aria-hidden', 'true');
+        input.setAttribute('autocomplete', 'off');
+        input.setAttribute('autocorrect', 'off');
+        input.setAttribute('autocapitalize', 'off');
+        input.setAttribute('spellcheck', 'false');
+        // Transparente pero tocable; 16 px para que Safari no amplíe la página al enfocar.
+        input.style.cssText = 'position:fixed;margin:0;padding:0;border:0;background:transparent;color:transparent;' +
+            'caret-color:transparent;font-size:16px;z-index:2147483646;-webkit-tap-highlight-color:transparent;' +
+            // Los arrastres que empiezan sobre un campo los gestiona Compose (desplazar), no Safari.
+            'touch-action:none;' +
+            'opacity:' + (diagnostics ? '0.25;outline:2px solid #7CFC9A;background:#7CFC9A' : '0.011') + ';';
+        FORWARDED.forEach(function (type) {
+            input.addEventListener(type, function (event) {
+                if (type === 'pointerdown') pointerDown = true;
+                forward(event);
+                if (type === 'pointerup' || type === 'pointercancel') {
+                    pointerDown = false;
+                    if (pendingHandOver) {
+                        var target = pendingHandOver;
+                        pendingHandOver = null;
+                        handOver(target);
+                    }
+                }
+            });
+        });
+        input.addEventListener('focus', function () {
+            log('input real enfocado por el toque');
+            if (pointerDown) pendingHandOver = input; else handOver(input);
+        });
+        // Lo que se escriba en el input real (si llegara algo) no debe quedarse en él.
+        input.addEventListener('input', function () { input.value = ''; });
+        document.body.appendChild(input);
+        return input;
+    }
+
+    /** Coloca un input real sobre cada campo de texto visible de Compose. */
+    function sync() {
+        var root = composeShadowRoot();
+        var fields = root ? root.querySelectorAll('[role="textbox"]') : [];
+        var rects = [];
         for (var i = 0; i < fields.length; i++) {
-            if (!isInside(fields[i].getBoundingClientRect(), x, y)) continue;
-            var input = getPrimer();
-            input.style.left = x + 'px';
-            input.style.top = y + 'px';
-            input.focus({ preventScroll: true });
-            log('campo invisible enfocado (foco=' + describe(document.activeElement) + ')');
-            setTimeout(function () {
-                var nowBacking = root.querySelector('.compose-backing-field');
-                log('tras ' + RELEASE_AFTER_MS + ' ms · foco=' + describe(document.activeElement) +
-                    ' · foco en Compose=' + describe(root.activeElement) + ' · oculto=' + describe(nowBacking));
-                if (document.activeElement === input) input.blur();
-            }, RELEASE_AFTER_MS);
-            return;
+            var rect = fields[i].getBoundingClientRect();
+            if (rect.width > 0 && rect.height > 0) rects.push(rect);
         }
-        log('el toque no cae sobre ningún campo de texto');
-    }, true);
+        while (overlays.length < rects.length) overlays.push(createOverlay());
+        while (overlays.length > rects.length) {
+            var removed = overlays.pop();
+            if (document.activeElement === removed) removed.blur();
+            removed.remove();
+        }
+        for (var j = 0; j < rects.length; j++) {
+            var style = overlays[j].style;
+            var r = rects[j];
+            style.left = r.left + 'px';
+            style.top = r.top + 'px';
+            style.width = r.width + 'px';
+            style.height = r.height + 'px';
+        }
+        requestAnimationFrame(sync);
+    }
+
+    log('activo · iOS=' + isIOS + ' · ' + ua);
+    requestAnimationFrame(sync);
 
     if (diagnostics) {
         document.addEventListener('focusin', function (event) { log('focusin: ' + describe(event.target)); }, true);
