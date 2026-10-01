@@ -108,7 +108,9 @@
             'caret-color:transparent;font-size:16px;z-index:2147483646;-webkit-tap-highlight-color:transparent;' +
             // Los arrastres que empiezan sobre un campo los gestiona Compose (desplazar), no Safari.
             'touch-action:none;' +
-            'opacity:' + (diagnostics ? '0.25;outline:2px solid #7CFC9A;background:#7CFC9A' : '0.011') + ';';
+            // Opacidad completa: Safari no abre el teclado en campos (casi) transparentes por opacidad.
+            // Lo que lo hace invisible es el fondo, el texto y el cursor transparentes.
+            'outline:none;opacity:1;' + (diagnostics ? 'outline:2px solid #7CFC9A;background:rgba(124,252,154,.25);' : '');
         FORWARDED.forEach(function (type) {
             input.addEventListener(type, function (event) {
                 if (type === 'pointerdown') pointerDown = true;
