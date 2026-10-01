@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.royalchance.core.designsystem.resources.Res
 import com.royalchance.core.designsystem.resources.ds_loading
@@ -83,7 +84,8 @@ fun RoyalSecondaryButton(
         shape = MaterialTheme.shapes.medium,
         border = BorderStroke(1.5.dp, if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant),
         colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary),
-        contentPadding = PaddingValues(horizontal = RoyalSpacing.xl),
+        // El margen lo pone ButtonContent (como en el principal): aquí sumarlo dejaba sin sitio al texto.
+        contentPadding = PaddingValues(0.dp),
         modifier = modifier.heightIn(min = RoyalSizes.primaryActionHeight),
     ) {
         ButtonContent(text = text, loading = loading, contentColor = LocalContentColor.current)
@@ -111,7 +113,7 @@ fun RoyalTextButton(
 
 @Composable
 private fun ButtonContent(text: String, loading: Boolean, contentColor: Color) {
-    Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = RoyalSpacing.xl)) {
+    Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = RoyalSpacing.m)) {
         if (loading) {
             LoadingSpinner(color = contentColor)
         } else {
@@ -120,6 +122,8 @@ private fun ButtonContent(text: String, loading: Boolean, contentColor: Color) {
                 style = MaterialTheme.typography.titleMedium,
                 color = contentColor,
                 textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }

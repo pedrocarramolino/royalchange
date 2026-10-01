@@ -21,8 +21,10 @@ android {
 
     buildTypes {
         release {
-            // R8 y sus reglas se configuran en la Fase 13 (optimización).
-            isMinifyEnabled = false
+            // R8: elimina y ofusca el código no usado y quita recursos sin referencias.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
 

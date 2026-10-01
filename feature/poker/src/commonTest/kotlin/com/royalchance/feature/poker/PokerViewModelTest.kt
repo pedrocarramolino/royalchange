@@ -60,7 +60,7 @@ class PokerViewModelTest {
         val economy = InMemoryEconomyRepository(auth, backgroundScope, clock, TimeZone.UTC)
         val profile = PlayerProfile("Ana", AvatarId.SpadeGold, "ES", 1990, false, LegalConsents("t", "p", clock.now()))
         auth.register(NewAccount("ana@example.com", "Secreto123", profile))
-        block(Room(economy) { seed -> PokerViewModel(auth, economy, sessions, TestRandomGenerator(seed)) })
+        block(Room(economy) { seed -> PokerViewModel(auth, economy, sessions, TestRandomGenerator(seed), computeDispatcher = dispatcher) })
     }
 
     private fun Room.wallet(): Wallet = assertIs<WalletState.Ready>(economy.wallet.value).wallet

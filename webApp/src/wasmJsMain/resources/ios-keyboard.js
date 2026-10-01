@@ -21,6 +21,7 @@
     if (!isIOS && !diagnostics) return;
 
     var FORWARDED = ['pointerdown', 'pointermove', 'pointerup', 'pointercancel'];
+    var SAFETY_SYNC_MS = 1000;
     var overlays = [];
     var panel = null;
     // Con ratón el foco llega antes de soltar el botón; con el dedo, después. Si el puntero sigue
@@ -40,10 +41,13 @@
         panel.textContent = (time + ' ' + message + '\n' + panel.textContent).substring(0, 3000);
     }
 
+    // La raíz de Compose se busca una vez (recorrer el árbol cuesta) y se vuelve a buscar si cambia.
+    var cachedRoot = null;
     function composeShadowRoot() {
+        if (cachedRoot && cachedRoot.host && cachedRoot.host.isConnected) return cachedRoot;
         var nodes = document.querySelectorAll('#composeTarget *');
         for (var i = 0; i < nodes.length; i++) {
-            if (nodes[i].shadowRoot) return nodes[i].shadowRoot;
+            if (nodes[i].shadowRoot) return (cachedRoot = nodes[i].shadowRoot);
         }
         return null;
     }
@@ -151,18 +155,55 @@
             removed.remove();
         }
         for (var j = 0; j < rects.length; j++) {
-            var style = overlays[j].style;
-            var r = rects[j];
-            style.left = r.left + 'px';
-            style.top = r.top + 'px';
-            style.width = r.width + 'px';
-            style.height = r.height + 'px';
+            place(overlays[j], rects[j]);
         }
-        requestAnimationFrame(sync);
+    }
+
+    /** Solo escribe los estilos que cambian: escribirlos sin necesidad obliga a recalcular la página. */
+    function place(overlay, rect) {
+        var left = Math.round(rect.left) + 'px';
+        var top = Math.round(rect.top) + 'px';
+        var width = Math.round(rect.width) + 'px';
+        var height = Math.round(rect.height) + 'px';
+        var style = overlay.style;
+        if (style.left !== left) style.left = left;
+        if (style.top !== top) style.top = top;
+        if (style.width !== width) style.width = width;
+        if (style.height !== height) style.height = height;
+    }
+
+    // Rendimiento: nada de recolocar en cada fotograma. Se recoloca cuando la capa de
+    // accesibilidad de Compose cambia (campos que aparecen, se mueven o desaparecen), agrupando
+    // los cambios de un mismo fotograma, y una vez por segundo como respaldo.
+    var scheduled = false;
+    function scheduleSync() {
+        if (scheduled) return;
+        scheduled = true;
+        requestAnimationFrame(function () {
+            scheduled = false;
+            sync();
+        });
+    }
+
+    var observed = null;
+    function observeAccessibilityTree() {
+        var root = composeShadowRoot();
+        var tree = root && root.getElementById('cmp_a11y_root');
+        if (!tree || tree === observed) return;
+        observed = tree;
+        new MutationObserver(scheduleSync).observe(tree, { subtree: true, childList: true, attributes: true, attributeFilter: ['style'] });
+        log('observando la capa de accesibilidad');
+        scheduleSync();
     }
 
     log('activo · iOS=' + isIOS + ' · ' + ua);
-    requestAnimationFrame(sync);
+    setInterval(function () {
+        if (document.hidden) return;
+        observeAccessibilityTree();
+        scheduleSync();
+    }, SAFETY_SYNC_MS);
+    window.addEventListener('resize', scheduleSync);
+    observeAccessibilityTree();
 
     if (diagnostics) {
         document.addEventListener('focusin', function (event) { log('focusin: ' + describe(event.target)); }, true);

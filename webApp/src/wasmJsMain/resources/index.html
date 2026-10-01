@@ -17,6 +17,11 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
 
     <link rel="stylesheet" href="styles.css">
+
+    <!-- Conexiones a Firebase abiertas mientras se descarga la app (sesión, monedero y perfil). -->
+    <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+    <link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin>
+    <link rel="preconnect" href="https://securetoken.googleapis.com" crossorigin>
 </head>
 <body>
     <!-- Visible mientras se descarga y arranca el módulo Wasm; Compose lo cubre al pintar el primer frame. -->
@@ -42,6 +47,21 @@
             }
             window.addEventListener('error', showError);
             window.addEventListener('unhandledrejection', showError);
+        })();
+    </script>
+    <script>
+        // Rendimiento en móviles: en pantallas de densidad 3 (casi todos los iPhone y muchos
+        // Android) Compose pintaría 2,25 veces más píxeles que a densidad 2 en cada fotograma, con
+        // una diferencia de nitidez casi imperceptible en un móvil. Se limita a 2 antes de que
+        // arranque Compose (toma la densidad de aquí).
+        (function () {
+            var real = window.devicePixelRatio || 1;
+            if (real <= 2) return;
+            try {
+                Object.defineProperty(window, 'devicePixelRatio', { get: function () { return 2; }, configurable: true });
+            } catch (e) {
+                // Navegador que no permite redefinirlo: se queda con la densidad real.
+            }
         })();
     </script>
     <!-- En iPhone/iPad, abre el teclado al tocar un campo de texto (ver el archivo). -->

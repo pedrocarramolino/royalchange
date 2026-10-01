@@ -4,11 +4,12 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -83,12 +84,24 @@ internal fun RouletteWheelView(
     val green = Color(0xFF0E7A4F)
     val labelStyle = TextStyle(color = Color.White, fontWeight = FontWeight.Bold)
 
-    Canvas(modifier) {
+    // Lo que solo depende del tamaño (las 37 etiquetas medidas) se calcula una vez; en cada
+    // fotograma del giro solo se dibuja.
+    Spacer(modifier.drawWithCache {
         val radius = size.minDimension / 2f
         val pocketOuter = radius * 0.86f
         val pocketInner = radius * 0.6f
         val ballTrack = radius * 0.93f
         val ballRest = radius * 0.66f
+        val labelFont = labelStyle.copy(fontSize = (radius * 0.085f).toSp())
+        val labels = RouletteWheel.ORDER.map { measurer.measure(it.toString(), labelFont) }
+        val center = Offset(size.width / 2f, size.height / 2f)
+        val marker = Path().apply {
+            moveTo(center.x - radius * 0.05f, center.y - radius)
+            lineTo(center.x + radius * 0.05f, center.y - radius)
+            lineTo(center.x, center.y - radius * 0.88f)
+            close()
+        }
+        onDrawBehind {
 
         // Aro exterior de madera y oro.
         drawCircle(Color(0xFF3A2414), radius)
@@ -116,10 +129,8 @@ internal fun RouletteWheelView(
                 )
             }
             // Números, en la parte exterior de cada casilla.
-            val fontSize = (radius * 0.085f).toSp()
-            RouletteWheel.ORDER.forEachIndexed { index, pocket ->
+            labels.forEachIndexed { index, layout ->
                 rotate(index * SWEEP, pivot = center) {
-                    val layout = measurer.measure(pocket.toString(), labelStyle.copy(fontSize = fontSize))
                     drawText(
                         layout,
                         topLeft = Offset(center.x - layout.size.width / 2f, center.y - pocketOuter + radius * 0.03f),
@@ -143,12 +154,6 @@ internal fun RouletteWheelView(
         }
 
         // Marcador fijo arriba.
-        val marker = Path().apply {
-            moveTo(center.x - radius * 0.05f, center.y - radius)
-            lineTo(center.x + radius * 0.05f, center.y - radius)
-            lineTo(center.x, center.y - radius * 0.88f)
-            close()
-        }
         drawPath(marker, casino.goldBrush)
 
         // Bola: gira al revés por el aro exterior, pierde velocidad y cae en la casilla de arriba.
@@ -163,7 +168,8 @@ internal fun RouletteWheelView(
             drawCircle(Color.Black.copy(alpha = 0.35f), radius * 0.042f, position + Offset(radius * 0.01f, radius * 0.012f))
             drawCircle(Color(0xFFF4F1EA), radius * 0.04f, position)
         }
-    }
+        }
+    })
 }
 
 /** Ángulo de la rueda con [number] bajo el marcador superior. */

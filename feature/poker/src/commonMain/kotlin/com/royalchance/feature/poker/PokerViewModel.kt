@@ -20,6 +20,8 @@ import com.royalchance.engine.poker.PokerPhase
 import com.royalchance.engine.poker.PokerRules
 import com.royalchance.engine.poker.PokerState
 import com.royalchance.engine.poker.PokerTable
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,6 +30,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlin.time.Duration.Companion.milliseconds
@@ -100,6 +103,8 @@ class PokerViewModel(
     private val economyRepository: EconomyRepository,
     private val sessions: GameSessionStore,
     private val random: RandomGenerator,
+    /** Dónde calculan los bots (en tests, el planificador del test). */
+    private val computeDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(PokerUiState())
@@ -237,7 +242,8 @@ class PokerViewModel(
                 val seat = table.toAct ?: return@launch
                 if (seat == HERO) return@launch
                 delay(BOT_THINKING)
-                val action = PokerBot.decide(table, seat, random)
+                // Las simulaciones del bot, fuera del hilo de la interfaz (en Android y escritorio).
+                val action = withContext(computeDispatcher) { PokerBot.decide(table, seat, random) }
                 val next = (PokerEngine.apply(table, seat, action) as? Outcome.Success)?.value ?: return@launch
                 commit(next)
                 // Pausa al repartir una calle nueva para que se vean las cartas.
