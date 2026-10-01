@@ -418,6 +418,21 @@ Cómo ejecutar:
 firebase emulators:exec --only firestore --project demo-royalchance "cd firebase/tests && npm test"
 ```
 
+## 8 decies. Builds y despliegue (Fase 15)
+
+- **Versión 1.0.0** (`versionName` de Android y `AppInfo.VERSION`).
+- **Web:** `wasmJsBrowserDistribution` → Firebase Hosting (`.wasm` con hash y caché de un año;
+  HTML y JS revalidados). Cada cambio en los recursos del host sube `CACHE_VERSION` del service
+  worker.
+- **Android:** `bundleRelease` con R8 (AAB de 8,1 MB; APK de 3,6 MB). La firma se lee de
+  `keystore.properties` (no versionado); pensado para *Play App Signing*.
+- **Reglas de Firestore:** desplegadas tras pasar sus 35 tests en el emulador.
+- **CI** (GitHub Actions, `.github/workflows/ci.yml`): tests y cobertura, builds de las tres
+  plataformas y tests de reglas. Sin despliegue automático.
+- Escritorio: herramienta de desarrollo, no se distribuye (decisión de la Fase 1).
+- Lista de comprobación antes de publicar en el README (textos legales definitivos, política de
+  casino social de Google Play, API keys, App Check, prueba en dispositivos reales).
+
 ## 9. Autenticación (Fase 3: interfaz y reglas; Fase 4: Firebase)
 
 Decisiones confirmadas: **solo email y contraseña** (sin modo invitado ni Google Sign-In, retirados
@@ -480,7 +495,7 @@ Implementación:
 | 12 | Sonido y animaciones avanzadas | Hecha |
 | 13 | Optimización | Hecha |
 | 14 | Cobertura de tests | Hecha |
-| 15 | Builds y despliegue | — |
+| 15 | Builds y despliegue | Hecha |
 
 ## 12. Reglas de juego acordadas (Fase 1)
 

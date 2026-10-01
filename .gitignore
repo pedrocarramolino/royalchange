@@ -20,6 +20,8 @@ captures/
 .cxx/
 *.keystore
 *.jks
+# Contraseñas de la firma de publicación de Android
+keystore.properties
 
 # Firebase
 .firebase/

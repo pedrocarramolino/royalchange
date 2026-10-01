@@ -45,5 +45,6 @@ class AppGraph(
 }
 
 object AppInfo {
-    const val VERSION = "0.1.0"
+    /** Debe coincidir con versionName de androidApp. */
+    const val VERSION = "1.0.0"
 }
