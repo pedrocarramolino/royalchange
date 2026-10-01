@@ -5,7 +5,8 @@
 // momento, así que el teclado no aparece.
 //
 // Al terminar el toque (todavía dentro del gesto):
-// - si Compose ya enfocó su campo oculto, se vuelve a enfocar ahora, dentro del gesto;
+// - si Compose ya enfocó su campo oculto (lo habitual), se enfoca un campo invisible y se devuelve
+//   el foco a Compose: el cambio a un campo distinto es lo que hace que iOS abra el teclado;
 // - si no, y el dedo cae sobre un campo de texto (la capa de accesibilidad de Compose replica cada
 //   campo con role="textbox"), se enfoca un campo invisible en ese punto: iOS abre el teclado y,
 //   cuando Compose enfoca su campo, el teclado se queda. Si ningún campo de Compose toma el foco
@@ -82,11 +83,16 @@
         var active = root.activeElement;
         log('toque ' + x + ',' + y + ' · campos=' + fields.length + ' · oculto=' + describe(backing) + ' · foco=' + describe(active));
 
-        // Compose ya enfocó su campo, pero fuera del gesto: se vuelve a enfocar ahora.
+        // Compose ya enfocó su campo, pero iOS no abrió el teclado. Volver a enfocar el mismo campo
+        // no basta (para iOS ya tenía el foco): se pasa por el campo invisible, que lo abre, y se
+        // devuelve el foco a Compose, todo dentro del gesto.
         if (backing && active === backing) {
-            backing.blur();
+            var bridge = getPrimer();
+            bridge.style.left = x + 'px';
+            bridge.style.top = y + 'px';
+            bridge.focus({ preventScroll: true });
             backing.focus({ preventScroll: true });
-            log('campo de Compose reenfocado dentro del gesto');
+            log('foco: invisible → Compose dentro del gesto (foco=' + describe(root.activeElement) + ')');
             return;
         }
 
