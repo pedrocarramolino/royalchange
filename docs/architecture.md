@@ -52,7 +52,7 @@ Las features no se conocen entre sí: cuando una necesita abrir una pantalla de 
 Ajustes → documentos legales), recibe una función y es `shared` quien conoce la ruta.
 Excepción controlada: los tests de `feature:auth` usan `:data` (repositorio en memoria) como doble.
 
-Los módulos se crean cuando una fase los necesita. Existentes tras la Fase 8:
+Los módulos se crean cuando una fase los necesita. Existentes tras la Fase 9:
 
 | Módulo | Contenido |
 |---|---|
@@ -64,12 +64,16 @@ Los módulos se crean cuando una fase los necesita. Existentes tras la Fase 8:
 | `engine:cards` | Cartas, baraja y zapato serializable con carta de corte |
 | `engine:blackjack` | Motor de blackjack: reglas, valor de manos, acciones, eventos y liquidación |
 | `engine:roulette` | Ruleta europea: rueda, apuestas (todas las del tapete), validación, giro y pagos |
+| `engine:slots` | Tragaperras 5×3: tiras de los rodillos, 10 líneas, comodín y tabla de pagos |
+| `engine:dice` | Dados: tirada de dos dados, apuestas sobre la suma y pagos |
 | `data` | Repositorios en memoria (escritorio y tests), incluida la economía, ajustes persistentes (`KeyValueStore`) y sesiones de mesa guardadas en el dispositivo |
 | `data:firebase` | Autenticación, perfil y economía con Firebase (Android y web); lógica común sobre pasarelas por plataforma |
 | `feature:auth` | Bienvenida, inicio de sesión, registro completo, completar perfil, recuperar contraseña, legales |
 | `feature:lobby` | Saludo, saldo, nivel, bono diario, avisos de cuenta y de logros, recarga gratuita y catálogo de juegos (abre los disponibles) |
 | `feature:blackjack` | Mesa de blackjack: apuesta con fichas, jugadas, animación del crupier y reanudación de la mano |
 | `feature:roulette` | Mesa de ruleta: tapete, rueda animada, deshacer/repetir y últimos números |
+| `feature:slots` | Tragaperras: rodillos animados, líneas premiadas, apuesta y tabla de pagos |
+| `feature:dice` | Mesa de dados: tapete, dados animados, deshacer/repetir y últimas sumas |
 | `feature:profile` | Progreso: nivel, estadísticas, racha de bono diario y logros con el cobro de sus recompensas |
 | `feature:history` | Pestaña de historial (estado vacío hasta la Fase 11) |
 | `feature:settings` | Cuenta, tema, documentos legales, cerrar sesión y eliminar cuenta |
@@ -258,6 +262,28 @@ margen de seguridad si la pantalla no anima, p. ej. en segundo plano); hasta ent
 mostrado y los avisos de progreso esperan. No hay ronda abierta: cerrar la app a mitad del giro
 no pierde nada. Se guardan en el dispositivo los últimos 12 números y la última apuesta (Repetir).
 
+## 8 quater. Slots y Dados (Fase 9)
+
+**Slots** (`engine:slots`): 5 rodillos × 3 filas y 10 líneas fijas. Cada rodillo se para en una
+posición uniforme de su tira de 32 símbolos (cereza 8, trébol 5, corazón 5, pica 4, diamante 3,
+BAR 2, siete 2, corona-comodín 3). Una línea paga por la racha más larga desde el primer rodillo
+(el comodín sustituye a cualquiera; si la racha de comodines solos paga más, se cobra esa); solo
+las cerezas pagan con dos. Retorno teórico **97,27 %** con premio en el 16 % de las líneas: lo
+calcula un test recorriendo con su probabilidad las 8⁵ combinaciones de una línea (los rodillos son
+independientes y todas las líneas tienen la misma esperanza). Apuesta por línea de 1 a 500
+(total 10–5.000); el mejor giro posible paga 500× la apuesta total, por debajo del techo de 1.000×.
+
+**Dados** (`engine:dice`): dos dados y apuestas sobre la suma, con pagos (apuesta incluida) en
+décimas para que con fichas de 10 sean enteros: menor 2–6 y mayor 8–12 a 2,3×, siete y dobles a
+5,8×, suma exacta de 6,9× (6 u 8) a 35× (2 o 12). Todas devuelven entre el 95,8 % y el 97,2 %
+(test con las 36 tiradas). Varias apuestas por tirada, máximo 25.000.
+
+**Flujo:** igual que la ruleta: el motor decide, `playInstantRound` contabiliza y después se
+anima; la pantalla avisa al ViewModel cuando los rodillos o los dados se paran (con margen de
+seguridad). Los dados que se ven mientras ruedan siguen una secuencia fija: la animación nunca es
+fuente de azar. Se guardan en el dispositivo la apuesta de la tragaperras y, en los dados, las
+últimas sumas y la última apuesta.
+
 ## 9. Autenticación (Fase 3: interfaz y reglas; Fase 4: Firebase)
 
 Decisiones confirmadas: **solo email y contraseña** (sin modo invitado ni Google Sign-In, retirados
@@ -314,7 +340,7 @@ Implementación:
 | 6 | Niveles, bono diario, rachas y logros | Hecha |
 | 7 | Blackjack | Hecha |
 | 8 | Ruleta | Hecha |
-| 9 | Slots y Dados | — |
+| 9 | Slots y Dados | Hecha |
 | 10 | Póker contra bots | — |
 | 11 | Estadísticas e historial | — |
 | 12 | Sonido y animaciones avanzadas | — |
@@ -336,6 +362,9 @@ Implementación:
 ## 13. Problemas conocidos
 
 - El SDK de Firebase añade unos 210 KB comprimidos a la PWA.
+- Con el servidor de desarrollo web en marcha, `allTests` puede agotar la memoria del daemon de
+  Kotlin al enlazar los ejecutables de test de Wasm: conviene parar el servidor (y `./gradlew --stop`)
+  antes de lanzar todos los tests.
 
 - **Clics perdidos en pruebas automatizadas de la web**: si el puntero salta y pulsa en el mismo
   instante (así actúan las herramientas de automatización), Compose para web puede ignorar esa

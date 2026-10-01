@@ -210,7 +210,7 @@ private val GameType.description: StringResource
     }
 
 /** Juegos ya jugables; el resto se muestra como "Próximamente" hasta su fase. */
-private val AVAILABLE_GAMES = setOf(GameType.Blackjack, GameType.Roulette)
+private val AVAILABLE_GAMES = setOf(GameType.Blackjack, GameType.Roulette, GameType.Slots, GameType.Dice)
 
 /** Tarjeta de juego: abre la mesa si el juego está disponible. */
 @Composable

@@ -50,8 +50,12 @@ import com.royalchance.feature.auth.navigation.authEntries
 import com.royalchance.feature.auth.navigation.legalEntries
 import com.royalchance.feature.blackjack.BlackjackRoute
 import com.royalchance.feature.blackjack.blackjackEntry
+import com.royalchance.feature.dice.DiceRoute
+import com.royalchance.feature.dice.diceEntry
 import com.royalchance.feature.roulette.RouletteRoute
 import com.royalchance.feature.roulette.rouletteEntry
+import com.royalchance.feature.slots.SlotsRoute
+import com.royalchance.feature.slots.slotsEntry
 import com.royalchance.feature.history.HistoryRoute
 import com.royalchance.feature.history.historyEntry
 import com.royalchance.feature.lobby.LobbyRoute
@@ -156,12 +160,16 @@ internal fun MainFlow(graph: AppGraph, user: AuthUser?) {
                             when (game) {
                                 GameType.Blackjack -> backStack.add(BlackjackRoute)
                                 GameType.Roulette -> backStack.add(RouletteRoute)
+                                GameType.Slots -> backStack.add(SlotsRoute)
+                                GameType.Dice -> backStack.add(DiceRoute)
                                 else -> Unit
                             }
                         },
                     )
                     blackjackEntry(graph.blackjackDependencies, eventGate, onBack = { backStack.popIfNotRoot() })
                     rouletteEntry(graph.rouletteDependencies, eventGate, onBack = { backStack.popIfNotRoot() })
+                    slotsEntry(graph.slotsDependencies, eventGate, onBack = { backStack.popIfNotRoot() })
+                    diceEntry(graph.diceDependencies, eventGate, onBack = { backStack.popIfNotRoot() })
                     progressEntry(graph.economyRepository, graph.clock, graph.timeZone)
                     historyEntry()
                     settingsEntry(
