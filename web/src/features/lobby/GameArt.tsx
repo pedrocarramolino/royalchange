@@ -109,3 +109,21 @@ export function DiceArt() {
     </div>
   );
 }
+
+export function BaccaratArt() {
+  return (
+    <div className="relative h-full w-full">
+      <div className="absolute top-1/2 left-1/2 -translate-x-[86%] -translate-y-1/2 -rotate-[8deg]">
+        <PlayingCard rank="9" suit="diamonds" width={52} />
+      </div>
+      <div className="absolute top-1/2 left-1/2 -translate-x-[8%] -translate-y-[44%] rotate-[8deg]">
+        <PlayingCard rank="K" suit="clubs" width={52} />
+      </div>
+      <span className="absolute top-2.5 left-3 rounded-full bg-[#5b8de6] px-2 py-0.5 text-[10px] font-black tracking-wider text-white">J</span>
+      <span className="absolute top-2.5 right-3 rounded-full bg-[#e0485e] px-2 py-0.5 text-[10px] font-black tracking-wider text-white">B</span>
+      <div className="absolute right-3 bottom-2">
+        <Chip value={500} size={28} />
+      </div>
+    </div>
+  );
+}
