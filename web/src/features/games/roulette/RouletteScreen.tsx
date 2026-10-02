@@ -5,10 +5,9 @@ import { ROULETTE_RULES, spinRoulette, type RouletteBet, type RouletteSpin } fro
 import { chips, grouped } from '@/lib/format';
 import { play, resultSound, BIG_WIN_MULTIPLIER } from '@/audio/sound';
 import { Button } from '@/ui/Button';
-import { useViewport } from '@/ui/orientation';
 import { Celebration, ResultBanner } from '../shared/Celebration';
 import { ChipRack } from '../shared/ChipRack';
-import { GameShell, TableNotice } from '../shared/GameShell';
+import { GameShell, TableNotice, useGameViewport } from '../shared/GameShell';
 import { economyNotice, useHoldProgressEvents } from '../shared/session';
 import { RouletteBoard } from './RouletteBoard';
 import { RouletteWheel, type WheelSpin } from './RouletteWheel';
@@ -20,7 +19,7 @@ export default function RouletteScreen() {
   const wallet = useReadyWallet();
   const playInstantRound = useWallet((s) => s.playInstantRound);
   const reducedMotion = useSettings((s) => s.reducedMotion);
-  const viewport = useViewport();
+  const viewport = useGameViewport();
   const [chip, setChip] = useState(100);
   const [bets, setBets] = useState<Map<RouletteBet, number>>(new Map());
   const [history, setHistory] = useState<Map<RouletteBet, number>[]>([]);

@@ -109,8 +109,15 @@ export function RouletteBoard({ width, height, bets, winning, payouts, disabled,
   const ref = useRef<HTMLDivElement>(null);
   const onPointerUp = (event: PointerEvent<HTMLDivElement>) => {
     if (disabled || !ref.current) return;
-    const rect = ref.current.getBoundingClientRect();
-    const bet = betAt((event.clientX - rect.left) / unit, (event.clientY - rect.top) / unit);
+    // Coordenadas locales del tapete: ya tienen en cuenta el giro de la mesa (móvil en vertical).
+    let x = event.nativeEvent.offsetX;
+    let y = event.nativeEvent.offsetY;
+    if (event.target !== event.currentTarget) {
+      const rect = ref.current.getBoundingClientRect();
+      x = event.clientX - rect.left;
+      y = event.clientY - rect.top;
+    }
+    const bet = betAt(x / unit, y / unit);
     if (bet && betNumbers(bet).length) onPlace(bet);
   };
   const winners = winning !== null ? new Set([winning]) : null;

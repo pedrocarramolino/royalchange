@@ -73,3 +73,34 @@ export async function lockOrientation(landscape: boolean): Promise<void> {
     // Navegador que no lo permite (o no instalado): el aviso de girar hace el resto.
   }
 }
+
+function readAngle(): number {
+  const angle = screen.orientation?.angle ?? (window as { orientation?: number }).orientation ?? 0;
+  return ((angle % 360) + 360) % 360;
+}
+
+let currentAngle = readAngle();
+const angleListeners = new Set<() => void>();
+const updateAngle = () => {
+  const next = readAngle();
+  if (next === currentAngle) return;
+  currentAngle = next;
+  angleListeners.forEach((l) => l());
+};
+screen.orientation?.addEventListener?.('change', updateAngle);
+window.addEventListener('orientationchange', updateAngle);
+window.addEventListener('resize', updateAngle);
+
+/**
+ * Ángulo de la pantalla respecto a la posición natural del móvil: 0 (vertical), 90 (girado a la
+ * izquierda, la parte de arriba del móvil queda a la izquierda) o 270 (girado a la derecha).
+ */
+export function useScreenAngle(): number {
+  return useSyncExternalStore(
+    (listener) => {
+      angleListeners.add(listener);
+      return () => angleListeners.delete(listener);
+    },
+    () => currentAngle,
+  );
+}

@@ -7,9 +7,8 @@ import { play, resultSound } from '@/audio/sound';
 import { Button } from '@/ui/Button';
 import { ChipStack } from '@/ui/Chip';
 import { PlayingCard } from '@/ui/PlayingCard';
-import { useViewport } from '@/ui/orientation';
 import { Celebration } from '../shared/Celebration';
-import { GameShell, TableNotice } from '../shared/GameShell';
+import { GameShell, TableNotice, useGameViewport } from '../shared/GameShell';
 import { useHoldProgressEvents } from '../shared/session';
 import { HERO, usePokerTable } from './usePokerTable';
 
@@ -122,7 +121,7 @@ const BET_POS: [number, number][] = [
 ];
 
 function PokerTable({ table }: { table: PokerState }) {
-  const viewport = useViewport();
+  const viewport = useGameViewport();
   const height = Math.max(200, viewport.height - 48 - 68);
   const boardCard = Math.round(Math.min(64, Math.max(34, height * 0.17)));
   const heroCard = Math.round(Math.min(72, Math.max(40, height * 0.2)));

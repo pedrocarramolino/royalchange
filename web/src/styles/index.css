@@ -44,6 +44,13 @@
 }
 
 @layer base {
+  :root {
+    --safe-top: env(safe-area-inset-top);
+    --safe-right: env(safe-area-inset-right);
+    --safe-bottom: env(safe-area-inset-bottom);
+    --safe-left: env(safe-area-inset-left);
+  }
+
   html,
   body,
   #root {
@@ -151,17 +158,18 @@
     box-shadow: 0 10px 30px -12px rgb(0 0 0 / 0.8);
   }
 
+  /* Márgenes seguros (muesca, barra de inicio) como variables: una mesa girada 90° las reasigna. */
   .safe-top {
-    padding-top: env(safe-area-inset-top);
+    padding-top: var(--safe-top);
   }
 
   .safe-bottom {
-    padding-bottom: env(safe-area-inset-bottom);
+    padding-bottom: var(--safe-bottom);
   }
 
   .safe-x {
-    padding-left: env(safe-area-inset-left);
-    padding-right: env(safe-area-inset-right);
+    padding-left: var(--safe-left);
+    padding-right: var(--safe-right);
   }
 }
 

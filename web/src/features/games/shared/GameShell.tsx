@@ -1,10 +1,18 @@
-import type { ReactNode } from 'react';
+import { useState, type CSSProperties, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { AnimatePresence, motion } from 'motion/react';
 import { useReadyWallet } from '@/data/wallet';
-import { useRequireLandscape } from '@/ui/orientation';
+import { isLandscape, isPhone, useRequireLandscape, useViewport, type Viewport } from '@/ui/orientation';
 import { ChipBalance } from '@/ui/ChipBalance';
+import { PortalTarget } from '@/ui/Dialog';
 import { BackIcon } from '@/ui/TopBar';
+import { ProgressToasts } from '@/features/casino/ProgressToasts';
+
+/** Tamaño de la mesa, siempre en horizontal: con el móvil en vertical, alto y ancho intercambiados. */
+export function useGameViewport(): Viewport {
+  const viewport = useViewport();
+  return isPhone(viewport) && !isLandscape(viewport) ? { width: viewport.height, height: viewport.width } : viewport;
+}
 
 interface GameShellProps {
   title: string;
@@ -15,50 +23,85 @@ interface GameShellProps {
   /** Acciones extra en la cabecera (p. ej. tabla de pagos). */
   actions?: ReactNode;
   notice?: ReactNode;
-  /** Fondo de la mesa: tapete (por defecto) u otro. */
+  /** Fondo: tapete (por defecto) o sala oscura. */
   surface?: 'felt' | 'dark';
 }
 
 /**
- * Mesa a pantalla completa, en horizontal: cabecera mínima (volver, nombre serigrafiado y saldo),
- * la mesa y una barra de controles abajo. Pensada para la poca altura de un móvil girado.
+ * Mesa a pantalla completa, siempre en horizontal: cabecera mínima (volver, nombre serigrafiado y
+ * saldo), la mesa y una barra de controles abajo.
+ *
+ * Si el móvil está en vertical (Safari en iOS no deja fijar la orientación, o el giro automático
+ * está bloqueado), la mesa se pinta girada 90°: basta con poner el móvil de lado, sin avisos.
  */
 export function GameShell({ title, children, controls, actions, notice, surface = 'felt' }: GameShellProps) {
   useRequireLandscape();
   const navigate = useNavigate();
   const wallet = useReadyWallet();
+  const viewport = useViewport();
+  const [frame, setFrame] = useState<HTMLDivElement | null>(null);
+  const rotated = isPhone(viewport) && !isLandscape(viewport);
+
+  // Girada 90° en el sentido de las agujas del reloj: el borde superior físico (muesca) queda a la
+  // izquierda de la mesa y el inferior (barra de inicio), a la derecha.
+  const rotatedStyle = {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    width: viewport.height,
+    height: viewport.width,
+    transform: `translateX(${viewport.width}px) rotate(90deg)`,
+    transformOrigin: 'top left',
+    '--safe-top': 'env(safe-area-inset-right)',
+    '--safe-right': 'env(safe-area-inset-bottom)',
+    '--safe-bottom': 'env(safe-area-inset-left)',
+    '--safe-left': 'env(safe-area-inset-top)',
+  } as CSSProperties;
+
   return (
-    <div className={`relative flex h-full flex-col overflow-hidden ${surface === 'felt' ? 'felt' : 'bg-[radial-gradient(ellipse_at_50%_35%,#1d2029,#0b0c10_70%)]'}`}>
-      <header className="safe-top safe-x relative z-20 flex h-12 shrink-0 items-center gap-2 px-2">
-        <button
-          type="button"
-          onClick={() => navigate('/')}
-          aria-label="Volver al casino"
-          className="grid size-10 place-items-center rounded-full bg-black/30 text-ivory ring-1 ring-gold/30 hover:bg-black/45"
+    <PortalTarget.Provider value={frame}>
+        <div
+          ref={setFrame}
+          style={rotated ? rotatedStyle : undefined}
+          className={`relative flex flex-col overflow-hidden ${rotated ? '' : 'h-full'} ${surface === 'felt' ? 'felt' : 'bg-[radial-gradient(ellipse_at_50%_35%,#1d2029,#0b0c10_70%)]'}`}
         >
-          <BackIcon />
-        </button>
-        <h1 className="felt-print min-w-0 truncate text-[15px] font-semibold">{title}</h1>
-        <div className="flex-1" />
-        {actions}
-        {wallet && (
-          <div className="rounded-full bg-black/35 px-3 py-1.5 ring-1 ring-gold/30">
-            <ChipBalance balance={wallet.balance} size="sm" />
-          </div>
-        )}
-      </header>
-      <main className="safe-x relative min-h-0 flex-1">{children}</main>
-      {controls && <footer className="safe-bottom safe-x relative z-20 shrink-0 border-t border-gold/20 bg-[linear-gradient(180deg,rgb(10_12_14/0.82),rgb(6_7_9/0.95))] backdrop-blur">{controls}</footer>}
-      <div className="pointer-events-none absolute inset-x-0 top-14 z-30 flex justify-center px-4" aria-live="assertive">
-        <AnimatePresence>
-          {notice && (
-            <motion.div initial={{ y: -16, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -16, opacity: 0 }} className="pointer-events-auto">
-              {notice}
-            </motion.div>
+          <header className="safe-top safe-x relative z-20 flex h-12 shrink-0 items-center gap-2 px-2" style={{ boxSizing: 'content-box' }}>
+            <button
+              type="button"
+              onClick={() => navigate('/')}
+              aria-label="Volver al casino"
+              className="grid size-10 place-items-center rounded-full bg-black/30 text-ivory ring-1 ring-gold/30 hover:bg-black/45"
+            >
+              <BackIcon />
+            </button>
+            <h1 className="felt-print min-w-0 truncate text-[15px] font-semibold">{title}</h1>
+            <div className="flex-1" />
+            {actions}
+            {wallet && (
+              <div className="rounded-full bg-black/35 px-3 py-1.5 ring-1 ring-gold/30">
+                <ChipBalance balance={wallet.balance} size="sm" />
+              </div>
+            )}
+          </header>
+          <main className="safe-x relative min-h-0 flex-1">{children}</main>
+          {controls && (
+            <footer className="safe-bottom safe-x relative z-20 shrink-0 border-t border-gold/20 bg-[linear-gradient(180deg,rgb(10_12_14/0.82),rgb(6_7_9/0.95))] backdrop-blur">
+              {controls}
+            </footer>
           )}
-        </AnimatePresence>
-      </div>
-    </div>
+          <div className="pointer-events-none absolute inset-x-0 top-14 z-30 flex justify-center px-4" aria-live="assertive">
+            <AnimatePresence>
+              {notice && (
+                <motion.div initial={{ y: -16, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -16, opacity: 0 }} className="pointer-events-auto">
+                  {notice}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+          {/* Avisos de nivel y logros dentro de la mesa: giran con ella. */}
+          <ProgressToasts />
+        </div>
+    </PortalTarget.Provider>
   );
 }
 

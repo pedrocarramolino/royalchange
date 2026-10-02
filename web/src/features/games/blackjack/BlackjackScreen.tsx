@@ -23,10 +23,9 @@ import { play, resultSound, BIG_WIN_MULTIPLIER } from '@/audio/sound';
 import { Button } from '@/ui/Button';
 import { ChipStack } from '@/ui/Chip';
 import { PlayingCard } from '@/ui/PlayingCard';
-import { useViewport } from '@/ui/orientation';
 import { Celebration, ResultBanner } from '../shared/Celebration';
 import { ChipRack, TABLE_CHIPS } from '../shared/ChipRack';
-import { GameShell, TableNotice } from '../shared/GameShell';
+import { GameShell, TableNotice, useGameViewport } from '../shared/GameShell';
 import { economyNotice, loadSession, saveSession, usePlayerId, useHoldProgressEvents } from '../shared/session';
 
 interface Session {
@@ -267,7 +266,7 @@ function BlackjackTable({
   showResults: boolean;
   pendingBet: number | null;
 }) {
-  const viewport = useViewport();
+  const viewport = useGameViewport();
   const tableHeight = Math.max(200, viewport.height - 48 - 68);
   const cardWidth = Math.round(Math.min(104, Math.max(46, tableHeight * 0.3)));
   const dealerValue = handValue(state.holeCardRevealed ? state.dealer : state.dealer.slice(0, 1));

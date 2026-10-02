@@ -1,6 +1,9 @@
-import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useId, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'motion/react';
+
+/** Dónde se pintan los diálogos: el documento o, en una mesa girada, la propia mesa (para que giren con ella). */
+export const PortalTarget = createContext<HTMLElement | null>(null);
 
 interface DialogProps {
   open: boolean;
@@ -15,6 +18,7 @@ interface DialogProps {
 /** Diálogo modal accesible: foco atrapado, Escape para cerrar y fondo que cierra. */
 export function Dialog({ open, onClose, title, children, actions, sheet }: DialogProps) {
   const titleId = useId();
+  const target = useContext(PortalTarget);
   const panel = useRef<HTMLDivElement>(null);
   const previous = useRef<Element | null>(null);
 
@@ -78,6 +82,6 @@ export function Dialog({ open, onClose, title, children, actions, sheet }: Dialo
         </motion.div>
       )}
     </AnimatePresence>,
-    document.body,
+    target ?? document.body,
   );
 }

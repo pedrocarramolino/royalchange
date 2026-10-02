@@ -1,50 +1,61 @@
-import { useEffect, type ReactNode } from 'react';
-import { motion } from 'motion/react';
-import { Button } from './Button';
-import { isLandscape, isPhone, lockOrientation, useOrientationStore, useViewport } from './orientation';
+import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
+import { PortalTarget } from './Dialog';
+import { isLandscape, isPhone, lockOrientation, useOrientationStore, useScreenAngle, useViewport } from './orientation';
 
 /**
- * Orientación de la app: vertical, salvo en las mesas, que van en horizontal. Donde se puede se
- * fija; en un móvil en la orientación equivocada se muestra encima un aviso para girarlo (en una
- * mesa, con un botón para salir por si el giro automático está bloqueado).
+ * Orientación de la app, como una app nativa bloqueada: el casino y el resto de pantallas siempre
+ * en vertical y las mesas siempre en horizontal, sin avisos de girar el móvil.
+ *
+ * - Donde se puede, se fija la orientación (APK con Capacitor, PWA instalada en Android).
+ * - Donde no (Safari en iOS), el contenido se pinta girado para quedar alineado con el móvil: fuera
+ *   de las mesas aquí, y en las mesas con el móvil en vertical en GameShell.
+ *
+ * El árbol de componentes es el mismo esté girado o no: al girar el móvil nada se reinicia.
  */
-export function OrientationGate({ children, onLeaveTable }: { children: ReactNode; onLeaveTable: () => void }) {
+export function OrientationGate({ children }: { children: ReactNode }) {
   const wantsLandscape = useOrientationStore((s) => s.landscapeRequests > 0);
   const viewport = useViewport();
+  const angle = useScreenAngle();
+  const [frame, setFrame] = useState<HTMLDivElement | null>(null);
 
   useEffect(() => {
     void lockOrientation(wantsLandscape);
   }, [wantsLandscape]);
 
-  const wrong = isPhone(viewport) && isLandscape(viewport) !== wantsLandscape;
+  const rotate = isPhone(viewport) && isLandscape(viewport) && !wantsLandscape;
+  // Girado a la derecha (270): la parte de arriba del móvil queda a la derecha → se gira 90° en el
+  // sentido de las agujas del reloj. Girado a la izquierda (90, o sin dato): 90° en sentido contrario.
+  const clockwise = angle === 270;
+  const style: CSSProperties | undefined = rotate
+    ? ({
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: viewport.height,
+        height: viewport.width,
+        transformOrigin: 'top left',
+        transform: clockwise ? `translateX(${viewport.width}px) rotate(90deg)` : `translateY(${viewport.height}px) rotate(-90deg)`,
+        ...(clockwise
+          ? {
+              '--safe-top': 'env(safe-area-inset-right)',
+              '--safe-right': 'env(safe-area-inset-bottom)',
+              '--safe-bottom': 'env(safe-area-inset-left)',
+              '--safe-left': 'env(safe-area-inset-top)',
+            }
+          : {
+              '--safe-top': 'env(safe-area-inset-left)',
+              '--safe-right': 'env(safe-area-inset-top)',
+              '--safe-bottom': 'env(safe-area-inset-right)',
+              '--safe-left': 'env(safe-area-inset-bottom)',
+            }),
+      } as CSSProperties)
+    : undefined;
+
   return (
-    <>
-      <div className="h-full" aria-hidden={wrong || undefined} inert={wrong || undefined}>
+    <PortalTarget.Provider value={rotate ? frame : null}>
+      <div ref={setFrame} style={style} className={rotate ? 'overflow-hidden bg-obsidian' : 'h-full'}>
         {children}
       </div>
-      {wrong && <RotatePrompt toLandscape={wantsLandscape} onLeave={wantsLandscape ? onLeaveTable : undefined} />}
-    </>
-  );
-}
-
-function RotatePrompt({ toLandscape, onLeave }: { toLandscape: boolean; onLeave?: () => void }) {
-  return (
-    <div className="safe-top safe-bottom fixed inset-0 z-[60] flex flex-col items-center justify-center gap-6 bg-obsidian px-8 text-center" role="alertdialog" aria-live="polite">
-      <motion.div
-        className="h-24 w-14 rounded-xl border-[3px] border-gold bg-ink-2 shadow-[0_0_30px_-6px_rgb(212_175_106/0.5)]"
-        animate={{ rotate: toLandscape ? [0, 90, 90, 0] : [90, 0, 0, 90] }}
-        transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut', times: [0, 0.4, 0.7, 1] }}
-        aria-hidden
-      />
-      <div>
-        <h2 className="font-display text-2xl font-semibold text-gold-light">{toLandscape ? 'Gira el móvil para jugar' : 'Pon el móvil en vertical'}</h2>
-        <p className="mt-2 text-ivory-dim">{toLandscape ? 'Las mesas se juegan en horizontal.' : 'Esta pantalla se usa en vertical.'}</p>
-      </div>
-      {onLeave && (
-        <Button variant="secondary" onClick={onLeave}>
-          Volver al casino
-        </Button>
-      )}
-    </div>
+    </PortalTarget.Provider>
   );
 }

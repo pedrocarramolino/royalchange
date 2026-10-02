@@ -1,9 +1,10 @@
 import { lazy, Suspense } from 'react';
-import { Navigate, Route, Routes, useNavigate } from 'react-router';
+import { Navigate, Route, Routes } from 'react-router';
 import { useAuth } from '@/data/auth';
 import { CardSvgDefs } from '@/ui/PlayingCard';
 import { ChipSvgDefs } from '@/ui/Chip';
 import { OrientationGate } from '@/ui/OrientationGate';
+import { useOrientationStore } from '@/ui/orientation';
 import { Splash } from '@/ui/Brand';
 import { WelcomeScreen } from '@/features/auth/WelcomeScreen';
 import { LoginScreen } from '@/features/auth/LoginScreen';
@@ -26,7 +27,8 @@ const PokerScreen = lazy(() => import('@/features/games/poker/PokerScreen'));
 
 export function App() {
   const auth = useAuth((s) => s.state);
-  const navigate = useNavigate();
+  // En las mesas, los avisos de progreso se pintan dentro de la mesa (que puede ir girada).
+  const atTable = useOrientationStore((s) => s.landscapeRequests > 0);
 
   let content;
   if (auth.status === 'loading') {
@@ -76,8 +78,10 @@ export function App() {
     <>
       <CardSvgDefs />
       <ChipSvgDefs />
-      <OrientationGate onLeaveTable={() => navigate('/')}>{content}</OrientationGate>
-      {auth.status === 'signedIn' && auth.user.profile && <ProgressToasts />}
+      <OrientationGate>
+        {content}
+        {auth.status === 'signedIn' && auth.user.profile && !atTable && <ProgressToasts />}
+      </OrientationGate>
     </>
   );
 }

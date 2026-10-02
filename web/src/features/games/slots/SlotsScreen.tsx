@@ -7,9 +7,9 @@ import { chips, grouped } from '@/lib/format';
 import { play, resultSound, BIG_WIN_MULTIPLIER } from '@/audio/sound';
 import { Button } from '@/ui/Button';
 import { Dialog } from '@/ui/Dialog';
-import { useViewport } from '@/ui/orientation';
-import { Celebration, ResultBanner } from '../shared/Celebration';
-import { GameShell, TableNotice } from '../shared/GameShell';
+import { useCountUp } from '@/ui/ChipBalance';
+import { Celebration } from '../shared/Celebration';
+import { GameShell, TableNotice, useGameViewport } from '../shared/GameShell';
 import { economyNotice, useHoldProgressEvents } from '../shared/session';
 import { SlotSvgDefs, SlotSymbolArt } from './SlotSymbolArt';
 
@@ -19,7 +19,7 @@ export default function SlotsScreen() {
   const wallet = useReadyWallet();
   const playInstantRound = useWallet((s) => s.playInstantRound);
   const reducedMotion = useSettings((s) => s.reducedMotion);
-  const viewport = useViewport();
+  const viewport = useGameViewport();
   const [betIndex, setBetIndex] = useState(3);
   const [stops, setStops] = useState<number[]>(() => STRIPS.map((s) => Math.floor(Math.random() * s.length)));
   const [spin, setSpin] = useState<{ id: number; previous: number[]; result: SlotSpin } | null>(null);
@@ -37,7 +37,8 @@ export default function SlotsScreen() {
   const balance = wallet?.balance ?? 0;
 
   const tableHeight = Math.max(180, viewport.height - 48 - 68);
-  const cell = Math.floor(Math.min((tableHeight - 44) / ROWS, (viewport.width - 260) / REELS, 112));
+  // Rodillos en el centro; a los lados, las líneas (izquierda) y el indicador de premio (derecha).
+  const cell = Math.floor(Math.min((tableHeight - 36) / ROWS, (viewport.width - 330) / REELS, 112));
 
   const go = async () => {
     if (busy || spinning) return;
@@ -84,15 +85,14 @@ export default function SlotsScreen() {
     return () => clearInterval(timer);
   }, [wins.length]);
 
+  const visibleWins = useMemo(() => (lineShown === 0 || wins.length < 2 ? wins : [wins[lineShown - 1]!]), [wins, lineShown]);
   const highlighted = useMemo(() => {
     const set = new Set<string>();
-    const visible = lineShown === 0 || wins.length < 2 ? wins : [wins[lineShown - 1]!];
-    visible.forEach((w) => LINES[w.line]!.slice(0, w.count).forEach((row, reel) => set.add(`${reel}-${row}`)));
+    visibleWins.forEach((w) => LINES[w.line]!.slice(0, w.count).forEach((row, reel) => set.add(`${reel}-${row}`)));
     return set;
-  }, [wins, lineShown]);
+  }, [visibleWins]);
 
   const result = spin?.result;
-  const net = result ? result.totalPayout - result.totalBet : 0;
 
   return (
     <GameShell
@@ -120,13 +120,7 @@ export default function SlotsScreen() {
               +
             </StepButton>
           </div>
-          <div className="min-w-0 flex-1 text-center" aria-live="polite">
-            {showResult && result && result.wins.length > 0 && (
-              <p className="truncate text-sm text-ivory-dim">
-                {result.wins.length === 1 ? '1 línea premiada' : `${result.wins.length} líneas premiadas`}
-              </p>
-            )}
-          </div>
+          <div className="min-w-0 flex-1" />
           <Button size="lg" className="min-w-36" loading={busy || spinning} disabled={totalBet > balance} onClick={() => void go()}>
             {totalBet > balance ? 'Sin saldo' : 'Girar'}
           </Button>
@@ -134,8 +128,9 @@ export default function SlotsScreen() {
       }
     >
       <SlotSvgDefs />
-      <div className="flex h-full items-center justify-center">
-        <div className="relative rounded-[28px] bg-[linear-gradient(180deg,#2a1810,#140b07)] p-3 shadow-[0_24px_50px_-16px_rgb(0_0_0/0.9),inset_0_0_0_2px_rgb(212_175_106/0.8),inset_0_0_0_7px_#1b100a,inset_0_0_0_8px_rgb(212_175_106/0.35)]">
+      <div className="flex h-full items-center justify-center gap-3 px-2">
+        <LineIndicators wins={showResult ? wins : []} shown={visibleWins} height={ROWS * (cell + 4) + 18} />
+        <div className="relative shrink-0 rounded-[28px] bg-[linear-gradient(180deg,#2a1810,#140b07)] p-3 shadow-[0_24px_50px_-16px_rgb(0_0_0/0.9),inset_0_0_0_2px_rgb(212_175_106/0.8),inset_0_0_0_7px_#1b100a,inset_0_0_0_8px_rgb(212_175_106/0.35)]">
           <div className="relative overflow-hidden rounded-2xl bg-[#08090c] p-1.5 shadow-[inset_0_0_24px_rgb(0_0_0/1)]">
             <div className="flex gap-1.5">
               {Array.from({ length: REELS }, (_, reel) => (
@@ -144,24 +139,24 @@ export default function SlotsScreen() {
                   reel={reel}
                   cell={cell}
                   stops={stops}
-                  spin={spin}
+                  spin={spinning ? spin : null}
                   reducedMotion={reducedMotion}
-                  highlighted={showResult ? highlighted : null}
+                  highlighted={showResult && wins.length > 0 ? highlighted : null}
                 />
               ))}
             </div>
-            {showResult && wins.length > 0 && <PayLines wins={wins} shown={lineShown} cell={cell} />}
+            {showResult && wins.length > 0 && <PayLines wins={visibleWins} cell={cell} />}
             {/* Brillo del cristal. */}
             <div className="pointer-events-none absolute inset-0 rounded-2xl bg-[linear-gradient(180deg,rgb(255_255_255/0.08),transparent_35%,transparent_70%,rgb(0_0_0/0.4))]" />
           </div>
-          {showResult && result && (
-            <div className="pointer-events-none absolute inset-x-0 -bottom-3 flex justify-center">
-              {result.totalPayout > 0 ? (
-                <ResultBanner net={net} big={result.totalPayout >= BIG_WIN_MULTIPLIER * result.totalBet} label={net > 0 ? `Premio: ${chips(result.totalPayout)}` : `Recuperas ${chips(result.totalPayout)}`} />
-              ) : null}
-            </div>
-          )}
         </div>
+        <PrizePanel
+          result={showResult ? (result ?? null) : null}
+          spinning={spinning}
+          totalBet={totalBet}
+          shown={visibleWins}
+          height={ROWS * (cell + 4) + 18}
+        />
       </div>
       <Celebration trigger={celebrate} />
       <PaytableDialog open={paytable} onClose={() => setPaytable(false)} lineBet={lineBet} />
@@ -183,6 +178,70 @@ function StepButton({ children, label, disabled, onClick }: { children: string; 
     >
       {children}
     </button>
+  );
+}
+
+/** Las diez líneas, como en una máquina real: se encienden con su color cuando pagan. */
+function LineIndicators({ wins, shown, height }: { wins: SlotSpin['wins']; shown: SlotSpin['wins']; height: number }) {
+  const paying = new Set(wins.map((w) => w.line));
+  const current = new Set(shown.map((w) => w.line));
+  return (
+    <ol className="hidden shrink-0 flex-col justify-between py-1 sm:flex" style={{ height }} aria-label="Líneas de premio">
+      {LINES.map((_, line) => {
+        const on = paying.has(line);
+        return (
+          <li
+            key={line}
+            className={`grid h-6 w-8 place-items-center rounded-md text-[11px] font-black transition-all ${on ? 'text-obsidian' : 'bg-white/5 text-mute'} ${current.has(line) ? 'scale-110' : ''}`}
+            style={on ? { background: LINE_COLORS[line], boxShadow: `0 0 12px ${LINE_COLORS[line]}` } : undefined}
+            aria-label={`Línea ${line + 1}${on ? ', con premio' : ''}`}
+          >
+            {line + 1}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+/** Indicador de premio: la cantidad cuenta hacia arriba y debajo se ve la línea que paga. */
+function PrizePanel({ result, spinning, totalBet, shown, height }: { result: SlotSpin | null; spinning: boolean; totalBet: number; shown: SlotSpin['wins']; height: number }) {
+  const payout = result?.totalPayout ?? 0;
+  const counted = useCountUp(payout, 900);
+  const big = result !== null && payout >= BIG_WIN_MULTIPLIER * totalBet;
+  const win = result !== null && payout > 0;
+  return (
+    <section
+      className={`flex w-36 shrink-0 flex-col items-center justify-center gap-2 rounded-2xl px-3 py-3 text-center ring-1 transition-colors ${win ? 'bg-[radial-gradient(circle_at_50%_30%,rgb(212_175_106/0.28),rgb(20_11_7/0.95))] ring-gold-light/70' : 'bg-black/45 ring-gold/25'}`}
+      style={{ height }}
+      aria-live="polite"
+      aria-label="Premio"
+    >
+      <p className="felt-print text-[11px] font-bold">{big ? '¡Gran premio!' : 'Premio'}</p>
+      <motion.p
+        key={result ? 'r' : 'e'}
+        className={`tabular font-display leading-none font-bold ${win ? 'text-gold-gradient' : 'text-mute'} ${counted >= 10_000 ? 'text-[26px]' : 'text-[32px]'}`}
+        animate={win ? { scale: [0.8, 1.08, 1] } : { scale: 1 }}
+        transition={{ duration: 0.5 }}
+      >
+        {spinning ? '···' : grouped(win ? counted : 0)}
+      </motion.p>
+      <p className="text-[11px] text-ivory-dim">{win ? 'fichas' : spinning ? 'Girando…' : result ? 'Sin premio esta vez' : 'Gira para jugar'}</p>
+      {win && shown.length > 0 && (
+        <div className="mt-1 flex w-full flex-col gap-1">
+          {shown.slice(0, 2).map((w) => (
+            <p key={w.line} className="flex items-center justify-center gap-1 text-[11px] leading-tight text-ivory">
+              <span className="inline-block size-2.5 rounded-full" style={{ background: LINE_COLORS[w.line] }} aria-hidden />
+              <span>
+                Línea {w.line + 1} · {w.count} × {SYMBOL_NAME[w.symbol]}
+              </span>
+            </p>
+          ))}
+          {result && result.wins.length > 2 && shown.length !== 1 && <p className="text-[10px] text-mute">y {result.wins.length - 2} líneas más</p>}
+        </div>
+      )}
+      {result && win && payout < totalBet && <p className="text-[10px] text-mute">Apostaste {grouped(totalBet)}</p>}
+    </section>
   );
 }
 
@@ -226,9 +285,16 @@ function Reel({
         {column.map((symbol, i) => {
           const row = i;
           const lit = highlighted?.has(`${reel}-${row}`) && i < ROWS;
+          const dim = highlighted !== null && !lit && i < ROWS;
           return (
-            <div key={i} className={`relative grid shrink-0 place-items-center ${lit ? 'rounded-md bg-gold/25 shadow-[inset_0_0_0_2px_#d4af6a]' : ''}`} style={{ width: cell, height: cell }}>
-              <SlotSymbolArt symbol={symbol} size={cell * 0.78} />
+            <div
+              key={i}
+              className={`relative grid shrink-0 place-items-center transition-opacity duration-300 ${lit ? 'rounded-md bg-gold/30 shadow-[inset_0_0_0_3px_#e2c27f,0_0_18px_rgb(243_223_162/0.6)]' : ''}`}
+              style={{ width: cell, height: cell, opacity: dim ? 0.3 : 1 }}
+            >
+              <motion.div animate={lit ? { scale: [1, 1.12, 1] } : { scale: 1 }} transition={lit ? { duration: 0.9, repeat: Infinity } : { duration: 0.2 }}>
+                <SlotSymbolArt symbol={symbol} size={cell * 0.78} />
+              </motion.div>
             </div>
           );
         })}
@@ -239,9 +305,9 @@ function Reel({
 }
 
 /** Líneas premiadas dibujadas sobre los rodillos. */
-function PayLines({ wins, shown, cell }: { wins: SlotSpin['wins']; shown: number; cell: number }) {
+function PayLines({ wins, cell }: { wins: SlotSpin['wins']; cell: number }) {
   const step = cell + 6;
-  const visible = shown === 0 || wins.length < 2 ? wins : [wins[shown - 1]!];
+  const visible = wins;
   return (
     <svg className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden>
       {visible.map((w) => {
