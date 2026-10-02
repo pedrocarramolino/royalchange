@@ -27,6 +27,7 @@ const SlotsScreen = lazy(() => import('@/features/games/slots/SlotsScreen'));
 const DiceScreen = lazy(() => import('@/features/games/dice/DiceScreen'));
 const PokerScreen = lazy(() => import('@/features/games/poker/PokerScreen'));
 const BaccaratScreen = lazy(() => import('@/features/games/baccarat/BaccaratScreen'));
+const VideoPokerScreen = lazy(() => import('@/features/games/videopoker/VideoPokerScreen'));
 
 export function App() {
   const auth = useAuth((s) => s.state);
@@ -73,6 +74,7 @@ export function App() {
           <Route path="/mesa/dados" element={<DiceScreen />} />
           <Route path="/mesa/poker" element={<PokerScreen />} />
           <Route path="/mesa/baccarat" element={<BaccaratScreen />} />
+          <Route path="/mesa/video-poker" element={<VideoPokerScreen />} />
           <Route path="/legal/:document" element={<LegalScreen />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

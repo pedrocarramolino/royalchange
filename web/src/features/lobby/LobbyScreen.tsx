@@ -12,7 +12,7 @@ import { Chip } from '@/ui/Chip';
 import { useCountUp } from '@/ui/ChipBalance';
 import { IconClose, IconGift, IconMail } from '@/ui/icons';
 import { DailyWheel } from './DailyWheel';
-import { BaccaratArt, BlackjackArt, DiceArt, PokerArt, RouletteArt, SlotsArt } from './GameArt';
+import { BaccaratArt, BlackjackArt, DiceArt, PokerArt, RouletteArt, SlotsArt, VideoPokerArt } from './GameArt';
 
 const GAMES = [
   { path: '/mesa/blackjack', name: 'Blackjack', description: 'Llega a 21 sin pasarte y gana al crupier.', Art: BlackjackArt },
@@ -21,6 +21,7 @@ const GAMES = [
   { path: '/mesa/dados', name: 'Dados', description: 'Mayor, menor y combinaciones.', Art: DiceArt },
   { path: '/mesa/poker', name: 'Póker', description: 'Texas Hold’em contra bots.', Art: PokerArt },
   { path: '/mesa/baccarat', name: 'Baccarat', description: 'Jugador o banca: gana el que más se acerque a 9.', Art: BaccaratArt },
+  { path: '/mesa/video-poker', name: 'Video póker', description: 'Jacks or Better: guarda cartas, cambia el resto y busca la escalera real.', Art: VideoPokerArt },
 ];
 
 /** Hora actual que avanza sola (cuenta atrás de la recarga y cambio de día del bono). */

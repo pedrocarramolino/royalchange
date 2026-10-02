@@ -127,3 +127,17 @@ export function BaccaratArt() {
     </div>
   );
 }
+
+export function VideoPokerArt() {
+  const ranks = ['10', 'J', 'Q', 'K', 'A'] as const;
+  return (
+    <div className="relative h-full w-full">
+      {ranks.map((rank, i) => (
+        <div key={rank} className="absolute top-1/2 left-1/2" style={{ transform: `translate(${-50 + (i - 2) * 58}%, ${i === 2 ? -58 : -50}%) rotate(${(i - 2) * 7}deg)` }}>
+          <PlayingCard rank={rank} suit="spades" width={40} />
+        </div>
+      ))}
+      <span className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-gold-light px-2.5 py-0.5 text-[9px] font-black tracking-[0.2em] text-on-gold uppercase">Escalera real</span>
+    </div>
+  );
+}
