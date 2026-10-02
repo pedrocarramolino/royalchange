@@ -12,6 +12,7 @@ import { IconRepeat, IconTrash, IconUndo } from '@/ui/icons';
 import { GameShell, TableNotice, useTableSize } from '../shared/GameShell';
 import { economyNotice, useHoldProgressEvents } from '../shared/session';
 import { RouletteBoard } from './RouletteBoard';
+import { RouletteStats, STATS_HEIGHT, useRouletteHistory } from './RouletteStats';
 import { RouletteWheel, type WheelSpin } from './RouletteWheel';
 import { COLOR_NAME, colorOf } from './wheel';
 
@@ -31,7 +32,7 @@ export default function RouletteScreen() {
   const [wheelSpin, setWheelSpin] = useState<WheelSpin | null>(null);
   const [result, setResult] = useState<RouletteSpin | null>(null);
   const [showResult, setShowResult] = useState(false);
-  const [recent, setRecent] = useState<number[]>([]);
+  const [spins, addSpin] = useRouletteHistory();
   const [notice, setNotice] = useState<string | null>(null);
   const [celebrate, setCelebrate] = useState<number | null>(null);
   const pending = useRef<RouletteSpin | null>(null);
@@ -122,7 +123,7 @@ export default function RouletteScreen() {
     setSpinning(false);
     setResult(spin);
     setShowResult(true);
-    setRecent((r) => [spin.number, ...r].slice(0, 12));
+    addSpin(spin.number);
     setHistory([]);
     const net = spin.totalPayout - spin.totalStake;
     const big = spin.totalPayout >= BIG_WIN_MULTIPLIER * spin.totalStake;
@@ -131,10 +132,9 @@ export default function RouletteScreen() {
     if (big && net > 0) setCelebrate(Date.now());
   };
 
-  // Medidas: la rueda a la izquierda, el tapete ocupa el resto.
-  const tableHeight = Math.max(180, table.height - 8);
-  // Debajo de la rueda queda sitio para los últimos números (24 px y su separación).
-  const wheelSize = Math.min(tableHeight - 38, table.width * 0.3, 340);
+  // Medidas: arriba el marcador; debajo, la rueda a la izquierda y el tapete ocupa el resto.
+  const tableHeight = Math.max(120, table.height - STATS_HEIGHT - 8);
+  const wheelSize = Math.min(tableHeight - 8, table.width * 0.3, 340);
   const boardWidth = Math.max(260, Math.min(table.width - wheelSize - 48, 900));
   const payouts = showResult && result ? new Map(result.results.map((r) => [r.bet, r.payout])) : null;
   const net = result ? result.totalPayout - result.totalStake : 0;
@@ -166,33 +166,24 @@ export default function RouletteScreen() {
         </div>
       }
     >
-      <div className="flex h-full items-center justify-center gap-4 px-3 pb-1">
-        <div className="flex shrink-0 flex-col items-center gap-1.5">
-          <RouletteWheel size={wheelSize} spin={wheelSpin} reducedMotion={reducedMotion} onSettled={onSettled} />
-          {/* Últimos números, debajo de la rueda (los que quepan a lo ancho de ella). */}
-          <div className="flex h-6 gap-1" aria-label={recent.length ? `Últimos números: ${recent.join(', ')}` : undefined}>
-            {recent.slice(0, Math.min(8, Math.floor(wheelSize / 28))).map((n, i) => (
-              <span
-                key={i}
-                className={`grid size-6 place-items-center rounded-full text-[11px] font-bold text-white ring-1 ring-gold/50 ${i === 0 ? 'scale-110' : 'opacity-80'}`}
-                style={{ background: n === 0 ? '#0f7a4f' : colorOf(n) === 'red' ? '#b3263b' : '#15171d' }}
-              >
-                {n}
-              </span>
-            ))}
+      <div className="flex h-full flex-col gap-1.5 pt-1">
+        <RouletteStats history={spins} width={table.width} />
+        <div className="flex min-h-0 flex-1 items-center justify-center gap-4 px-3 pb-1">
+          <div className="shrink-0">
+            <RouletteWheel size={wheelSize} spin={wheelSpin} reducedMotion={reducedMotion} onSettled={onSettled} />
           </div>
-        </div>
-        <div className="relative">
-          <RouletteBoard width={boardWidth} height={tableHeight} bets={showResult && result ? new Map(result.results.map((r) => [r.bet, r.stake])) : bets} winning={showResult && result ? result.number : null} payouts={payouts} disabled={!canBet} onPlace={place} />
-          {showResult && result && (
-            <div className="pointer-events-none absolute inset-x-0 top-[38%] flex -translate-y-1/2 justify-center">
-              <ResultBanner
-                net={net}
-                big={net > 0}
-                label={`${result.number} ${COLOR_NAME[colorOf(result.number)]} · ${net > 0 ? `ganas ${grouped(net)}` : net < 0 ? `pierdes ${grouped(-net)}` : 'sin cambios'}`}
-              />
-            </div>
-          )}
+          <div className="relative">
+            <RouletteBoard width={boardWidth} height={tableHeight} bets={showResult && result ? new Map(result.results.map((r) => [r.bet, r.stake])) : bets} winning={showResult && result ? result.number : null} payouts={payouts} disabled={!canBet} onPlace={place} />
+            {showResult && result && (
+              <div className="pointer-events-none absolute inset-x-0 top-[38%] flex -translate-y-1/2 justify-center">
+                <ResultBanner
+                  net={net}
+                  big={net > 0}
+                  label={`${result.number} ${COLOR_NAME[colorOf(result.number)]} · ${net > 0 ? `ganas ${grouped(net)}` : net < 0 ? `pierdes ${grouped(-net)}` : 'sin cambios'}`}
+                />
+              </div>
+            )}
+          </div>
         </div>
       </div>
       <Celebration trigger={celebrate} />
