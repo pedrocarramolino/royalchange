@@ -20,6 +20,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.royalchance.core.designsystem.orientation.RequireLandscape
 import androidx.compose.foundation.layout.Box
 import com.royalchance.core.designsystem.motion.WinCelebration
 import com.royalchance.core.audio.SoundOnIncrease
@@ -41,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.royalchance.core.common.text.formatGrouped
 import com.royalchance.core.designsystem.component.BannerTone
+import com.royalchance.core.designsystem.component.GameTableLayout
 import com.royalchance.core.designsystem.component.InfoBanner
 import com.royalchance.core.designsystem.component.RoyalPrimaryButton
 import com.royalchance.core.designsystem.component.RoyalSecondaryButton
@@ -92,34 +94,37 @@ import org.jetbrains.compose.resources.stringResource
 
 @Composable
 internal fun PokerScreen(viewModel: PokerViewModel, eventGate: ProgressEventGate, onBack: () -> Unit) {
+    // Las mesas se juegan en horizontal (en el móvil).
+    RequireLandscape(onBack)
     val state by viewModel.state.collectAsStateWithLifecycle()
     val casino = RoyalTheme.casinoColors
     // Los avisos de logros esperan al final de la mano.
     HoldProgressEvents(eventGate, held = state.inHand)
 
-    Column(
-        Modifier
+    val table = state.table
+    GameTableLayout(
+        modifier = Modifier
             .fillMaxSize()
             .feltBackground(casino.feltBrush)
             .windowInsetsPadding(WindowInsets.safeDrawing),
+        topBar = {
+            RoyalTopBar(
+                title = stringResource(Res.string.poker_title),
+                onBack = onBack,
+                backDescription = stringResource(Res.string.poker_back),
+                windowInsets = WindowInsets(0),
+                actions = { state.balance?.let { ChipBalance(it, color = casino.gold, modifier = Modifier.padding(end = RoyalSpacing.l)) } },
+            )
+        },
+        // Antes de sentarse no hay controles: el panel para elegir mesa ocupa toda la pantalla.
+        controls = table?.let { { Controls(state, it, viewModel) } },
     ) {
-        RoyalTopBar(
-            title = stringResource(Res.string.poker_title),
-            onBack = onBack,
-            backDescription = stringResource(Res.string.poker_back),
-            windowInsets = WindowInsets(0),
-            actions = { state.balance?.let { ChipBalance(it, color = casino.gold, modifier = Modifier.padding(end = RoyalSpacing.l)) } },
-        )
-        val table = state.table
         if (table == null) {
-            SitDownPanel(state, viewModel, Modifier.weight(1f))
+            SitDownPanel(state, viewModel, Modifier.fillMaxSize())
         } else {
             val celebration = PokerSounds(table)
-            Box(Modifier.weight(1f).fillMaxWidth()) {
-                PokerTableView(table, Modifier.fillMaxSize().padding(RoyalSpacing.s))
-                WinCelebration(trigger = celebration, modifier = Modifier.matchParentSize())
-            }
-            Controls(state, table, viewModel)
+            PokerTableView(table, Modifier.fillMaxSize().padding(RoyalSpacing.s))
+            WinCelebration(trigger = celebration, modifier = Modifier.matchParentSize())
         }
     }
 }

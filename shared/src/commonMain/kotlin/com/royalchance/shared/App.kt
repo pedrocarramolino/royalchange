@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import com.royalchance.core.designsystem.orientation.OrientationGate
 import com.royalchance.core.designsystem.motion.LocalReducedMotion
 import com.royalchance.core.audio.SwitchableSoundPlayer
 import com.royalchance.core.audio.LocalSoundPlayer
@@ -52,7 +53,8 @@ fun App(graph: AppGraph) {
     CompositionLocalProvider(LocalSoundPlayer provides sound, LocalReducedMotion provides settings.reducedMotion) {
         RoyalChanceTheme(darkTheme = darkTheme) {
             Surface(color = MaterialTheme.colorScheme.background, modifier = Modifier.fillMaxSize()) {
-                ProvideWindowWidthClass {
+                // Vertical en toda la app; las mesas piden horizontal (RequireLandscape).
+                ProvideWindowWidthClass { OrientationGate {
                     AnimatedContent(
                         targetState = authState.toRootScreen(),
                         transitionSpec = { fadeIn(tween(300)) togetherWith fadeOut(tween(200)) },
@@ -65,7 +67,7 @@ fun App(graph: AppGraph) {
                             RootScreen.Casino -> MainFlow(graph, user = (authState as? AuthState.SignedIn)?.user)
                         }
                     }
-                }
+                } }
             }
         }
     }

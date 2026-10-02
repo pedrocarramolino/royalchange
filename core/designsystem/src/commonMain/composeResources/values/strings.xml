@@ -11,4 +11,9 @@
     <string name="ds_brand_name">Royal Chance</string>
     <string name="ds_requirement_met">cumplido</string>
     <string name="ds_requirement_pending">pendiente</string>
+    <string name="ds_rotate_to_landscape_title">Gira el móvil para jugar</string>
+    <string name="ds_rotate_to_landscape_text">Las mesas se juegan en horizontal.</string>
+    <string name="ds_rotate_to_portrait_title">Pon el móvil en vertical</string>
+    <string name="ds_rotate_to_portrait_text">Esta pantalla se usa en vertical.</string>
+    <string name="ds_rotate_back">Volver al casino</string>
 </resources>

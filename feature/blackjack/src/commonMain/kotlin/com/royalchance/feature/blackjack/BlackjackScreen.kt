@@ -24,6 +24,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.royalchance.core.designsystem.orientation.RequireLandscape
 import com.royalchance.core.designsystem.motion.WinCelebration
 import com.royalchance.core.audio.SoundOnIncrease
 import com.royalchance.core.audio.resultSound
@@ -43,6 +44,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.royalchance.core.common.text.formatGrouped
 import com.royalchance.core.designsystem.component.BannerTone
 import com.royalchance.core.designsystem.component.BetChip
+import com.royalchance.core.designsystem.component.GameTableLayout
 import com.royalchance.core.designsystem.component.InfoBanner
 import com.royalchance.core.designsystem.component.PlayingCard
 import com.royalchance.core.designsystem.component.RoyalPrimaryButton
@@ -128,6 +130,8 @@ private val CHIP_VALUES = listOf(10L, 50L, 100L, 500L, 1_000L, 5_000L)
 
 @Composable
 internal fun BlackjackScreen(viewModel: BlackjackViewModel, eventGate: ProgressEventGate, onBack: () -> Unit) {
+    // Las mesas se juegan en horizontal (en el móvil).
+    RequireLandscape(onBack)
     val state by viewModel.state.collectAsStateWithLifecycle()
     val casino = RoyalTheme.casinoColors
     // Los avisos de logros esperan a que el crupier termine: no deben adelantar el resultado.
@@ -140,21 +144,29 @@ internal fun BlackjackScreen(viewModel: BlackjackViewModel, eventGate: ProgressE
     val natural = state.table.results.any { it.outcome == HandOutcome.Blackjack }
     SoundOnChange(roundKey, resultSound(state.table.totalPayout - state.table.totalStake, bigWin = natural))
 
-    Column(
-        Modifier
+    GameTableLayout(
+        modifier = Modifier
             .fillMaxSize()
             .feltBackground(casino.feltBrush)
             .windowInsetsPadding(WindowInsets.safeDrawing),
+        topBar = {
+            RoyalTopBar(
+                title = stringResource(Res.string.blackjack_title),
+                onBack = onBack,
+                backDescription = stringResource(Res.string.blackjack_back),
+                windowInsets = WindowInsets(0),
+                actions = { state.balance?.let { ChipBalance(it, color = casino.gold, modifier = Modifier.padding(end = RoyalSpacing.l)) } },
+            )
+        },
+        controls = { Controls(state, viewModel) },
     ) {
-        RoyalTopBar(
-            title = stringResource(Res.string.blackjack_title),
-            onBack = onBack,
-            backDescription = stringResource(Res.string.blackjack_back),
-            windowInsets = WindowInsets(0),
-            actions = { state.balance?.let { ChipBalance(it, color = casino.gold, modifier = Modifier.padding(end = RoyalSpacing.l)) } },
-        )
-        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
-            val cardWidth = if (maxWidth < 600.dp) 56.dp else 76.dp
+        BoxWithConstraints(Modifier.fillMaxSize()) {
+            // Cartas más pequeñas con poca altura (móvil en horizontal).
+            val cardWidth = when {
+                maxHeight < 360.dp -> 42.dp
+                maxWidth < 600.dp -> 56.dp
+                else -> 76.dp
+            }
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.SpaceEvenly,
@@ -170,7 +182,6 @@ internal fun BlackjackScreen(viewModel: BlackjackViewModel, eventGate: ProgressE
             }
             WinCelebration(trigger = roundKey?.takeIf { natural }?.toLong(), modifier = Modifier.matchParentSize())
         }
-        Controls(state, viewModel)
     }
 }
 

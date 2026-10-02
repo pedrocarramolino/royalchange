@@ -433,6 +433,19 @@ firebase emulators:exec --only firestore --project demo-royalchance "cd firebase
 - Lista de comprobación antes de publicar en el README (textos legales definitivos, política de
   casino social de Google Play, API keys, App Check, prueba en dispositivos reales).
 
+## 8 undecies. Orientación y mesas en el móvil
+
+- **Mesas en horizontal, resto en vertical.** Cada mesa llama a `RequireLandscape(onBack)`;
+  `OrientationGate` (en `App`) fija la orientación donde se puede (Android: `requestedOrientation`,
+  salvo tablets; web: `screen.orientation.lock`, que Safari en iOS no permite) y, en un móvil
+  (lado corto < 600 dp) en la orientación equivocada, tapa la pantalla con un aviso para girarlo.
+  En una mesa el aviso trae «Volver al casino» por si el giro automático está bloqueado.
+- **`GameTableLayout`:** en un móvil en horizontal los controles van en un panel lateral derecho
+  (40 % del ancho, 260–360 dp, con scroll) y la mesa ocupa el resto.
+- **Botones en una línea:** el texto se reduce (hasta 11 sp) en vez de partirse. Ojo: el
+  autoajuste de `BasicText` solo detecta que no cabe con `maxLines = 1` y salto permitido; con
+  `softWrap = false` y elipsis nunca encoge.
+
 ## 9. Autenticación (Fase 3: interfaz y reglas; Fase 4: Firebase)
 
 Decisiones confirmadas: **solo email y contraseña** (sin modo invitado ni Google Sign-In, retirados

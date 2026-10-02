@@ -16,6 +16,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.foundation.text.TextAutoSize
+import androidx.compose.foundation.text.BasicText
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -105,26 +109,20 @@ fun RoyalTextButton(
         onClick = onClick,
         enabled = enabled,
         colors = ButtonDefaults.textButtonColors(contentColor = color),
+        contentPadding = PaddingValues(horizontal = RoyalSpacing.s),
         modifier = modifier.heightIn(min = RoyalSizes.minTouchTarget),
     ) {
-        Text(text, style = MaterialTheme.typography.labelLarge, textAlign = TextAlign.Center)
+        SingleLineLabel(text, MaterialTheme.typography.labelLarge, LocalContentColor.current)
     }
 }
 
 @Composable
 private fun ButtonContent(text: String, loading: Boolean, contentColor: Color) {
-    Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = RoyalSpacing.m)) {
+    Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = RoyalSpacing.s)) {
         if (loading) {
             LoadingSpinner(color = contentColor)
         } else {
-            Text(
-                text = text,
-                style = MaterialTheme.typography.titleMedium,
-                color = contentColor,
-                textAlign = TextAlign.Center,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
+            SingleLineLabel(text, MaterialTheme.typography.titleMedium, contentColor)
         }
     }
 }
@@ -136,5 +134,22 @@ internal fun LoadingSpinner(color: Color, modifier: Modifier = Modifier) {
         color = color,
         strokeWidth = 2.5.dp,
         modifier = modifier.size(22.dp).semantics { contentDescription = description },
+    )
+}
+
+/**
+ * Texto de botón en una sola línea: si no cabe, la letra se reduce (hasta 11 sp) en vez de
+ * partirse en dos líneas, que en móvil descuadra los botones.
+ */
+@Composable
+private fun SingleLineLabel(text: String, style: TextStyle, color: Color) {
+    BasicText(
+        text = text,
+        style = style.merge(color = color, textAlign = TextAlign.Center),
+        // maxLines = 1 con salto de línea permitido: así el autoajuste detecta que no cabe
+        // (con softWrap = false y elipsis el texto nunca "desborda" y no se reduce).
+        maxLines = 1,
+        overflow = TextOverflow.Clip,
+        autoSize = TextAutoSize.StepBased(minFontSize = 11.sp, maxFontSize = style.fontSize, stepSize = 0.5.sp),
     )
 }

@@ -23,6 +23,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.royalchance.core.designsystem.orientation.RequireLandscape
 import com.royalchance.core.designsystem.motion.WinCelebration
 import com.royalchance.core.audio.BIG_WIN_MULTIPLIER
 import com.royalchance.core.audio.resultSound
@@ -46,6 +47,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.royalchance.core.designsystem.component.BannerTone
+import com.royalchance.core.designsystem.component.GameTableLayout
 import com.royalchance.core.designsystem.component.InfoBanner
 import com.royalchance.core.designsystem.component.RoyalPrimaryButton
 import com.royalchance.core.designsystem.component.RoyalTextButton
@@ -95,6 +97,8 @@ import org.jetbrains.compose.resources.stringResource
 
 @Composable
 internal fun SlotsScreen(viewModel: SlotsViewModel, eventGate: ProgressEventGate, onBack: () -> Unit) {
+    // Las mesas se juegan en horizontal (en el móvil).
+    RequireLandscape(onBack)
     val state by viewModel.state.collectAsStateWithLifecycle()
     val casino = RoyalTheme.casinoColors
     var showPaytable by remember { mutableStateOf(false) }
@@ -108,20 +112,23 @@ internal fun SlotsScreen(viewModel: SlotsViewModel, eventGate: ProgressEventGate
     // En la tragaperras perder es lo habitual: solo suenan los premios.
     SoundOnChange(resultKey, lastSpin?.let { resultSound((it.spin.totalPayout - it.spin.totalBet).coerceAtLeast(0), bigWin) })
 
-    Column(
-        Modifier
+    GameTableLayout(
+        modifier = Modifier
             .fillMaxSize()
             .feltBackground(casino.feltBrush)
             .windowInsetsPadding(WindowInsets.safeDrawing),
+        topBar = {
+            RoyalTopBar(
+                title = stringResource(Res.string.slots_title),
+                onBack = onBack,
+                backDescription = stringResource(Res.string.slots_back),
+                windowInsets = WindowInsets(0),
+                actions = { state.balance?.let { ChipBalance(it, color = casino.gold, modifier = Modifier.padding(end = RoyalSpacing.l)) } },
+            )
+        },
+        controls = { Controls(state, viewModel, onShowPaytable = { showPaytable = true }) },
     ) {
-        RoyalTopBar(
-            title = stringResource(Res.string.slots_title),
-            onBack = onBack,
-            backDescription = stringResource(Res.string.slots_back),
-            windowInsets = WindowInsets(0),
-            actions = { state.balance?.let { ChipBalance(it, color = casino.gold, modifier = Modifier.padding(end = RoyalSpacing.l)) } },
-        )
-        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+        BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             val cell = minOf((maxWidth - 64.dp) / SlotMachine.REELS, (maxHeight - 140.dp) / SlotMachine.ROWS, 110.dp).coerceAtLeast(44.dp)
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -149,7 +156,6 @@ internal fun SlotsScreen(viewModel: SlotsViewModel, eventGate: ProgressEventGate
             }
             WinCelebration(trigger = resultKey?.takeIf { bigWin }, modifier = Modifier.matchParentSize())
         }
-        Controls(state, viewModel, onShowPaytable = { showPaytable = true })
     }
 
     if (showPaytable) PaytableDialog(onDismiss = { showPaytable = false })

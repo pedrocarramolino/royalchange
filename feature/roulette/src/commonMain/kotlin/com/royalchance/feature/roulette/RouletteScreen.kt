@@ -23,6 +23,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.royalchance.core.designsystem.orientation.RequireLandscape
 import com.royalchance.core.designsystem.motion.WinCelebration
 import com.royalchance.core.audio.BIG_WIN_MULTIPLIER
 import com.royalchance.core.audio.resultSound
@@ -44,6 +45,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.royalchance.core.common.text.formatGrouped
 import com.royalchance.core.designsystem.component.BannerTone
 import com.royalchance.core.designsystem.component.BetChip
+import com.royalchance.core.designsystem.component.GameTableLayout
 import com.royalchance.core.designsystem.component.InfoBanner
 import com.royalchance.core.designsystem.component.RoyalPrimaryButton
 import com.royalchance.core.designsystem.component.RoyalTextButton
@@ -87,6 +89,8 @@ private val CHIP_VALUES = listOf(10L, 50L, 100L, 500L, 1_000L, 5_000L)
 
 @Composable
 internal fun RouletteScreen(viewModel: RouletteViewModel, eventGate: ProgressEventGate, onBack: () -> Unit) {
+    // Las mesas se juegan en horizontal (en el móvil).
+    RequireLandscape(onBack)
     val state by viewModel.state.collectAsStateWithLifecycle()
     val casino = RoyalTheme.casinoColors
     // Los avisos de logros esperan a que la bola se pare: no deben adelantar el resultado.
@@ -98,23 +102,27 @@ internal fun RouletteScreen(viewModel: RouletteViewModel, eventGate: ProgressEve
     val resultKey = if (state.showResult) spin?.id else null
     SoundOnChange(resultKey, spin?.let { resultSound(it.spin.totalPayout - it.spin.totalStake, bigWin) })
 
-    Column(
-        Modifier
+    GameTableLayout(
+        modifier = Modifier
             .fillMaxSize()
             .feltBackground(casino.feltBrush)
             .windowInsetsPadding(WindowInsets.safeDrawing),
+        topBar = {
+            RoyalTopBar(
+                title = stringResource(Res.string.roulette_title),
+                onBack = onBack,
+                backDescription = stringResource(Res.string.roulette_back),
+                windowInsets = WindowInsets(0),
+                actions = { state.balance?.let { ChipBalance(it, color = casino.gold, modifier = Modifier.padding(end = RoyalSpacing.l)) } },
+            )
+        },
+        controls = { Controls(state, viewModel) },
     ) {
-        RoyalTopBar(
-            title = stringResource(Res.string.roulette_title),
-            onBack = onBack,
-            backDescription = stringResource(Res.string.roulette_back),
-            windowInsets = WindowInsets(0),
-            actions = { state.balance?.let { ChipBalance(it, color = casino.gold, modifier = Modifier.padding(end = RoyalSpacing.l)) } },
-        )
-        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+        BoxWithConstraints(Modifier.fillMaxSize()) {
             val width = maxWidth
             val height = maxHeight
-            if (width >= 840.dp) {
+            // Rueda y tapete lado a lado si hay anchura (escritorio, tablet o móvil en horizontal).
+            if (width >= 840.dp || width > height) {
                 val rowHeight = ((height - RoyalSpacing.l * 2) / 14).coerceIn(28.dp, 44.dp)
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(RoyalSpacing.xl),
@@ -156,7 +164,6 @@ internal fun RouletteScreen(viewModel: RouletteViewModel, eventGate: ProgressEve
             }
             WinCelebration(trigger = resultKey?.takeIf { bigWin }, modifier = Modifier.matchParentSize())
         }
-        Controls(state, viewModel)
     }
 }
 

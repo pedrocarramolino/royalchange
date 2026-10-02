@@ -31,6 +31,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.royalchance.core.designsystem.orientation.RequireLandscape
 import com.royalchance.core.designsystem.motion.WinCelebration
 import com.royalchance.core.audio.BIG_WIN_MULTIPLIER
 import com.royalchance.core.audio.resultSound
@@ -56,6 +57,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.royalchance.core.common.text.formatGrouped
 import com.royalchance.core.designsystem.component.BannerTone
 import com.royalchance.core.designsystem.component.BetChip
+import com.royalchance.core.designsystem.component.GameTableLayout
 import com.royalchance.core.designsystem.component.InfoBanner
 import com.royalchance.core.designsystem.component.RoyalPrimaryButton
 import com.royalchance.core.designsystem.component.RoyalTextButton
@@ -115,6 +117,8 @@ private val CHIP_VALUES = listOf(10L, 50L, 100L, 500L, 1_000L, 5_000L)
 
 @Composable
 internal fun DiceScreen(viewModel: DiceViewModel, eventGate: ProgressEventGate, onBack: () -> Unit) {
+    // Las mesas se juegan en horizontal (en el móvil).
+    RequireLandscape(onBack)
     val state by viewModel.state.collectAsStateWithLifecycle()
     val casino = RoyalTheme.casinoColors
     // Los avisos de logros esperan a que se paren los dados.
@@ -126,20 +130,23 @@ internal fun DiceScreen(viewModel: DiceViewModel, eventGate: ProgressEventGate, 
     val resultKey = if (state.showResult) thrown?.id else null
     SoundOnChange(resultKey, thrown?.let { resultSound(it.result.totalPayout - it.result.totalStake, bigWin) })
 
-    Column(
-        Modifier
+    GameTableLayout(
+        modifier = Modifier
             .fillMaxSize()
             .feltBackground(casino.feltBrush)
             .windowInsetsPadding(WindowInsets.safeDrawing),
+        topBar = {
+            RoyalTopBar(
+                title = stringResource(Res.string.dice_title),
+                onBack = onBack,
+                backDescription = stringResource(Res.string.dice_back),
+                windowInsets = WindowInsets(0),
+                actions = { state.balance?.let { ChipBalance(it, color = casino.gold, modifier = Modifier.padding(end = RoyalSpacing.l)) } },
+            )
+        },
+        controls = { Controls(state, viewModel) },
     ) {
-        RoyalTopBar(
-            title = stringResource(Res.string.dice_title),
-            onBack = onBack,
-            backDescription = stringResource(Res.string.dice_back),
-            windowInsets = WindowInsets(0),
-            actions = { state.balance?.let { ChipBalance(it, color = casino.gold, modifier = Modifier.padding(end = RoyalSpacing.l)) } },
-        )
-        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+        BoxWithConstraints(Modifier.fillMaxSize()) {
             val dieSize = if (maxWidth < 600.dp) 64.dp else 88.dp
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -164,7 +171,6 @@ internal fun DiceScreen(viewModel: DiceViewModel, eventGate: ProgressEventGate, 
             }
             WinCelebration(trigger = resultKey?.takeIf { bigWin }, modifier = Modifier.matchParentSize())
         }
-        Controls(state, viewModel)
     }
 }
 
