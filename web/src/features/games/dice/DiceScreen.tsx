@@ -99,7 +99,8 @@ export default function DiceScreen() {
   };
 
   const tableHeight = Math.max(180, table.height);
-  const traySize = Math.min(tableHeight - 12, table.width * 0.3, 300);
+  // La bandeja mide 0,82 de alto por cada unidad de ancho; debajo, las últimas sumas (24 px y separación).
+  const traySize = Math.min((tableHeight - 40) / 0.82, table.width * 0.3, 300);
   const shownBets = showResult && result ? new Map(result.results.map((r) => [r.bet, r.stake])) : bets;
   const payouts = showResult && result ? new Map(result.results.map((r) => [r.bet, r.payout])) : null;
   const net = result ? result.totalPayout - result.totalStake : 0;
@@ -151,17 +152,16 @@ export default function DiceScreen() {
       }
     >
       <div className="flex h-full items-center justify-center gap-4 px-3 pb-1">
-        <div className="relative shrink-0">
+        <div className="flex shrink-0 flex-col items-center gap-1.5">
           <DiceTray size={traySize} roll={result?.roll ?? { first: 5, second: 2 }} throwId={throwId} rolling={rolling} reducedMotion={reducedMotion} />
-          {recent.length > 0 && (
-            <div className="absolute -bottom-1 left-1/2 flex -translate-x-1/2 gap-1" aria-label={`Últimas sumas: ${recent.join(', ')}`}>
-              {recent.slice(0, 7).map((n, i) => (
-                <span key={i} className={`grid size-6 place-items-center rounded-full bg-black/60 text-[11px] font-bold text-ivory ring-1 ring-gold/40 ${i === 0 ? 'scale-110 text-gold-light' : 'opacity-75'}`}>
-                  {n}
-                </span>
-              ))}
-            </div>
-          )}
+          {/* Últimas sumas, debajo de la bandeja (las que quepan a lo ancho de ella). */}
+          <div className="flex h-6 gap-1" aria-label={recent.length ? `Últimas sumas: ${recent.join(', ')}` : undefined}>
+            {recent.slice(0, Math.min(7, Math.floor(traySize / 28))).map((n, i) => (
+              <span key={i} className={`grid size-6 place-items-center rounded-full bg-black/60 text-[11px] font-bold text-ivory ring-1 ring-gold/40 ${i === 0 ? 'scale-110 text-gold-light' : 'opacity-75'}`}>
+                {n}
+              </span>
+            ))}
+          </div>
         </div>
         <div className="relative flex min-w-0 flex-1 flex-col gap-2" style={{ maxWidth: 620, height: Math.min(tableHeight - 20, 300) }}>
           <div className="grid flex-[1.25] grid-cols-4 gap-2">

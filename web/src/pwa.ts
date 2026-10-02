@@ -8,7 +8,17 @@ import { isNativeApp } from '@/lib/firebase';
 export function registerServiceWorker() {
   const local = ['localhost', '127.0.0.1'].includes(location.hostname);
   if (isNativeApp || import.meta.env.DEV || local || !('serviceWorker' in navigator)) return;
-  registerSW({ immediate: true });
+  registerSW({
+    immediate: true,
+    // iOS deja la app instalada en segundo plano y al volver no la recarga: sin esto seguiría con la
+    // versión anterior hasta cerrarla del todo. Se busca versión nueva cada vez que vuelve a primer plano.
+    onRegisteredSW(_url, registration) {
+      if (!registration) return;
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') void registration.update().catch(() => undefined);
+      });
+    },
+  });
   // Cachés de la versión anterior (Kotlin): ya no se usan.
   void caches
     ?.keys()
