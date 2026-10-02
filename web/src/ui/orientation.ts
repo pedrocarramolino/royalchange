@@ -22,6 +22,8 @@ const update = () => {
 window.addEventListener('resize', update);
 window.addEventListener('orientationchange', () => setTimeout(update, 150));
 window.visualViewport?.addEventListener('resize', update);
+// Por si algún navegador no avisa del cambio de tamaño al girar.
+window.matchMedia('(orientation: landscape)').addEventListener('change', update);
 
 /** Tamaño visible de la ventana, reactivo. */
 export function useViewport(): Viewport {

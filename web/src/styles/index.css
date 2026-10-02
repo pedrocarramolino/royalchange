@@ -173,6 +173,23 @@
   }
 }
 
+/*
+ * Margen seguro más un relleno propio (safe-px-4 = margen + 1rem). Las clases de arriba solo valen
+ * sin otro relleno en ese lado: un px-4 o pb-8 las anula.
+ */
+@utility safe-pt-* {
+  padding-top: calc(var(--safe-top) + --spacing(--value(number)));
+}
+
+@utility safe-pb-* {
+  padding-bottom: calc(var(--safe-bottom) + --spacing(--value(number)));
+}
+
+@utility safe-px-* {
+  padding-left: calc(var(--safe-left) + --spacing(--value(number)));
+  padding-right: calc(var(--safe-right) + --spacing(--value(number)));
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

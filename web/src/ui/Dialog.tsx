@@ -67,7 +67,7 @@ export function Dialog({ open, onClose, title, children, actions, sheet }: Dialo
             aria-labelledby={titleId}
             tabIndex={-1}
             onClick={(e) => e.stopPropagation()}
-            className={`panel max-h-[88dvh] w-full overflow-y-auto outline-none ${sheet ? 'safe-bottom max-w-lg rounded-t-3xl px-5 pt-5 pb-5' : 'max-w-md rounded-3xl p-6'}`}
+            className={`panel max-h-[88dvh] w-full overflow-y-auto outline-none ${sheet ? 'safe-pb-5 max-w-lg rounded-t-3xl px-5 pt-5' : 'max-w-md rounded-3xl p-6'}`}
             initial={sheet ? { y: 60, opacity: 0 } : { scale: 0.94, opacity: 0 }}
             animate={sheet ? { y: 0, opacity: 1 } : { scale: 1, opacity: 1 }}
             exit={sheet ? { y: 60, opacity: 0 } : { scale: 0.96, opacity: 0 }}

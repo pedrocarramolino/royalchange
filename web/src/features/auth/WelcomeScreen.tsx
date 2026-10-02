@@ -19,7 +19,7 @@ export function WelcomeScreen() {
   return (
     <div className="relative h-full overflow-y-auto">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_90%_55%_at_50%_30%,rgb(15_91_69/0.55),transparent_70%)]" aria-hidden />
-      <div className="safe-top safe-bottom safe-x relative mx-auto flex min-h-full max-w-md flex-col px-6 pb-8">
+      <div className="safe-top safe-pb-8 safe-px-6 relative mx-auto flex min-h-full max-w-md flex-col">
         <div className="mt-8 flex items-center justify-center gap-3">
           <BrandMark size={40} />
           <Wordmark className="text-[15px]" />

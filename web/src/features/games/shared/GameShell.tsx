@@ -2,7 +2,8 @@ import { useState, type CSSProperties, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { AnimatePresence, motion } from 'motion/react';
 import { useReadyWallet } from '@/data/wallet';
-import { isLandscape, isPhone, useRequireLandscape, useViewport, type Viewport } from '@/ui/orientation';
+import { isLandscape, isPhone, useRequireLandscape, useScreenAngle, useViewport, type Viewport } from '@/ui/orientation';
+import { ISLAND_CLEARANCE, rotatedSafeArea, useSafeArea } from '@/ui/safeArea';
 import { ChipBalance } from '@/ui/ChipBalance';
 import { PortalTarget } from '@/ui/Dialog';
 import { BackIcon } from '@/ui/TopBar';
@@ -41,6 +42,8 @@ export function GameShell({ title, children, controls, actions, notice, surface 
   const viewport = useViewport();
   const [frame, setFrame] = useState<HTMLDivElement | null>(null);
   const rotated = isPhone(viewport) && !isLandscape(viewport);
+  const insets = useSafeArea();
+  const angle = useScreenAngle();
 
   // Girada 90° en el sentido de las agujas del reloj: el borde superior físico (muesca) queda a la
   // izquierda de la mesa y el inferior (barra de inicio), a la derecha.
@@ -52,20 +55,26 @@ export function GameShell({ title, children, controls, actions, notice, surface 
     height: viewport.width,
     transform: `translateX(${viewport.width}px) rotate(90deg)`,
     transformOrigin: 'top left',
-    '--safe-top': 'env(safe-area-inset-right)',
-    '--safe-right': 'env(safe-area-inset-bottom)',
-    '--safe-bottom': 'env(safe-area-inset-left)',
-    '--safe-left': 'env(safe-area-inset-top)',
+    // El lado izquierdo de la mesa cae sobre la parte de arriba del móvil (isla dinámica).
+    ...rotatedSafeArea(insets, true, 'left'),
   } as CSSProperties;
+  // Móvil en horizontal: la isla queda a la izquierda (girado a la izquierda) o a la derecha.
+  const landscapeStyle =
+    isPhone(viewport) && !rotated
+      ? ({
+          '--safe-left': `${angle === 270 ? insets.left : Math.max(insets.left, ISLAND_CLEARANCE)}px`,
+          '--safe-right': `${angle === 270 ? Math.max(insets.right, ISLAND_CLEARANCE) : insets.right}px`,
+        } as CSSProperties)
+      : undefined;
 
   return (
     <PortalTarget.Provider value={frame}>
         <div
           ref={setFrame}
-          style={rotated ? rotatedStyle : undefined}
+          style={rotated ? rotatedStyle : landscapeStyle}
           className={`relative flex flex-col overflow-hidden ${rotated ? '' : 'h-full'} ${surface === 'felt' ? 'felt' : 'bg-[radial-gradient(ellipse_at_50%_35%,#1d2029,#0b0c10_70%)]'}`}
         >
-          <header className="safe-top safe-x relative z-20 flex h-12 shrink-0 items-center gap-2 px-2" style={{ boxSizing: 'content-box' }}>
+          <header className="safe-top safe-px-2 relative z-20 flex h-12 shrink-0 items-center gap-2" style={{ boxSizing: 'content-box' }}>
             <button
               type="button"
               onClick={() => navigate('/')}

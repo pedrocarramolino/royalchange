@@ -17,7 +17,7 @@ export function ProgressScreen() {
 
   if (!wallet) {
     return (
-      <div className="safe-top mx-auto max-w-lg px-5 pt-6">
+      <div className="safe-pt-6 mx-auto max-w-lg px-5">
         <h1 className="font-display text-2xl font-semibold text-gold-gradient">Progreso</h1>
         {status === 'loading' ? (
           <div className="mt-6 h-40 animate-pulse rounded-3xl bg-ink-2" />
@@ -48,7 +48,7 @@ export function ProgressScreen() {
   };
 
   return (
-    <div className="safe-top safe-x mx-auto max-w-lg px-4 pb-8">
+    <div className="safe-top safe-px-4 mx-auto max-w-lg pb-8">
       <h1 className="px-1 pt-6 font-display text-2xl font-semibold text-gold-gradient">Progreso</h1>
 
       <section className="mt-5 flex items-center gap-4 rounded-3xl px-5 py-5 felt ring-1 ring-gold/30" aria-label="Nivel">

@@ -1,6 +1,7 @@
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { PortalTarget } from './Dialog';
 import { isLandscape, isPhone, lockOrientation, useOrientationStore, useScreenAngle, useViewport } from './orientation';
+import { rotatedSafeArea, useSafeArea } from './safeArea';
 
 /**
  * Orientación de la app, como una app nativa bloqueada: el casino y el resto de pantallas siempre
@@ -16,6 +17,7 @@ export function OrientationGate({ children }: { children: ReactNode }) {
   const wantsLandscape = useOrientationStore((s) => s.landscapeRequests > 0);
   const viewport = useViewport();
   const angle = useScreenAngle();
+  const insets = useSafeArea();
   const [frame, setFrame] = useState<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -35,19 +37,8 @@ export function OrientationGate({ children }: { children: ReactNode }) {
         height: viewport.width,
         transformOrigin: 'top left',
         transform: clockwise ? `translateX(${viewport.width}px) rotate(90deg)` : `translateY(${viewport.height}px) rotate(-90deg)`,
-        ...(clockwise
-          ? {
-              '--safe-top': 'env(safe-area-inset-right)',
-              '--safe-right': 'env(safe-area-inset-bottom)',
-              '--safe-bottom': 'env(safe-area-inset-left)',
-              '--safe-left': 'env(safe-area-inset-top)',
-            }
-          : {
-              '--safe-top': 'env(safe-area-inset-left)',
-              '--safe-right': 'env(safe-area-inset-top)',
-              '--safe-bottom': 'env(safe-area-inset-right)',
-              '--safe-left': 'env(safe-area-inset-bottom)',
-            }),
+        // La parte de arriba del contenido cae sobre la parte de arriba del móvil (isla dinámica).
+        ...rotatedSafeArea(insets, clockwise, 'top'),
       } as CSSProperties)
     : undefined;
 

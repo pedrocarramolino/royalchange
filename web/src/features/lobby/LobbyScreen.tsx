@@ -55,7 +55,7 @@ export function LobbyScreen() {
   const profile = user?.profile;
 
   return (
-    <div className="safe-top safe-x mx-auto w-full max-w-lg px-4 pb-8">
+    <div className="safe-top safe-px-4 mx-auto w-full max-w-lg pb-8">
       <header className="flex items-center gap-3 pt-5">
         {profile && <Avatar id={profile.avatar} size={46} />}
         <div className="min-w-0 flex-1">

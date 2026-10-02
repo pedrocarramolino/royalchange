@@ -22,7 +22,7 @@ export function ProgressToasts() {
 
   const key = event ? (event.type === 'levelUp' ? `level-${event.level}` : `ach-${event.id}`) : null;
   return (
-    <div className="safe-top pointer-events-none fixed inset-x-0 top-0 z-40 flex justify-center px-4 pt-3" aria-live="polite">
+    <div className="safe-pt-3 pointer-events-none fixed inset-x-0 top-0 z-40 flex justify-center px-4" aria-live="polite">
       <AnimatePresence>
         {event && key && (
           <motion.button

@@ -53,7 +53,7 @@ export function SettingsScreen() {
   };
 
   return (
-    <div className="safe-top safe-x mx-auto max-w-lg px-4 pb-10">
+    <div className="safe-top safe-px-4 mx-auto max-w-lg pb-10">
       <h1 className="px-1 pt-6 font-display text-2xl font-semibold text-gold-gradient">Ajustes</h1>
 
       <Section title="Cuenta">

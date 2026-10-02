@@ -8,7 +8,7 @@ export function AuthLayout({ title, subtitle, children, back = true, onBack }: {
   return (
     <div className="relative h-full overflow-y-auto overscroll-contain">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-[radial-gradient(ellipse_70%_100%_at_50%_0%,rgb(15_91_69/0.45),transparent)]" aria-hidden />
-      <div className="safe-top safe-bottom safe-x relative mx-auto flex min-h-full w-full max-w-md flex-col px-5 pb-8">
+      <div className="safe-top safe-pb-8 safe-px-5 relative mx-auto flex min-h-full w-full max-w-md flex-col">
         {back ? <TopBar onBack={onBack ?? (() => navigate(-1))} className="-mx-3" /> : <div className="h-6" />}
         <h1 className="mt-2 font-display text-[28px] leading-tight font-semibold text-gold-gradient">{title}</h1>
         {subtitle && <p className="mt-2 text-[15px] leading-relaxed text-ivory-dim">{subtitle}</p>}

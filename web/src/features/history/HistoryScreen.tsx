@@ -58,7 +58,7 @@ export function HistoryScreen() {
   const anyRounds = stats && Object.values(stats).some((s) => s && s.rounds > 0);
 
   return (
-    <div className="safe-top safe-x mx-auto max-w-lg px-4 pb-8">
+    <div className="safe-top safe-px-4 mx-auto max-w-lg pb-8">
       <h1 className="px-1 pt-6 font-display text-2xl font-semibold text-gold-gradient">Historial</h1>
 
       {state === 'loading' && items.length === 0 && (
