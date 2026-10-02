@@ -1,0 +1,83 @@
+import { lazy, Suspense } from 'react';
+import { Navigate, Route, Routes, useNavigate } from 'react-router';
+import { useAuth } from '@/data/auth';
+import { CardSvgDefs } from '@/ui/PlayingCard';
+import { ChipSvgDefs } from '@/ui/Chip';
+import { OrientationGate } from '@/ui/OrientationGate';
+import { Splash } from '@/ui/Brand';
+import { WelcomeScreen } from '@/features/auth/WelcomeScreen';
+import { LoginScreen } from '@/features/auth/LoginScreen';
+import { RegisterScreen } from '@/features/auth/RegisterScreen';
+import { ForgotPasswordScreen } from '@/features/auth/ForgotPasswordScreen';
+import { LegalScreen } from '@/features/auth/LegalScreen';
+import { CasinoLayout } from '@/features/casino/CasinoLayout';
+import { LobbyScreen } from '@/features/lobby/LobbyScreen';
+import { ProgressScreen } from '@/features/progress/ProgressScreen';
+import { HistoryScreen } from '@/features/history/HistoryScreen';
+import { SettingsScreen } from '@/features/settings/SettingsScreen';
+import { ProgressToasts } from '@/features/casino/ProgressToasts';
+
+// Las mesas se cargan al abrirlas: la primera pantalla llega antes.
+const BlackjackScreen = lazy(() => import('@/features/games/blackjack/BlackjackScreen'));
+const RouletteScreen = lazy(() => import('@/features/games/roulette/RouletteScreen'));
+const SlotsScreen = lazy(() => import('@/features/games/slots/SlotsScreen'));
+const DiceScreen = lazy(() => import('@/features/games/dice/DiceScreen'));
+const PokerScreen = lazy(() => import('@/features/games/poker/PokerScreen'));
+
+export function App() {
+  const auth = useAuth((s) => s.state);
+  const navigate = useNavigate();
+
+  let content;
+  if (auth.status === 'loading') {
+    content = <Splash />;
+  } else if (auth.status === 'signedOut') {
+    content = (
+      <Routes>
+        <Route path="/" element={<WelcomeScreen />} />
+        <Route path="/entrar" element={<LoginScreen />} />
+        <Route path="/registro" element={<RegisterScreen mode="register" />} />
+        <Route path="/recuperar" element={<ForgotPasswordScreen />} />
+        <Route path="/legal/:document" element={<LegalScreen />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    );
+  } else if (!auth.user.profile) {
+    // El registro se interrumpió tras crear la cuenta: falta el perfil.
+    content = (
+      <Routes>
+        <Route path="/legal/:document" element={<LegalScreen />} />
+        <Route path="*" element={<RegisterScreen mode="completeProfile" />} />
+      </Routes>
+    );
+  } else {
+    content = (
+      <Suspense fallback={<Splash />}>
+        <Routes>
+          <Route element={<CasinoLayout />}>
+            <Route path="/" element={<LobbyScreen />} />
+            <Route path="/progreso" element={<ProgressScreen />} />
+            <Route path="/historial" element={<HistoryScreen />} />
+            <Route path="/ajustes" element={<SettingsScreen />} />
+          </Route>
+          <Route path="/mesa/blackjack" element={<BlackjackScreen />} />
+          <Route path="/mesa/ruleta" element={<RouletteScreen />} />
+          <Route path="/mesa/slots" element={<SlotsScreen />} />
+          <Route path="/mesa/dados" element={<DiceScreen />} />
+          <Route path="/mesa/poker" element={<PokerScreen />} />
+          <Route path="/legal/:document" element={<LegalScreen />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Suspense>
+    );
+  }
+
+  return (
+    <>
+      <CardSvgDefs />
+      <ChipSvgDefs />
+      <OrientationGate onLeaveTable={() => navigate('/')}>{content}</OrientationGate>
+      {auth.status === 'signedIn' && auth.user.profile && <ProgressToasts />}
+    </>
+  );
+}

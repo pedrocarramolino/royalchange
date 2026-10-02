@@ -1,0 +1,60 @@
+import { useState, type FormEvent } from 'react';
+import { useNavigate } from 'react-router';
+import { AUTH_ERROR_TEXT, useAuth } from '@/data/auth';
+import { FIELD_ERROR_TEXT, validateEmail } from '@/domain/validation';
+import { Button } from '@/ui/Button';
+import { TextField } from '@/ui/Field';
+import { AuthLayout, FormBanner } from './AuthLayout';
+
+export function ForgotPasswordScreen() {
+  const navigate = useNavigate();
+  const sendPasswordReset = useAuth((s) => s.sendPasswordReset);
+  const [email, setEmail] = useState('');
+  const [submitted, setSubmitted] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const emailError = submitted ? validateEmail(email) : null;
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    setSubmitted(true);
+    setError(null);
+    if (validateEmail(email)) return;
+    setBusy(true);
+    const result = await sendPasswordReset(email);
+    setBusy(false);
+    if (result.ok) setSent(true);
+    else setError(AUTH_ERROR_TEXT[result.error]);
+  };
+
+  return (
+    <AuthLayout title="Recuperar contraseña" subtitle="Escribe el email de tu cuenta y te enviaremos un enlace para crear una contraseña nueva.">
+      {sent ? (
+        <div className="flex flex-col gap-6">
+          <FormBanner tone="success">Si existe una cuenta con ese email, recibirás un enlace en unos minutos. Revisa también la carpeta de spam.</FormBanner>
+          <Button size="lg" variant="secondary" block onClick={() => navigate('/entrar', { replace: true })}>
+            Volver a iniciar sesión
+          </Button>
+        </div>
+      ) : (
+        <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
+          {error && <FormBanner>{error}</FormBanner>}
+          <TextField
+            label="Email"
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            autoCapitalize="none"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            error={emailError && FIELD_ERROR_TEXT[emailError]}
+          />
+          <Button type="submit" size="lg" block loading={busy} className="mt-2">
+            Enviar enlace
+          </Button>
+        </form>
+      )}
+    </AuthLayout>
+  );
+}

@@ -38,3 +38,8 @@ firebase/tests/node_modules/
 # Configuración de Firebase descargada de la consola: la app no la usa (ver firebase.properties)
 google-services.json
 GoogleService-Info.plist
+
+# React (web/)
+web/dist/
+web/dev-dist/
+web/android/app/build/
