@@ -75,3 +75,25 @@ export const IconSound = ({ on, ...p }: SVGProps<SVGSVGElement> & { on: boolean 
     {on ? <path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" /> : <path d="m16 9.5 5 5m0-5-5 5" />}
   </svg>
 );
+
+export const IconUndo = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}>
+    <path d="M9 14 4 9l5-5" />
+    <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
+  </svg>
+);
+
+export const IconTrash = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}>
+    <path d="M4 7h16M10 11v6M14 11v6M5.5 7l1 12a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2l1-12M9 7V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V7" />
+  </svg>
+);
+
+export const IconRepeat = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}>
+    <path d="M17 2.5 20.5 6 17 9.5" />
+    <path d="M3.5 11.5V10a4 4 0 0 1 4-4h13" />
+    <path d="M7 21.5 3.5 18 7 14.5" />
+    <path d="M20.5 12.5V14a4 4 0 0 1-4 4h-13" />
+  </svg>
+);

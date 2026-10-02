@@ -7,7 +7,9 @@ import { play, resultSound, BIG_WIN_MULTIPLIER } from '@/audio/sound';
 import { Button } from '@/ui/Button';
 import { Celebration, ResultBanner } from '../shared/Celebration';
 import { ChipRack } from '../shared/ChipRack';
-import { GameShell, TableNotice, useGameViewport } from '../shared/GameShell';
+import { TableAction } from '../shared/TableAction';
+import { IconRepeat, IconTrash, IconUndo } from '@/ui/icons';
+import { GameShell, TableNotice, useTableSize } from '../shared/GameShell';
 import { economyNotice, useHoldProgressEvents } from '../shared/session';
 import { RouletteBoard } from './RouletteBoard';
 import { RouletteWheel, type WheelSpin } from './RouletteWheel';
@@ -19,7 +21,7 @@ export default function RouletteScreen() {
   const wallet = useReadyWallet();
   const playInstantRound = useWallet((s) => s.playInstantRound);
   const reducedMotion = useSettings((s) => s.reducedMotion);
-  const viewport = useGameViewport();
+  const table = useTableSize();
   const [chip, setChip] = useState(100);
   const [bets, setBets] = useState<Map<RouletteBet, number>>(new Map());
   const [history, setHistory] = useState<Map<RouletteBet, number>[]>([]);
@@ -130,11 +132,14 @@ export default function RouletteScreen() {
   };
 
   // Medidas: la rueda a la izquierda, el tapete ocupa el resto.
-  const tableHeight = Math.max(180, viewport.height - 48 - 68 - 8);
-  const wheelSize = Math.min(tableHeight - 8, viewport.width * 0.3, 340);
-  const boardWidth = Math.max(260, Math.min(viewport.width - wheelSize - 48, 900));
+  const tableHeight = Math.max(180, table.height - 8);
+  const wheelSize = Math.min(tableHeight - 8, table.width * 0.3, 340);
+  const boardWidth = Math.max(260, Math.min(table.width - wheelSize - 48, 900));
   const payouts = showResult && result ? new Map(result.results.map((r) => [r.bet, r.payout])) : null;
   const net = result ? result.totalPayout - result.totalStake : 0;
+  // Mesa estrecha (iPhone en vertical o pequeño): acciones con icono y fichas más pequeñas.
+  const compact = table.width < 720;
+  const showTotal = table.width >= (compact ? 600 : 800);
 
   return (
     <GameShell
@@ -142,22 +147,19 @@ export default function RouletteScreen() {
       notice={notice && <TableNotice onDismiss={() => setNotice(null)}>{notice}</TableNotice>}
       controls={
         <div className="flex h-[68px] items-center gap-2 px-3">
-          <ChipRack selected={chip} onSelect={setChip} size={38} values={CHIPS} disabled={!canBet} />
-          <div className="mx-1 hidden min-w-0 flex-1 text-center sm:block">
-            <p className="text-[11px] font-semibold tracking-wider text-mute uppercase">Apuesta total</p>
-            <p className="tabular font-bold text-gold-light">{chips(showResult ? 0 : total)}</p>
-          </div>
-          <div className="flex-1 sm:hidden" />
-          <Button variant="ghost" size="sm" disabled={!canBet || history.length === 0 || showResult} onClick={undo}>
-            Deshacer
-          </Button>
-          <Button variant="ghost" size="sm" disabled={!canBet || bets.size === 0 || showResult} onClick={clear}>
-            Borrar
-          </Button>
-          <Button variant="ghost" size="sm" disabled={!canBet || !lastBets || (bets.size > 0 && !showResult)} onClick={repeat}>
-            Repetir
-          </Button>
-          <Button className="min-w-28" loading={busy || spinning} disabled={bets.size === 0 || showResult} onClick={() => void spin()}>
+          <ChipRack selected={chip} onSelect={setChip} size={compact ? 32 : 38} values={CHIPS} disabled={!canBet} />
+          {showTotal ? (
+            <div className="mx-1 min-w-0 flex-1 text-center">
+              <p className="text-[11px] font-semibold tracking-wider text-mute uppercase">Apuesta total</p>
+              <p className="tabular font-bold text-gold-light">{chips(showResult ? 0 : total)}</p>
+            </div>
+          ) : (
+            <div className="flex-1" />
+          )}
+          <TableAction label="Deshacer" icon={<IconUndo className="size-5" />} compact={compact} disabled={!canBet || history.length === 0 || showResult} onClick={undo} />
+          <TableAction label="Borrar" icon={<IconTrash className="size-5" />} compact={compact} disabled={!canBet || bets.size === 0 || showResult} onClick={clear} />
+          <TableAction label="Repetir" icon={<IconRepeat className="size-5" />} compact={compact} disabled={!canBet || !lastBets || (bets.size > 0 && !showResult)} onClick={repeat} />
+          <Button className={compact ? 'min-w-24' : 'min-w-28'} loading={busy || spinning} disabled={bets.size === 0 || showResult} onClick={() => void spin()}>
             Girar
           </Button>
         </div>

@@ -1,4 +1,4 @@
-import { useState, type CSSProperties, type ReactNode } from 'react';
+import { useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { AnimatePresence, motion } from 'motion/react';
 import { useReadyWallet } from '@/data/wallet';
@@ -13,6 +13,32 @@ import { ProgressToasts } from '@/features/casino/ProgressToasts';
 export function useGameViewport(): Viewport {
   const viewport = useViewport();
   return isPhone(viewport) && !isLandscape(viewport) ? { width: viewport.height, height: viewport.width } : viewport;
+}
+
+// Espacio real de la mesa (el <main> sin los márgenes de la muesca y la barra de inicio). Lo mide la
+// GameShell montada; solo hay una a la vez.
+let measuredTable: Viewport | null = null;
+const tableListeners = new Set<() => void>();
+function publishTableSize(next: Viewport | null) {
+  if (next && measuredTable && next.width === measuredTable.width && next.height === measuredTable.height) return;
+  measuredTable = next;
+  tableListeners.forEach((l) => l());
+}
+
+/**
+ * Ancho y alto disponibles para la mesa, entre la cabecera y los controles y dentro de los márgenes
+ * seguros. Hasta que se mide, una estimación a partir de la pantalla.
+ */
+export function useTableSize(): Viewport {
+  const viewport = useGameViewport();
+  const measured = useSyncExternalStore(
+    (listener) => {
+      tableListeners.add(listener);
+      return () => tableListeners.delete(listener);
+    },
+    () => measuredTable,
+  );
+  return measured ?? { width: viewport.width, height: Math.max(0, viewport.height - 48 - 68) };
 }
 
 interface GameShellProps {
@@ -44,6 +70,26 @@ export function GameShell({ title, children, controls, actions, notice, surface 
   const rotated = isPhone(viewport) && !isLandscape(viewport);
   const insets = useSafeArea();
   const angle = useScreenAngle();
+  const main = useRef<HTMLElement>(null);
+
+  useLayoutEffect(() => {
+    const element = main.current;
+    if (!element) return;
+    const measure = () => {
+      const style = getComputedStyle(element);
+      publishTableSize({
+        width: Math.floor(element.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)),
+        height: Math.floor(element.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom)),
+      });
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => {
+      observer.disconnect();
+      publishTableSize(null);
+    };
+  }, []);
 
   // Girada 90° en el sentido de las agujas del reloj: el borde superior físico (muesca) queda a la
   // izquierda de la mesa y el inferior (barra de inicio), a la derecha.
@@ -92,7 +138,7 @@ export function GameShell({ title, children, controls, actions, notice, surface 
               </div>
             )}
           </header>
-          <main className="safe-x relative min-h-0 flex-1">{children}</main>
+          <main ref={main} className={`safe-x relative min-h-0 flex-1 ${controls ? '' : 'safe-bottom'}`}>{children}</main>
           {controls && (
             <footer className="safe-bottom safe-x relative z-20 shrink-0 border-t border-gold/20 bg-[linear-gradient(180deg,rgb(10_12_14/0.82),rgb(6_7_9/0.95))] backdrop-blur">
               {controls}

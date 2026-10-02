@@ -25,7 +25,9 @@ import { ChipStack } from '@/ui/Chip';
 import { PlayingCard } from '@/ui/PlayingCard';
 import { Celebration, ResultBanner } from '../shared/Celebration';
 import { ChipRack, TABLE_CHIPS } from '../shared/ChipRack';
-import { GameShell, TableNotice, useGameViewport } from '../shared/GameShell';
+import { TableAction } from '../shared/TableAction';
+import { IconTrash } from '@/ui/icons';
+import { GameShell, TableNotice, useTableSize } from '../shared/GameShell';
 import { economyNotice, loadSession, saveSession, usePlayerId, useHoldProgressEvents } from '../shared/session';
 
 interface Session {
@@ -189,6 +191,12 @@ export default function BlackjackScreen() {
   };
 
   const net = totalPayout(state) - totalStake(state);
+  // Mesa baja (móvil en horizontal): entre las cartas del crupier y las del jugador no cabe el rótulo
+  // del resultado, así que va a la izquierda, sobre el paño libre.
+  const table = useTableSize();
+  const bannerBeside = table.height < 400;
+  // Mesa estrecha: fichas más pequeñas, borrar con icono y sin rótulo de la apuesta (se ve en el círculo).
+  const compact = table.width < 640;
   const resultLabel = useMemo(() => {
     if (state.results.length === 0) return '';
     if (state.results.length === 1) {
@@ -211,15 +219,17 @@ export default function BlackjackScreen() {
         <div className="flex h-[68px] items-center gap-3 px-3">
           {betting ? (
             <>
-              <ChipRack selected={chip} onSelect={addChip} size={38} values={TABLE_CHIPS} disabled={busy || animating} />
-              <div className="min-w-0 flex-1 text-center">
-                <p className="text-[11px] font-semibold tracking-wider text-mute uppercase">Apuesta</p>
-                <p className="tabular font-bold text-gold-light">{chips(bet)}</p>
-              </div>
-              <Button variant="ghost" size="sm" onClick={() => setBet(0)} disabled={busy || animating || bet === 0}>
-                Borrar
-              </Button>
-              <Button size="md" className="min-w-36" loading={busy} disabled={animating || bet > balance || bet < BLACKJACK_RULES.minimumBet} onClick={() => void act({ type: 'deal', bet })}>
+              <ChipRack selected={chip} onSelect={addChip} size={compact ? 32 : 38} values={TABLE_CHIPS} disabled={busy || animating} />
+              {compact ? (
+                <div className="flex-1" />
+              ) : (
+                <div className="min-w-0 flex-1 text-center">
+                  <p className="text-[11px] font-semibold tracking-wider text-mute uppercase">Apuesta</p>
+                  <p className="tabular font-bold text-gold-light">{chips(bet)}</p>
+                </div>
+              )}
+              <TableAction label="Borrar" icon={<IconTrash className="size-5" />} compact={compact} disabled={busy || animating || bet === 0} onClick={() => setBet(0)} />
+              <Button size="md" className={compact ? 'min-w-28' : 'min-w-36'} loading={busy} disabled={animating || bet > balance || bet < BLACKJACK_RULES.minimumBet} onClick={() => void act({ type: 'deal', bet })}>
                 {bet > balance ? 'Sin saldo' : 'Repartir'}
               </Button>
             </>
@@ -242,12 +252,16 @@ export default function BlackjackScreen() {
         </div>
       }
     >
-      <BlackjackTable state={state} delays={delays} animating={animating} showResults={showResults} pendingBet={betting && state.phase !== 'roundOver' ? bet : null} />
-      {showResults && state.results.length > 0 && (
-        <div className="pointer-events-none absolute inset-x-0 top-[46%] z-20 flex -translate-y-1/2 justify-center">
-          <ResultBanner net={net} label={resultLabel} big={net > 0} />
-        </div>
-      )}
+      <div className="relative h-full">
+        <BlackjackTable state={state} delays={delays} animating={animating} showResults={showResults} pendingBet={betting && state.phase !== 'roundOver' ? bet : null} />
+        {showResults && state.results.length > 0 && (
+          <div
+            className={`pointer-events-none absolute z-20 flex justify-center ${bannerBeside ? 'inset-y-0 left-0 w-[30%] items-center px-2' : 'inset-x-0 top-[46%] -translate-y-1/2'}`}
+          >
+            <ResultBanner net={net} label={resultLabel} big={net > 0} />
+          </div>
+        )}
+      </div>
       <Celebration trigger={celebrate} />
     </GameShell>
   );
@@ -266,8 +280,7 @@ function BlackjackTable({
   showResults: boolean;
   pendingBet: number | null;
 }) {
-  const viewport = useGameViewport();
-  const tableHeight = Math.max(200, viewport.height - 48 - 68);
+  const tableHeight = Math.max(200, useTableSize().height);
   const cardWidth = Math.round(Math.min(104, Math.max(46, tableHeight * 0.3)));
   const dealerValue = handValue(state.holeCardRevealed ? state.dealer : state.dealer.slice(0, 1));
   const empty = state.hands.length === 0;

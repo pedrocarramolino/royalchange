@@ -9,7 +9,7 @@ import { Button } from '@/ui/Button';
 import { Dialog } from '@/ui/Dialog';
 import { useCountUp } from '@/ui/ChipBalance';
 import { Celebration } from '../shared/Celebration';
-import { GameShell, TableNotice, useGameViewport } from '../shared/GameShell';
+import { GameShell, TableNotice, useTableSize } from '../shared/GameShell';
 import { economyNotice, useHoldProgressEvents } from '../shared/session';
 import { SlotSvgDefs, SlotSymbolArt } from './SlotSymbolArt';
 
@@ -19,7 +19,7 @@ export default function SlotsScreen() {
   const wallet = useReadyWallet();
   const playInstantRound = useWallet((s) => s.playInstantRound);
   const reducedMotion = useSettings((s) => s.reducedMotion);
-  const viewport = useGameViewport();
+  const table = useTableSize();
   const [betIndex, setBetIndex] = useState(3);
   const [stops, setStops] = useState<number[]>(() => STRIPS.map((s) => Math.floor(Math.random() * s.length)));
   const [spin, setSpin] = useState<{ id: number; previous: number[]; result: SlotSpin } | null>(null);
@@ -36,9 +36,9 @@ export default function SlotsScreen() {
   const totalBet = lineBet * LINES.length;
   const balance = wallet?.balance ?? 0;
 
-  const tableHeight = Math.max(180, viewport.height - 48 - 68);
+  const tableHeight = Math.max(180, table.height);
   // Rodillos en el centro; a los lados, las líneas (izquierda) y el indicador de premio (derecha).
-  const cell = Math.floor(Math.min((tableHeight - 36) / ROWS, (viewport.width - 330) / REELS, 112));
+  const cell = Math.floor(Math.min((tableHeight - 48) / ROWS, (table.width - 330) / REELS, 112));
 
   const go = async () => {
     if (busy || spinning) return;
@@ -129,7 +129,7 @@ export default function SlotsScreen() {
     >
       <SlotSvgDefs />
       <div className="flex h-full items-center justify-center gap-3 px-2">
-        <LineIndicators wins={showResult ? wins : []} shown={visibleWins} height={ROWS * (cell + 4) + 18} />
+        {table.width >= 640 && <LineIndicators wins={showResult ? wins : []} shown={visibleWins} height={ROWS * (cell + 4) + 18} />}
         <div className="relative shrink-0 rounded-[28px] bg-[linear-gradient(180deg,#2a1810,#140b07)] p-3 shadow-[0_24px_50px_-16px_rgb(0_0_0/0.9),inset_0_0_0_2px_rgb(212_175_106/0.8),inset_0_0_0_7px_#1b100a,inset_0_0_0_8px_rgb(212_175_106/0.35)]">
           <div className="relative overflow-hidden rounded-2xl bg-[#08090c] p-1.5 shadow-[inset_0_0_24px_rgb(0_0_0/1)]">
             <div className="flex gap-1.5">
@@ -186,7 +186,7 @@ function LineIndicators({ wins, shown, height }: { wins: SlotSpin['wins']; shown
   const paying = new Set(wins.map((w) => w.line));
   const current = new Set(shown.map((w) => w.line));
   return (
-    <ol className="hidden shrink-0 flex-col justify-between py-1 sm:flex" style={{ height }} aria-label="Líneas de premio">
+    <ol className="flex shrink-0 flex-col justify-between py-1" style={{ height }} aria-label="Líneas de premio">
       {LINES.map((_, line) => {
         const on = paying.has(line);
         return (

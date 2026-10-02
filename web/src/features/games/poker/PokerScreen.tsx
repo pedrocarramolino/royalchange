@@ -8,7 +8,7 @@ import { Button } from '@/ui/Button';
 import { ChipStack } from '@/ui/Chip';
 import { PlayingCard } from '@/ui/PlayingCard';
 import { Celebration } from '../shared/Celebration';
-import { GameShell, TableNotice, useGameViewport } from '../shared/GameShell';
+import { GameShell, TableNotice, useTableSize } from '../shared/GameShell';
 import { useHoldProgressEvents } from '../shared/session';
 import { HERO, usePokerTable } from './usePokerTable';
 
@@ -41,11 +41,12 @@ function SitDown({ onSit, busy }: { onSit: (table: number, buyIn: number) => voi
   const [buyIn, setBuyIn] = useState(Math.round((rules.minBuyIn + rules.maxBuyIn) / 2 / 10) * 10);
   const clamped = Math.max(Math.min(buyIn, maxBuyIn), Math.min(rules.minBuyIn, maxBuyIn));
   const canSit = maxBuyIn >= rules.minBuyIn;
+  const wide = useTableSize().width >= 640;
 
   return (
     <div className="flex h-full items-center justify-center overflow-y-auto px-4 py-2">
       <div className="flex w-full max-w-3xl items-center gap-6">
-        <div className="hidden flex-1 sm:block">
+        <div className={wide ? 'flex-1' : 'hidden'}>
           <h2 className="font-display text-2xl font-semibold text-gold-gradient">Texas Hold’em sin límite</h2>
           <p className="mt-2 text-sm leading-relaxed text-ivory-dim">
             Seis asientos: tú y cinco bots con estilos distintos. Las fichas que llevas a la mesa son lo máximo que puedes arriesgar en una mano; cada ficha que pones en el bote se descuenta de tu saldo y lo que ganas vuelve a él al terminar la mano.
@@ -121,8 +122,7 @@ const BET_POS: [number, number][] = [
 ];
 
 function PokerTable({ table }: { table: PokerState }) {
-  const viewport = useGameViewport();
-  const height = Math.max(200, viewport.height - 48 - 68);
+  const height = Math.max(200, useTableSize().height);
   const boardCard = Math.round(Math.min(64, Math.max(34, height * 0.17)));
   const heroCard = Math.round(Math.min(72, Math.max(40, height * 0.2)));
   const botCard = Math.round(Math.min(40, Math.max(24, height * 0.11)));
@@ -221,10 +221,13 @@ function SeatView({ table, index, seat, cardWidth }: { table: PokerState; index:
   const status = active && !seat.isHuman ? 'Pensando…' : seat.lastAction ? ACTION_LABEL[seat.lastAction] : null;
   const hero = index === HERO;
   const description = `${seat.isHuman ? 'Tú' : seat.name}: ${chips(seat.stack)}${status ? `, ${status}` : ''}${seat.folded ? ', retirado' : ''}`;
+  // Los asientos de abajo (el jugador) y de arriba van pegados al borde: en una mesa baja (móvil) no
+  // se meten bajo los controles ni la cabecera.
+  const edge = hero ? { bottom: 4 } : index === 3 ? { top: 10 } : null;
   return (
     <div
-      className={`absolute flex -translate-x-1/2 -translate-y-1/2 items-center gap-1.5 transition-opacity ${seat.folded || out ? 'opacity-45' : ''} ${hero ? 'flex-row' : index < 3 ? 'flex-row' : 'flex-row-reverse'}`}
-      style={{ left: `${x * 100}%`, top: `${y * 100}%` }}
+      className={`absolute flex -translate-x-1/2 ${edge ? '' : '-translate-y-1/2'} items-center gap-1.5 transition-opacity ${seat.folded || out ? 'opacity-45' : ''} ${hero ? 'flex-row' : index < 3 ? 'flex-row' : 'flex-row-reverse'}`}
+      style={{ left: `${x * 100}%`, ...(edge ?? { top: `${y * 100}%` }) }}
       aria-label={description}
     >
       {seat.hole.length > 0 && (
@@ -332,14 +335,20 @@ function Controls({ table, poker }: { table: PokerState; poker: ReturnType<typeo
   const waitingOthers = table.phase === 'betting';
   return (
     <div className="flex h-[68px] items-center gap-3 px-3">
-      <p className="min-w-0 flex-1 truncate text-sm text-ivory-dim" aria-live="polite">
+      <p className="line-clamp-2 min-w-0 flex-1 text-sm leading-snug text-ivory-dim" aria-live="polite">
         {waitingOthers
           ? hero.folded
             ? 'Te has retirado: espera a la siguiente mano.'
             : `Turno de ${table.toAct !== null ? table.seats[table.toAct]!.name : '…'}`
           : needsRebuy
             ? 'Te has quedado sin fichas en la mesa. Recompra para seguir.'
-            : `Tus fichas en la mesa: ${chips(hero.stack)} · saldo ${chips(wallet?.balance ?? 0)}`}
+            : (
+              <>
+                En la mesa: <span className="font-semibold text-gold-light">{chips(hero.stack)}</span>
+                <br />
+                Saldo: {chips(wallet?.balance ?? 0)}
+              </>
+            )}
       </p>
       <Button variant="ghost" disabled={poker.busy || (waitingOthers && !hero.folded)} onClick={poker.standUp}>
         Levantarse

@@ -10,7 +10,9 @@ import { ChipStack } from '@/ui/Chip';
 import { Die } from '@/features/lobby/GameArt';
 import { Celebration, ResultBanner } from '../shared/Celebration';
 import { ChipRack } from '../shared/ChipRack';
-import { GameShell, TableNotice, useGameViewport } from '../shared/GameShell';
+import { TableAction } from '../shared/TableAction';
+import { IconRepeat, IconTrash, IconUndo } from '@/ui/icons';
+import { GameShell, TableNotice, useTableSize } from '../shared/GameShell';
 import { economyNotice, useHoldProgressEvents } from '../shared/session';
 
 const CHIPS = [10, 50, 100, 500, 1000, 5000];
@@ -30,7 +32,7 @@ export default function DiceScreen() {
   const wallet = useReadyWallet();
   const playInstantRound = useWallet((s) => s.playInstantRound);
   const reducedMotion = useSettings((s) => s.reducedMotion);
-  const viewport = useGameViewport();
+  const table = useTableSize();
   const [chip, setChip] = useState(50);
   const [bets, setBets] = useState<Map<DiceBet, number>>(new Map());
   const [history, setHistory] = useState<Map<DiceBet, number>[]>([]);
@@ -96,11 +98,33 @@ export default function DiceScreen() {
     );
   };
 
-  const tableHeight = Math.max(180, viewport.height - 48 - 68);
-  const traySize = Math.min(tableHeight - 12, viewport.width * 0.3, 300);
+  const tableHeight = Math.max(180, table.height);
+  const traySize = Math.min(tableHeight - 12, table.width * 0.3, 300);
   const shownBets = showResult && result ? new Map(result.results.map((r) => [r.bet, r.stake])) : bets;
   const payouts = showResult && result ? new Map(result.results.map((r) => [r.bet, r.payout])) : null;
   const net = result ? result.totalPayout - result.totalStake : 0;
+  // Mesa estrecha (iPhone en vertical o pequeño): acciones con icono y fichas más pequeñas.
+  const compact = table.width < 720;
+  const showTotal = table.width >= (compact ? 600 : 800);
+  const undo = () => {
+    const previous = history[history.length - 1];
+    if (!previous) return;
+    setHistory((h) => h.slice(0, -1));
+    setBets(previous);
+  };
+  const clear = () => {
+    setHistory((h) => [...h, bets]);
+    setBets(new Map());
+  };
+  const repeat = () => {
+    if (!lastBets) return;
+    const amount = [...lastBets.values()].reduce((s, v) => s + v, 0);
+    if (amount > balance) return setNotice('No tienes fichas suficientes para repetir la apuesta.');
+    setHistory((h) => [...h, bets]);
+    setBets(new Map(lastBets));
+    setShowResult(false);
+    play('chip');
+  };
 
   return (
     <GameShell
@@ -108,38 +132,19 @@ export default function DiceScreen() {
       notice={notice && <TableNotice onDismiss={() => setNotice(null)}>{notice}</TableNotice>}
       controls={
         <div className="flex h-[68px] items-center gap-2 px-3">
-          <ChipRack selected={chip} onSelect={setChip} size={38} values={CHIPS} disabled={!canBet} />
-          <div className="mx-1 hidden min-w-0 flex-1 text-center sm:block">
-            <p className="text-[11px] font-semibold tracking-wider text-mute uppercase">Apuesta total</p>
-            <p className="tabular font-bold text-gold-light">{chips(showResult ? 0 : total)}</p>
-          </div>
-          <div className="flex-1 sm:hidden" />
-          <Button variant="ghost" size="sm" disabled={!canBet || history.length === 0 || showResult} onClick={() => {
-            const previous = history[history.length - 1];
-            if (!previous) return;
-            setHistory((h) => h.slice(0, -1));
-            setBets(previous);
-          }}>
-            Deshacer
-          </Button>
-          <Button variant="ghost" size="sm" disabled={!canBet || bets.size === 0 || showResult} onClick={() => {
-            setHistory((h) => [...h, bets]);
-            setBets(new Map());
-          }}>
-            Borrar
-          </Button>
-          <Button variant="ghost" size="sm" disabled={!canBet || !lastBets || (bets.size > 0 && !showResult)} onClick={() => {
-            if (!lastBets) return;
-            const amount = [...lastBets.values()].reduce((s, v) => s + v, 0);
-            if (amount > balance) return setNotice('No tienes fichas suficientes para repetir la apuesta.');
-            setHistory((h) => [...h, bets]);
-            setBets(new Map(lastBets));
-            setShowResult(false);
-            play('chip');
-          }}>
-            Repetir
-          </Button>
-          <Button className="min-w-28" loading={busy || rolling} disabled={bets.size === 0 || showResult} onClick={() => void roll()}>
+          <ChipRack selected={chip} onSelect={setChip} size={compact ? 32 : 38} values={CHIPS} disabled={!canBet} />
+          {showTotal ? (
+            <div className="mx-1 min-w-0 flex-1 text-center">
+              <p className="text-[11px] font-semibold tracking-wider text-mute uppercase">Apuesta total</p>
+              <p className="tabular font-bold text-gold-light">{chips(showResult ? 0 : total)}</p>
+            </div>
+          ) : (
+            <div className="flex-1" />
+          )}
+          <TableAction label="Deshacer" icon={<IconUndo className="size-5" />} compact={compact} disabled={!canBet || history.length === 0 || showResult} onClick={undo} />
+          <TableAction label="Borrar" icon={<IconTrash className="size-5" />} compact={compact} disabled={!canBet || bets.size === 0 || showResult} onClick={clear} />
+          <TableAction label="Repetir" icon={<IconRepeat className="size-5" />} compact={compact} disabled={!canBet || !lastBets || (bets.size > 0 && !showResult)} onClick={repeat} />
+          <Button className={compact ? 'min-w-24' : 'min-w-28'} loading={busy || rolling} disabled={bets.size === 0 || showResult} onClick={() => void roll()}>
             Tirar
           </Button>
         </div>
@@ -158,7 +163,7 @@ export default function DiceScreen() {
             </div>
           )}
         </div>
-        <div className="relative flex min-w-0 flex-1 flex-col gap-2" style={{ maxWidth: 620, height: Math.min(tableHeight - 8, 300) }}>
+        <div className="relative flex min-w-0 flex-1 flex-col gap-2" style={{ maxWidth: 620, height: Math.min(tableHeight - 20, 300) }}>
           <div className="grid flex-[1.25] grid-cols-4 gap-2">
             {TOP.map(({ bet, title, subtitle }) => (
               <BetBox key={bet} bet={bet} title={title} subtitle={subtitle} stake={shownBets.get(bet)} payout={payouts?.get(bet)} result={showResult && result ? result : null} disabled={!canBet} onPlace={place} />
