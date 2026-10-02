@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
-import { IconFlame } from '@/ui/icons';
+import { IconFlame, IconSnowflake } from '@/ui/icons';
 import { usePlayerId } from '../shared/session';
+import { coldNumbers, hotNumbers, MIN_FOR_COLD, type NumberCount } from './stats';
 import { COLOR_NAME, colorOf } from './wheel';
 
-/** Tiradas que se guardan (y sobre las que se calculan los números calientes). */
+/** Tiradas que se guardan (y sobre las que se calculan los números calientes y fríos). */
 const HISTORY_SIZE = 100;
 /** Alto del marcador, con su separación de la mesa. */
 export const STATS_HEIGHT = 42;
@@ -40,15 +41,19 @@ export function useRouletteHistory(): [number[], (n: number) => void] {
   return [history, add];
 }
 
-/** Los números que más han salido (al menos dos veces); a igualdad, el que salió más recientemente. */
-export function hotNumbers(history: number[], count: number): { n: number; times: number }[] {
-  const times = new Map<number, number>();
-  history.forEach((n) => times.set(n, (times.get(n) ?? 0) + 1));
-  return [...times.entries()]
-    .filter(([, t]) => t >= 2)
-    .sort((a, b) => b[1] - a[1] || history.indexOf(a[0]) - history.indexOf(b[0]))
-    .slice(0, count)
-    .map(([n, t]) => ({ n, times: t }));
+/**
+ * Cuántos números caben a lo ancho. Cada último número ocupa 28 px; cada caliente o frío, 46 con su
+ * contador, y el panel de calientes y fríos, 73 más (icono, separador y márgenes). Se reparte para
+ * que se vean al menos cinco de los últimos; los nombres «Calientes» y «Fríos», solo si sobra sitio.
+ */
+function layout(width: number): { group: number; recent: number; labels: boolean } {
+  const usable = Math.min(width, 900) - 32;
+  const recentFits = (group: number, labels: boolean) => Math.floor((usable - (73 + 92 * group + (labels ? 112 : 0)) - 82) / 28);
+  for (const group of [4, 3, 2]) {
+    if (recentFits(group, true) >= 8) return { group, recent: Math.min(12, recentFits(group, true)), labels: true };
+    if (recentFits(group, false) >= (group > 2 ? 5 : 0)) return { group, recent: Math.max(3, Math.min(12, recentFits(group, false))), labels: false };
+  }
+  return { group: 2, recent: 3, labels: false };
 }
 
 function Ball({ n, latest }: { n: number; latest?: boolean }) {
@@ -62,22 +67,35 @@ function Ball({ n, latest }: { n: number; latest?: boolean }) {
   );
 }
 
+function CountedBalls({ items, tone }: { items: NumberCount[]; tone: string }) {
+  return (
+    <div className="flex gap-1.5" aria-hidden>
+      {items.map(({ n, times }) => (
+        <span key={n} className="flex items-center gap-0.5">
+          <Ball n={n} />
+          <span className={`tabular text-[10px] font-bold ${tone}`}>×{times}</span>
+        </span>
+      ))}
+    </div>
+  );
+}
+
 /**
  * Marcador sobre la rueda y el tapete, como el de las mesas de casino: los últimos números (el más
- * reciente primero y resaltado) y los números calientes con las veces que han salido.
+ * reciente primero y resaltado) y, juntos, los calientes y los fríos con las veces que han salido.
  */
 export function RouletteStats({ history, width }: { history: number[]; width: number }) {
-  const hotCount = width >= 700 ? 5 : width >= 560 ? 4 : 3;
-  // Lo que cabe a lo ancho: cada número ocupa 28 px; los calientes, 48 con su contador.
-  const recentCount = Math.max(3, Math.min(12, Math.floor((width - 24 - 8 - (100 + hotCount * 48) - 16 - 62) / 28)));
-  const hot = useMemo(() => hotNumbers(history, hotCount), [history, hotCount]);
+  const { group, recent: recentCount, labels } = layout(width);
+  const hot = useMemo(() => hotNumbers(history, group), [history, group]);
+  const cold = useMemo(() => coldNumbers(history, group, hot.map((h) => h.n)), [history, group, hot]);
   const recent = history.slice(0, recentCount);
   const panel = 'flex h-8 items-center gap-2 rounded-lg bg-black/45 px-2 ring-1 ring-gold/25';
+  const spins = history.length === 1 ? 'tu última tirada' : `tus últimas ${history.length} tiradas`;
 
   return (
     <div className="mx-auto flex w-full max-w-[900px] shrink-0 gap-2 px-3">
       <section
-        className={`${panel} min-w-0 flex-1`}
+        className={`${panel} min-w-0 flex-1 overflow-hidden`}
         aria-label={recent.length ? `Últimos números: ${recent.map((n) => `${n} ${COLOR_NAME[colorOf(n)]}`).join(', ')}` : 'Últimos números: aún no hay tiradas'}
       >
         <span className="felt-print shrink-0 text-[10px] font-bold">Últimos</span>
@@ -101,27 +119,24 @@ export function RouletteStats({ history, width }: { history: number[]; width: nu
           </span>
         )}
       </section>
-      <section
-        className={`${panel} shrink-0`}
-        title={`En tus últimas ${history.length} tiradas`}
-        aria-label={hot.length ? `Números calientes en tus últimas ${history.length} tiradas: ${hot.map((h) => `${h.n}, ${h.times} veces`).join('; ')}` : 'Números calientes: aún no hay suficientes tiradas'}
-      >
-        <IconFlame className="size-4 shrink-0 text-[#ff8a5b]" />
-        <span className="felt-print shrink-0 text-[10px] font-bold">Calientes</span>
-        {hot.length ? (
-          <div className="flex gap-2" aria-hidden>
-            {hot.map(({ n, times }) => (
-              <span key={n} className="flex items-center gap-0.5">
-                <Ball n={n} />
-                <span className="tabular text-[10px] font-bold text-gold-light">×{times}</span>
-              </span>
-            ))}
-          </div>
-        ) : (
-          <span className="text-[11px] text-mute" aria-hidden>
-            Aún sin datos
-          </span>
-        )}
+      <section className={`${panel} shrink-0`} title={`Calientes y fríos en ${spins}`}>
+        <div
+          className="flex items-center gap-1.5"
+          aria-label={hot.length ? `Números calientes en ${spins}: ${hot.map((h) => `${h.n}, ${h.times} veces`).join('; ')}` : 'Números calientes: aún no hay suficientes tiradas'}
+        >
+          <IconFlame className="size-4 shrink-0 text-[#ff8a5b]" />
+          {labels && <span className="felt-print text-[10px] font-bold">Calientes</span>}
+          {hot.length ? <CountedBalls items={hot} tone="text-[#ffb08f]" /> : <span className="text-[11px] text-mute">—</span>}
+        </div>
+        <span className="mx-1 h-5 w-px bg-gold/25" aria-hidden />
+        <div
+          className="flex items-center gap-1.5"
+          aria-label={cold.length ? `Números fríos en ${spins}: ${cold.map((c) => `${c.n}, ${c.times === 0 ? 'ninguna vez' : c.times === 1 ? 'una vez' : `${c.times} veces`}`).join('; ')}` : `Números fríos: se muestran a partir de ${MIN_FOR_COLD} tiradas`}
+        >
+          <IconSnowflake className="size-4 shrink-0 text-[#8fd3ff]" />
+          {labels && <span className="felt-print text-[10px] font-bold">Fríos</span>}
+          {cold.length ? <CountedBalls items={cold} tone="text-[#b5e3ff]" /> : <span className="text-[11px] text-mute">—</span>}
+        </div>
       </section>
     </div>
   );

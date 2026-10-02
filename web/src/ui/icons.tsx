@@ -97,3 +97,10 @@ export const IconRepeat = (p: SVGProps<SVGSVGElement>) => (
     <path d="M20.5 12.5V14a4 4 0 0 1-4 4h-13" />
   </svg>
 );
+
+export const IconSnowflake = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}>
+    <path d="M12 2.5v19M3.8 7.25l16.4 9.5M3.8 16.75l16.4-9.5" />
+    <path d="m9.5 4 2.5 2.5L14.5 4M9.5 20l2.5-2.5 2.5 2.5M4.2 10.2l3.4-.9-.9-3.4M19.8 13.8l-3.4.9.9 3.4M4.2 13.8l3.4.9-.9 3.4M19.8 10.2l-3.4-.9.9-3.4" />
+  </svg>
+);
