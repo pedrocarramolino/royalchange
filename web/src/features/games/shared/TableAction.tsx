@@ -20,7 +20,7 @@ export function TableAction({ label, icon, compact, disabled, onClick }: { label
       title={label}
       disabled={disabled}
       onClick={onClick}
-      className="grid size-10 shrink-0 place-items-center rounded-xl text-gold transition-colors hover:bg-gold/10 active:bg-gold/15 disabled:opacity-40"
+      className="grid size-10 shrink-0 place-items-center rounded-xl text-gold transition-[transform,background-color] duration-150 ease-out hover:bg-gold/10 active:scale-[0.95] active:bg-gold/15 disabled:opacity-40 disabled:active:scale-100"
     >
       {icon}
     </button>

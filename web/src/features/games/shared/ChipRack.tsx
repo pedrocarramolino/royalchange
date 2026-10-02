@@ -24,6 +24,7 @@ export function ChipRack({ selected, onSelect, size = 40, values = TABLE_CHIPS, 
               onSelect(value);
             }}
             animate={{ y: active ? -6 : 0 }}
+            whileTap={{ scale: 0.92 }}
             transition={{ type: 'spring', stiffness: 500, damping: 28 }}
             className={`relative rounded-full disabled:opacity-40 ${active ? 'drop-shadow-[0_0_10px_rgb(243_223_162/0.7)]' : ''}`}
           >

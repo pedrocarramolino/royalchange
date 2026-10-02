@@ -174,7 +174,7 @@ function StepButton({ children, label, disabled, onClick }: { children: string; 
         play('chip');
         onClick();
       }}
-      className="grid size-11 place-items-center rounded-full bg-ink-3 text-2xl font-bold text-gold-light ring-1 ring-gold/60 disabled:opacity-30"
+      className="grid size-11 place-items-center rounded-full bg-ink-3 text-2xl font-bold text-gold-light ring-1 ring-gold/60 transition-transform duration-150 ease-out active:scale-[0.95] disabled:opacity-30 disabled:active:scale-100"
     >
       {children}
     </button>
@@ -278,8 +278,9 @@ function Reel({
       <motion.div
         key={spin?.id ?? 'idle'}
         className="flex flex-col gap-1"
-        initial={{ y: -travel }}
-        animate={{ y: 0 }}
+        // transform completo (va por la GPU); la curva acaba con un pequeño rebote, como un rodillo que se clava.
+        initial={{ transform: `translateY(${-travel}px)` }}
+        animate={{ transform: 'translateY(0px)' }}
         transition={{ duration, ease: [0.25, 0.1, 0.25, 1.08] }}
       >
         {column.map((symbol, i) => {
@@ -292,7 +293,7 @@ function Reel({
               className={`relative grid shrink-0 place-items-center transition-opacity duration-300 ${lit ? 'rounded-md bg-gold/30 shadow-[inset_0_0_0_3px_#e2c27f,0_0_18px_rgb(243_223_162/0.6)]' : ''}`}
               style={{ width: cell, height: cell, opacity: dim ? 0.3 : 1 }}
             >
-              <motion.div animate={lit ? { scale: [1, 1.12, 1] } : { scale: 1 }} transition={lit ? { duration: 0.9, repeat: Infinity } : { duration: 0.2 }}>
+              <motion.div animate={{ transform: lit ? ['scale(1)', 'scale(1.12)', 'scale(1)'] : 'scale(1)' }} transition={lit ? { duration: 0.9, repeat: Infinity, ease: 'easeInOut' } : { duration: 0.2 }}>
                 <SlotSymbolArt symbol={symbol} size={cell * 0.78} />
               </motion.div>
             </div>

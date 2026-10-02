@@ -12,6 +12,7 @@ import { Celebration, ResultBanner } from '../shared/Celebration';
 import { ChipRack } from '../shared/ChipRack';
 import { TableAction } from '../shared/TableAction';
 import { IconRepeat, IconTrash, IconUndo } from '@/ui/icons';
+import { CHIP_DROP, EASE_OUT } from '@/ui/motion';
 import { GameShell, TableNotice, useTableSize } from '../shared/GameShell';
 import { economyNotice, useHoldProgressEvents } from '../shared/session';
 
@@ -219,7 +220,7 @@ function BetBox({
       disabled={disabled}
       onClick={() => onPlace(bet)}
       aria-label={`Apostar a ${diceBetName(bet)}, paga ${multiplierText(multiplierTenths(bet))}${stake ? `. Tienes ${chips(stake)}` : ''}`}
-      className={`relative flex flex-col items-center justify-center rounded-xl border-2 text-center transition-colors ${winningBox ? 'border-gold-light bg-gold/20' : 'border-gold-light/45 hover:bg-white/5'} ${disabled ? '' : 'active:bg-white/10'}`}
+      className={`relative flex flex-col items-center justify-center rounded-xl border-2 text-center transition-[transform,background-color,border-color] duration-150 ease-out ${winningBox ? 'border-gold-light bg-gold/20' : 'border-gold-light/45 hover:bg-white/5'} ${disabled ? '' : 'active:scale-[0.97] active:bg-white/10'}`}
     >
       <span className="felt-print text-[13px] leading-tight font-bold text-gold-light/90">{title}</span>
       {subtitle && <span className="felt-print text-[10px] text-gold-light/70">{subtitle}</span>}
@@ -227,8 +228,9 @@ function BetBox({
       {stake ? (
         <motion.span
           className="absolute -top-2 -right-2 flex items-center gap-0.5"
-          initial={{ scale: 0.5, opacity: 0 }}
-          animate={{ scale: 1, opacity: result && !won ? 0.3 : 1 }}
+          initial={CHIP_DROP.initial}
+          animate={{ ...CHIP_DROP.animate, opacity: result && !won ? 0.3 : 1 }}
+          transition={CHIP_DROP.transition}
         >
           <ChipStack amount={won ? payout! : stake} size={24} max={3} />
           <span className="tabular rounded bg-black/60 px-1 text-[10px] font-bold text-gold-light">{grouped(won ? payout! : stake)}</span>
@@ -264,14 +266,17 @@ function DiceTray({ size, roll, throwId, rolling, reducedMotion }: { size: numbe
   }, [rolling, roll.first, roll.second]);
 
   const die = size * 0.27;
-  const path = (i: number) =>
-    reducedMotion
-      ? { x: 0, y: 0, rotate: 0 }
-      : {
-          x: [size * 0.7, size * 0.15, -size * 0.05 + i * 8, 0],
-          y: [-size * 0.25 + i * 30, size * 0.18 - i * 20, -size * 0.04, 0],
-          rotate: [0, 260 + i * 70, 340 + i * 40, i === 0 ? -12 : 14],
-        };
+  const at = (x: number, y: number, turn: number) => `translate(${x}px, ${y}px) rotate(${turn}deg)`;
+  const rest = (i: number) => (i === 0 ? -12 : 14);
+  // Entran por la derecha, rebotan contra el fondo y se paran. Acaban con una vuelta completa de más,
+  // así que su postura final es la de reposo y no giran hacia atrás al pararse.
+  const tumble = (i: number) => [
+    at(size * 0.7, -size * 0.25 + i * 30, 0),
+    at(size * 0.15, size * 0.18 - i * 20, 260 + i * 70),
+    at(-size * 0.05 + i * 8, -size * 0.04, 340 + i * 40),
+    at(0, 0, 360 + rest(i)),
+  ];
+  const throwing = rolling && !reducedMotion;
   return (
     <div
       className="relative grid place-items-center rounded-[28px] bg-[radial-gradient(ellipse_at_50%_40%,#5e1220,#3b0b15_60%,#22060c)] shadow-[0_18px_40px_-10px_rgb(0_0_0/0.85),inset_0_0_0_3px_rgb(212_175_106/0.7),inset_0_0_0_9px_#1b100a,inset_0_10px_30px_rgb(0_0_0/0.6)]"
@@ -281,7 +286,15 @@ function DiceTray({ size, roll, throwId, rolling, reducedMotion }: { size: numbe
     >
       <div className="flex gap-[6%]">
         {[0, 1].map((i) => (
-          <motion.div key={`${throwId}-${i}`} initial={false} animate={rolling ? path(i) : { x: 0, y: 0, rotate: i === 0 ? -12 : 14 }} transition={{ duration: ROLL_MS / 1000, times: [0, 0.4, 0.75, 1], ease: 'easeOut' }} className="drop-shadow-[0_8px_8px_rgb(0_0_0/0.55)]">
+          <motion.div
+            key={`${throwId}-${i}`}
+            // Cada tirada monta los dados de nuevo y parten del primer fotograma (con initial={false}
+            // empezarían ya parados en el último y no rodarían).
+            initial={throwing ? { transform: tumble(i)[0] } : false}
+            animate={{ transform: throwing ? tumble(i) : at(0, 0, rest(i)) }}
+            transition={throwing ? { duration: ROLL_MS / 1000, times: [0, 0.4, 0.75, 1], ease: EASE_OUT } : { duration: 0 }}
+            className="drop-shadow-[0_8px_8px_rgb(0_0_0/0.55)]"
+          >
             <Die value={faces[i]!} size={die} />
           </motion.div>
         ))}

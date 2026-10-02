@@ -4,6 +4,7 @@ import { colorOf } from './wheel';
 import { betName, betNumbers, type RouletteBet } from '@/engine/roulette';
 import { Chip } from '@/ui/Chip';
 import { chipLabel } from '@/lib/format';
+import { CHIP_DROP } from '@/ui/motion';
 
 // Tapete horizontal, en unidades de casilla: 0 a la izquierda (1 de ancho), 12 columnas de 3
 // números, 2:1 a la derecha; debajo, docenas (0,8 de alto) y apuestas sencillas (0,8).
@@ -150,12 +151,13 @@ export function RouletteBoard({ width, height, bets, winning, payouts, disabled,
             key={bet}
             className="pointer-events-none absolute"
             style={{ left: x * unit - size / 2, top: y * unit - size / 2 }}
-            initial={{ scale: 0.4, y: -12, opacity: 0 }}
-            animate={{ scale: 1, y: 0, opacity: lost ? 0.25 : 1 }}
-            transition={{ type: 'spring', stiffness: 500, damping: 26 }}
+            initial={CHIP_DROP.initial}
+            animate={{ ...CHIP_DROP.animate, opacity: lost ? 0.25 : 1 }}
+            transition={CHIP_DROP.transition}
           >
             <Chip value={payout ?? amount} size={size} label={chipLabel(payout ?? amount)} />
-            {payout ? <span className="absolute inset-0 animate-ping rounded-full ring-2 ring-gold-light" /> : null}
+            {/* Brillo de la ficha ganadora: dos latidos y se queda quieta. */}
+            {payout ? <span className="absolute inset-0 animate-ping rounded-full ring-2 ring-gold-light" style={{ animationIterationCount: 2 }} /> : null}
           </motion.div>
         );
       })}

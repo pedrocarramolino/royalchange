@@ -1,6 +1,8 @@
 import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes } from 'react-router';
+import { MotionConfig } from 'motion/react';
 import { useAuth } from '@/data/auth';
+import { useSettings } from '@/data/settings';
 import { CardSvgDefs } from '@/ui/PlayingCard';
 import { ChipSvgDefs } from '@/ui/Chip';
 import { OrientationGate } from '@/ui/OrientationGate';
@@ -29,6 +31,8 @@ export function App() {
   const auth = useAuth((s) => s.state);
   // En las mesas, los avisos de progreso se pintan dentro de la mesa (que puede ir girada).
   const atTable = useOrientationStore((s) => s.landscapeRequests > 0);
+  // «Reducir animaciones»: Motion quita los desplazamientos y escalas, y deja los fundidos.
+  const reducedMotion = useSettings((s) => s.reducedMotion);
 
   let content;
   if (auth.status === 'loading') {
@@ -75,13 +79,13 @@ export function App() {
   }
 
   return (
-    <>
+    <MotionConfig reducedMotion={reducedMotion ? 'always' : 'never'}>
       <CardSvgDefs />
       <ChipSvgDefs />
       <OrientationGate>
         {content}
         {auth.status === 'signedIn' && auth.user.profile && !atTable && <ProgressToasts />}
       </OrientationGate>
-    </>
+    </MotionConfig>
   );
 }

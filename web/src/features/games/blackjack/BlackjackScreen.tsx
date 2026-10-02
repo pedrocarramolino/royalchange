@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { motion } from 'motion/react';
 import { useWallet, useReadyWallet } from '@/data/wallet';
 import {
   applyBlackjack,
@@ -22,8 +21,9 @@ import { chips, grouped } from '@/lib/format';
 import { play, resultSound, BIG_WIN_MULTIPLIER } from '@/audio/sound';
 import { Button } from '@/ui/Button';
 import { ChipStack } from '@/ui/Chip';
-import { PlayingCard } from '@/ui/PlayingCard';
 import { Celebration, ResultBanner } from '../shared/Celebration';
+import { useDealFrom } from '../shared/deal';
+import { FlipCard } from '../shared/FlipCard';
 import { ChipRack, TABLE_CHIPS } from '../shared/ChipRack';
 import { TableAction } from '../shared/TableAction';
 import { IconTrash } from '@/ui/icons';
@@ -286,10 +286,10 @@ function BlackjackTable({
   const empty = state.hands.length === 0;
 
   return (
-    <div className="relative mx-auto h-full w-full max-w-5xl">
+    <div className="relative mx-auto h-full w-full max-w-5xl" data-table>
       <TablePrint />
       {/* Zapato: de aquí salen las cartas. */}
-      <div className="absolute top-1 right-4 h-[22%] w-[9%] min-w-12 rounded-md bg-[#1b120c] shadow-[inset_0_0_0_1.5px_rgb(212_175_106/0.6),0_8px_18px_-6px_rgb(0_0_0/0.8)]" aria-hidden>
+      <div data-shoe className="absolute top-1 right-4 h-[22%] w-[9%] min-w-12 rounded-md bg-[#1b120c] shadow-[inset_0_0_0_1.5px_rgb(212_175_106/0.6),0_8px_18px_-6px_rgb(0_0_0/0.8)]" aria-hidden>
         <div className="absolute inset-x-1.5 top-1.5 bottom-3 rounded-sm bg-[repeating-linear-gradient(90deg,#5e1220_0_3px,#3b0b15_3px_5px)] opacity-90" />
       </div>
 
@@ -357,23 +357,14 @@ function TablePrint() {
   );
 }
 
+/** Carta en la mesa: al repartirla sale del zapato; la tapada del crupier se da la vuelta al destaparla. */
 function DealtCard({ card, width, delay, faceDown, flipDelay, overlap }: { card: Card; width: number; delay: number | undefined; faceDown: boolean; flipDelay: number | null; overlap: number }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useDealFrom(ref, '[data-shoe]', delay);
   return (
-    <motion.div
-      style={{ marginLeft: overlap }}
-      initial={delay !== undefined ? { x: '60vw', y: -140, rotate: -25, opacity: 0 } : false}
-      animate={{ x: 0, y: 0, rotate: 0, opacity: 1 }}
-      transition={{ delay: delay ?? 0, type: 'spring', damping: 24, stiffness: 210 }}
-    >
-      <motion.div
-        initial={flipDelay !== null ? { rotateY: 180 } : false}
-        animate={{ rotateY: 0 }}
-        transition={{ delay: flipDelay ?? 0, duration: 0.35 }}
-        style={{ transformStyle: 'preserve-3d' }}
-      >
-        <PlayingCard rank={card.rank} suit={card.suit} faceDown={faceDown} width={width} />
-      </motion.div>
-    </motion.div>
+    <div ref={ref} style={{ marginLeft: overlap }}>
+      <FlipCard rank={card.rank} suit={card.suit} faceDown={faceDown} width={width} delay={flipDelay ?? 0} />
+    </div>
   );
 }
 

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import { IconFlame, IconSnowflake } from '@/ui/icons';
+import { EASE_OUT } from '@/ui/motion';
 import { usePlayerId } from '../shared/session';
 import { coldNumbers, hotNumbers, MIN_FOR_COLD, type NumberCount } from './stats';
 import { COLOR_NAME, colorOf } from './wheel';
@@ -103,7 +104,7 @@ export function RouletteStats({ history, width }: { history: number[]; width: nu
           <div className="flex min-w-0 gap-1" aria-hidden>
             {recent.map((n, i) =>
               i === 0 ? (
-                <motion.span key={`${history.length}-${n}`} initial={{ scale: 0.4, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 420, damping: 22 }}>
+                <motion.span key={`${history.length}-${n}`} initial={{ opacity: 0, transform: 'scale(0.9)' }} animate={{ opacity: 1, transform: 'scale(1)' }} transition={{ duration: 0.25, ease: EASE_OUT }}>
                   <Ball n={n} latest />
                 </motion.span>
               ) : (

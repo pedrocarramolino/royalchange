@@ -115,11 +115,13 @@ export function RouletteWheel({ size, spin, reducedMotion, onSettled }: { size: 
     };
   }, [spin, reducedMotion, wheel, ballAngle, ballRadius]);
 
-  const ballX = useTransform(() => 50 + ballRadius.get() * 100 * Math.sin((ballAngle.get() * Math.PI) / 180));
-  const ballY = useTransform(() => 50 - ballRadius.get() * 100 * Math.cos((ballAngle.get() * Math.PI) / 180));
-  const half = size * 0.0225;
-  const ballLeft = useTransform(ballX, (v) => `calc(${v}% - ${half}px)`);
-  const ballTop = useTransform(ballY, (v) => `calc(${v}% - ${half}px)`);
+  // La bola se mueve con transform (sin recalcular la maquetación en cada fotograma): parte del
+  // centro de la rueda y se desplaza según su ángulo y su distancia al centro.
+  const ballTransform = useTransform(() => {
+    const angle = (ballAngle.get() * Math.PI) / 180;
+    const distance = ballRadius.get() * size;
+    return `translate(${distance * Math.sin(angle)}px, ${-distance * Math.cos(angle)}px)`;
+  });
 
   return (
     <div className="relative" style={{ width: size, height: size }} role="img" aria-label="Rueda de la ruleta">
@@ -133,8 +135,9 @@ export function RouletteWheel({ size, spin, reducedMotion, onSettled }: { size: 
         style={{
           width: size * 0.045,
           height: size * 0.045,
-          left: ballLeft,
-          top: ballTop,
+          left: `calc(50% - ${size * 0.0225}px)`,
+          top: `calc(50% - ${size * 0.0225}px)`,
+          transform: ballTransform,
         }}
       />
     </div>

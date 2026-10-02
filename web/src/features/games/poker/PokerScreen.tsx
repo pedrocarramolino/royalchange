@@ -7,7 +7,11 @@ import { play, resultSound } from '@/audio/sound';
 import { Button } from '@/ui/Button';
 import { ChipStack } from '@/ui/Chip';
 import { PlayingCard } from '@/ui/PlayingCard';
+import { CHIP_DROP, EASE_OUT } from '@/ui/motion';
+import type { Card } from '@/engine/cards';
 import { Celebration } from '../shared/Celebration';
+import { useDealFrom } from '../shared/deal';
+import { FlipCard } from '../shared/FlipCard';
 import { GameShell, TableNotice, useTableSize } from '../shared/GameShell';
 import { useHoldProgressEvents } from '../shared/session';
 import { HERO, usePokerTable } from './usePokerTable';
@@ -146,18 +150,24 @@ function PokerTable({ table }: { table: PokerState }) {
   }, [handOver, table, heroWon]);
 
   return (
-    <div className="relative mx-auto h-full w-full max-w-5xl">
+    <div className="relative mx-auto h-full w-full max-w-5xl" data-table>
       {/* Óvalo: paño con borde acolchado y filete dorado. */}
       <div className="rail felt absolute inset-x-[9%] inset-y-[10%]" />
       <div className="pointer-events-none absolute inset-x-[16%] inset-y-[20%] rounded-[50%] border border-gold-light/20" />
 
       {/* Centro: cartas comunitarias y bote. */}
       <div className="absolute top-1/2 left-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1.5">
-        <div className="flex gap-1">
+        {/* El crupier reparte desde aquí. */}
+        <div className="flex gap-1" data-deck>
           {Array.from({ length: 5 }, (_, i) => {
             const card = table.board[i];
             return card ? (
-              <motion.div key={`${table.handNumber}-${i}`} initial={{ opacity: 0, y: -18, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.3, delay: (i < 3 ? i : 0) * 0.12 }}>
+              <motion.div
+                key={`${table.handNumber}-${i}`}
+                initial={{ opacity: 0, transform: 'translateY(-18px) scale(0.92)' }}
+                animate={{ opacity: 1, transform: 'translateY(0px) scale(1)' }}
+                transition={{ duration: 0.3, ease: EASE_OUT, delay: (i < 3 ? i : 0) * 0.12 }}
+              >
                 <PlayingCard rank={card.rank} suit={card.suit} width={boardCard} />
               </motion.div>
             ) : (
@@ -180,8 +190,9 @@ function PokerTable({ table }: { table: PokerState }) {
             key={`bet-${i}`}
             className="absolute flex -translate-x-1/2 -translate-y-1/2 items-center gap-1"
             style={{ left: `${BET_POS[i]![0] * 100}%`, top: `${BET_POS[i]![1] * 100}%` }}
-            initial={{ scale: 0.5, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
+            initial={CHIP_DROP.initial}
+            animate={CHIP_DROP.animate}
+            transition={CHIP_DROP.transition}
           >
             <ChipStack amount={seat.bet} size={18} max={3} />
             <span className="tabular rounded bg-black/50 px-1 text-[11px] font-bold text-gold-light">{grouped(seat.bet)}</span>
@@ -212,6 +223,17 @@ function PokerTable({ table }: { table: PokerState }) {
   );
 }
 
+/** Carta propia de un asiento: sale del centro de la mesa y, en la confrontación, se da la vuelta. */
+function HoleCard({ card, width, faceDown, overlap, tilt, delay }: { card: Card; width: number; faceDown: boolean; overlap: number; tilt: number; delay: number }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useDealFrom(ref, '[data-deck]', delay, tilt);
+  return (
+    <div ref={ref} style={{ marginLeft: overlap, transform: tilt ? `rotate(${tilt}deg)` : undefined }}>
+      <FlipCard rank={card.rank} suit={card.suit} faceDown={faceDown} width={width} />
+    </div>
+  );
+}
+
 function SeatView({ table, index, seat, cardWidth }: { table: PokerState; index: number; seat: Seat; cardWidth: number }) {
   const [x, y] = SEAT_POS[index]!;
   const active = table.phase === 'betting' && table.toAct === index;
@@ -233,15 +255,16 @@ function SeatView({ table, index, seat, cardWidth }: { table: PokerState; index:
       {seat.hole.length > 0 && (
         <div className="flex">
           {seat.hole.map((card, ci) => (
-            <motion.div
+            <HoleCard
               key={`${table.handNumber}-${ci}`}
-              style={{ marginLeft: ci > 0 ? -cardWidth * (hero ? 0.25 : 0.45) : 0, rotate: hero ? (ci === 0 ? -5 : 5) : 0 }}
-              initial={{ y: -40, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: ci * 0.15 + index * 0.05 }}
-            >
-              <PlayingCard rank={card.rank} suit={card.suit} faceDown={!showCards} width={cardWidth} />
-            </motion.div>
+              card={card}
+              width={cardWidth}
+              faceDown={!showCards}
+              overlap={ci > 0 ? -cardWidth * (hero ? 0.25 : 0.45) : 0}
+              tilt={hero ? (ci === 0 ? -5 : 5) : 0}
+              // Una carta a cada asiento por turno y luego la segunda, como reparte el crupier.
+              delay={(ci * 6 + index) * 0.08}
+            />
           ))}
         </div>
       )}

@@ -15,6 +15,17 @@ export function useGameViewport(): Viewport {
   return isPhone(viewport) && !isLandscape(viewport) ? { width: viewport.height, height: viewport.width } : viewport;
 }
 
+/**
+ * Pasa una distancia medida en la pantalla (getBoundingClientRect) a distancia en la mesa. Con el
+ * móvil en vertical la mesa va girada 90° en el sentido de las agujas del reloj: su eje x apunta hacia
+ * abajo en la pantalla y su eje y, hacia la izquierda.
+ */
+export function useScreenToTable(): (dx: number, dy: number) => { x: number; y: number } {
+  const viewport = useViewport();
+  const rotated = isPhone(viewport) && !isLandscape(viewport);
+  return rotated ? (dx, dy) => ({ x: dy, y: -dx }) : (dx, dy) => ({ x: dx, y: dy });
+}
+
 // Espacio real de la mesa (el <main> sin los márgenes de la muesca y la barra de inicio). Lo mide la
 // GameShell montada; solo hay una a la vez.
 let measuredTable: Viewport | null = null;

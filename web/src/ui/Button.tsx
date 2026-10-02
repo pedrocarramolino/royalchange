@@ -33,7 +33,7 @@ export function Button({ variant = 'primary', size = 'md', loading, icon, block,
       {...rest}
       disabled={disabled || loading}
       aria-busy={loading || undefined}
-      className={`relative inline-flex min-w-0 select-none items-center justify-center gap-2 whitespace-nowrap transition-[filter,background-color,transform] duration-150 active:scale-[0.98] ${VARIANTS[variant]} ${SIZES[size]} ${block ? 'w-full' : ''} ${className}`}
+      className={`relative inline-flex min-w-0 select-none items-center justify-center gap-2 whitespace-nowrap transition-[filter,background-color,transform] duration-150 ease-out active:scale-[0.98] ${VARIANTS[variant]} ${SIZES[size]} ${block ? 'w-full' : ''} ${className}`}
     >
       {loading ? <Spinner /> : icon}
       <span className={`truncate ${loading ? 'opacity-0' : ''}`}>{children}</span>
