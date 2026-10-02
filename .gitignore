@@ -1,27 +1,24 @@
-# Gradle / Kotlin
-.gradle/
-.kotlin/
-**/build/
-!src/**/build/
+# Node
+node_modules/
 
-# IDE
-.idea/
-*.iml
-.vscode/
+# Web (Vite)
+web/dist/
+web/dev-dist/
 
-# Local
-local.properties
-.DS_Store
-captures/
-*.log
+# Android (Capacitor): lo genera `npx cap sync android`
+web/android/app/src/main/assets/public/
+web/android/app/src/main/assets/capacitor.config.json
+web/android/app/src/main/assets/capacitor.plugins.json
+web/android/local.properties
 
-# Android
-.externalNativeBuild/
-.cxx/
+# Firma de publicación de Android (contraseñas y claves): nunca en el repositorio
+keystore.properties
 *.keystore
 *.jks
-# Contraseñas de la firma de publicación de Android
-keystore.properties
+
+# Configuración de Firebase descargada de la consola: la app no la usa (ver web/.env)
+google-services.json
+GoogleService-Info.plist
 
 # Firebase
 .firebase/
@@ -29,17 +26,9 @@ firebase-debug.log*
 firestore-debug.log*
 ui-debug.log*
 
-# Node
-node_modules/
-
-# Dependencias de los tests de reglas
-firebase/tests/node_modules/
-
-# Configuración de Firebase descargada de la consola: la app no la usa (ver firebase.properties)
-google-services.json
-GoogleService-Info.plist
-
-# React (web/)
-web/dist/
-web/dev-dist/
-web/android/app/build/
+# IDE y sistema
+.idea/
+*.iml
+.vscode/
+.DS_Store
+*.log

@@ -1,6 +1,0 @@
-<resources>
-    <!-- Fondo oscuro desde el primer frame: sin destello blanco al arrancar. -->
-    <style name="Theme.RoyalChance" parent="@android:style/Theme.Material.NoActionBar">
-        <item name="android:windowBackground">@color/rc_background</item>
-    </style>
-</resources>

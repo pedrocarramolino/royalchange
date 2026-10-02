@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Royal Chance: fondo obsidiana desde el primer fotograma (sin destello blanco). -->
+    <style name="AppTheme" parent="Theme.AppCompat.NoActionBar">
+        <item name="colorPrimary">@color/rc_background</item>
+        <item name="colorPrimaryDark">@color/rc_background</item>
+        <item name="colorAccent">@color/rc_gold</item>
+        <item name="android:windowBackground">@color/rc_background</item>
+    </style>
+
+    <style name="AppTheme.NoActionBar" parent="Theme.AppCompat.NoActionBar">
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+        <item name="android:windowBackground">@color/rc_background</item>
+        <item name="android:statusBarColor">@color/rc_background</item>
+        <item name="android:navigationBarColor">@color/rc_background</item>
+    </style>
+
+    <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/rc_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item>
+    </style>
+</resources>

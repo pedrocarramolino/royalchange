@@ -1,5 +1,5 @@
-# Integración continua: tests (JVM, Wasm y UI), cobertura, builds de las tres plataformas y tests de
-# las reglas de Firestore en el emulador. No despliega nada: publicar sigue siendo una decisión manual.
+# Integración continua: tipos, tests, compilación de la web y de la APK, y tests de las reglas de
+# Firestore en el emulador. No despliega nada: publicar sigue siendo una decisión manual.
 name: CI
 
 on:
@@ -12,33 +12,55 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  app:
+  web:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: web
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - name: Tipos
+        run: npm run typecheck
+      - name: Tests
+        run: npm test
+      - name: Compilación (PWA)
+        run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pwa
+          path: web/dist
+
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 21
-      - uses: gradle/actions/setup-gradle@v4
-      # Los tests de Wasm de los módulos Compose se ejecutan en Chrome sin interfaz (ya incluido en
-      # ubuntu-latest). Los tests de UI de escritorio necesitan una pantalla virtual.
-      - name: Tests y cobertura
-        run: xvfb-run --auto-servernum ./gradlew allTests koverHtmlReport --stacktrace
-      - name: Builds (Android, web y escritorio)
-        run: ./gradlew :androidApp:assembleDebug :androidApp:bundleRelease :webApp:wasmJsBrowserDistribution :desktopApp:compileKotlin
-      - name: Informe de cobertura
-        if: always()
-        uses: actions/upload-artifact@v4
+      - name: Web y sincronización con Android
+        working-directory: web
+        run: npm ci && npm run build && npx cap sync android
+      - name: APK
+        working-directory: web/android
+        run: ./gradlew assembleDebug assembleRelease
+      - uses: actions/upload-artifact@v4
         with:
-          name: cobertura
-          path: build/reports/kover/html
-      - name: PWA
-        uses: actions/upload-artifact@v4
-        with:
-          name: pwa
-          path: webApp/build/dist/wasmJs/productionExecutable
+          name: apk
+          path: web/android/app/build/outputs/apk
 
   firestore-rules:
     runs-on: ubuntu-latest
@@ -51,9 +73,10 @@ jobs:
           java-version: 21
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
-      - name: Dependencias de los tests de reglas
-        run: npm ci
-        working-directory: firebase/tests
+          node-version: 24
+      - name: Dependencias
+        run: npm ci --prefix firebase/tests && npm ci --prefix web
       - name: Tests de reglas en el emulador
-        run: npx --yes firebase-tools emulators:exec --only firestore --project demo-royalchance "cd firebase/tests && npm test"
+        run: npx --yes firebase-tools emulators:exec --only firestore --project demo-royalchance "npm --prefix firebase/tests test"
+      - name: Compatibilidad del dominio con las reglas
+        run: npx --yes firebase-tools emulators:exec --only firestore --project demo-royalchance "cd web && npx vitest run src/domain/rules-compat.test.ts"

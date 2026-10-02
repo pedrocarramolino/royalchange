@@ -58,10 +58,12 @@ export function useRequireLandscape() {
  * instalada en Android). Safari en iOS no lo permite: ahí el aviso pide girar el móvil.
  */
 export async function lockOrientation(landscape: boolean): Promise<void> {
-  const capacitor = (window as { Capacitor?: { isNativePlatform?: () => boolean; Plugins?: Record<string, unknown> } }).Capacitor;
+  const capacitor = (window as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor;
   if (capacitor?.isNativePlatform?.()) {
-    const plugin = capacitor.Plugins?.ScreenOrientation as { lock?: (o: { orientation: string }) => Promise<void> } | undefined;
-    await plugin?.lock?.({ orientation: landscape ? 'landscape' : 'portrait' }).catch(() => undefined);
+    // APK: el plugin nativo fija la orientación (en tablets se deja libre).
+    if (Math.min(window.screen.width, window.screen.height) >= 600) return;
+    const { ScreenOrientation } = await import('@capacitor/screen-orientation');
+    await ScreenOrientation.lock({ orientation: landscape ? 'landscape' : 'portrait' }).catch(() => undefined);
     return;
   }
   try {

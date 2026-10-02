@@ -5,12 +5,12 @@ Registro de los recursos de terceros incluidos en la app y su licencia. Cualquie
 
 | Recurso | Uso | Licencia | Origen |
 |---|---|---|---|
-| Cinzel (fuente variable) | Títulos y marca | SIL Open Font License 1.1 | github.com/google/fonts (`ofl/cinzel`) |
+| Cinzel (fuente variable) | Títulos, marca y leyendas de las mesas | SIL Open Font License 1.1 | github.com/google/fonts (`ofl/cinzel`) |
 | Manrope (fuente variable) | Interfaz y textos | SIL Open Font License 1.1 | github.com/google/fonts (`ofl/manrope`) |
-| Trazados de Material Icons | Iconos de interfaz (`RoyalIcons`) | Apache License 2.0 | Google Material Icons |
 
-Los textos completos de la licencia OFL se distribuyen con la app en
-`core/designsystem/src/commonMain/composeResources/files/licenses/`.
+Los textos completos de la licencia OFL se distribuyen con la app en `web/public/licenses/`.
+Las dependencias de npm (React, Firebase, Motion, Capacitor…) tienen licencias MIT o Apache 2.0;
+`npx license-checker --summary` en `web/` las lista.
 
-Recursos propios (no requieren atribución): icono de la app, trazados de los palos de la baraja,
-avatares y la ilustración de la ruleta del lobby.
+Recursos propios (no requieren atribución): icono de la app, cartas, fichas, palos, avatares,
+ruleta, símbolos de las tragaperras, dados, iconos de la interfaz y efectos de sonido (sintetizados).

@@ -100,7 +100,7 @@ export function HistoryScreen() {
                   {s && s.rounds > 0 ? (
                     <div className="min-w-0 flex-1 text-sm">
                       <p className="text-ivory">
-                        {grouped(s.rounds)} rondas · {Math.round((s.wins / s.rounds) * 100)} % ganadas
+                        {grouped(s.rounds)} {s.rounds === 1 ? 'ronda' : 'rondas'} · {Math.round((s.wins / s.rounds) * 100)} % ganadas
                       </p>
                       <p className="text-xs text-ivory-dim">
                         Balance: <span className={net > 0 ? 'text-emerald' : net < 0 ? 'text-ruby-bright' : ''}>{signed(net)}</span>

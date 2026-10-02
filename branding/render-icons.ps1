@@ -16,7 +16,7 @@ $chrome = @(
 if (-not $chrome) { throw 'Google Chrome no encontrado.' }
 
 $branding = $PSScriptRoot
-$out = Join-Path $branding '..\webApp\src\wasmJsMain\resources\icons'
+$out = Join-Path $branding '..\web\public\icons'
 New-Item -ItemType Directory -Force $out | Out-Null
 $out = (Resolve-Path $out).Path
 

@@ -1,64 +1,49 @@
 # Royal Chance
 
-Casino social multiplataforma con fichas virtuales **sin valor monetario**.
-Kotlin Multiplatform + Compose Multiplatform: PWA (web), Android y escritorio (desarrollo).
+Casino social con fichas virtuales **sin valor monetario**: blackjack, ruleta europea,
+tragaperras, dados y póker Texas Hold'em contra bots, con niveles, bono diario, logros, historial y
+estadísticas. En producción: https://royalchance-92769.web.app
 
-Versión 1.0.0 · Blackjack, ruleta europea, tragaperras, dados y póker Texas Hold'em contra bots,
-con niveles, bono diario, logros, historial y estadísticas. En producción:
-https://royalchance-92769.web.app
+Versión 2.0.0 · React + TypeScript (web instalable) y la misma app empaquetada para Android con
+Capacitor. Los datos están en Firebase (Authentication + Firestore). Decisiones técnicas:
+[docs/architecture.md](docs/architecture.md).
 
-Decisiones técnicas: [docs/architecture.md](docs/architecture.md).
+> La versión 1.x (Kotlin Multiplatform + Compose) está en el historial de git, etiqueta `v1.0.0`.
 
 ## Requisitos
 
-- JDK 17 o superior (probado con JDK 21). Los emuladores de Firebase también lo usan.
-- Android SDK (Android Studio o IntelliJ IDEA 2026.1.2+ con el plugin de Kotlin Multiplatform).
-- Google Chrome (tests de módulos con UI y generación de iconos).
-- Node.js + Firebase CLI (`npm install -g firebase-tools`).
+- Node.js 24 (incluye npm) y Firebase CLI: `npm install -g firebase-tools`.
+- Para la APK: JDK 21 y el Android SDK (Android Studio). Los emuladores de Firebase también usan
+  el JDK.
 
-El wrapper de Gradle descarga la versión correcta de Gradle; no hace falta instalarlo.
+```bash
+cd web
+npm install
+```
 
-## Datos: emuladores o proyecto real
+## Desarrollo
 
-La web y Android usan Firebase (Auth + Firestore). El escritorio usa siempre datos en memoria.
+Todo se ejecuta desde `web/`, salvo los emuladores (desde la raíz).
 
-Por defecto la app usa el **proyecto real** (`royalchance-92769`, configurado en
-`firebase.properties`). Para desarrollar sin tocar datos reales, usa los **emuladores locales**:
-arráncalos y compila con `-Proyalchance.firebase.emulators=true` (usan el proyecto aislado
-`demo-royalchance`, que nunca llega a la nube).
+| Qué | Comando |
+|---|---|
+| Web contra los **emuladores** (recomendado) | `npm run dev:emuladores` → http://localhost:5173 |
+| Web contra el **proyecto real** | `npm run dev` |
+| Tipos | `npm run typecheck` |
+| Tests (dominio, motores de juego) | `npm test` |
+| Compatibilidad del dominio con las reglas de Firestore | `npm run test:reglas` |
+| Compilación de producción (`web/dist`) | `npm run build` |
+
+Emuladores de Firebase (proyecto aislado `demo-royalchance`, nunca toca la nube), desde la raíz:
 
 ```bash
 firebase emulators:start --only auth,firestore --project demo-royalchance
 ```
-```bash
-./gradlew :webApp:wasmJsBrowserDevelopmentRun -Proyalchance.firebase.emulators=true
-```
-
-Para que sea el comportamiento por defecto en tu equipo, añade `royalchance.firebase.emulators=true`
-a `~/.gradle/gradle.properties`.
 
 Interfaz de los emuladores (usuarios, documentos, emails de verificación): http://127.0.0.1:4000
 
-Desde el emulador de Android, la app llega a los emuladores de Firebase por `10.0.2.2`. En un
-móvil físico hace falta el proyecto real.
-
-## Ejecutar
-
-En Windows usa `.\gradlew.bat`; en macOS/Linux, `./gradlew`.
-
-| Qué | Comando |
-|---|---|
-| Escritorio con Hot Reload | `.\gradlew.bat :desktopApp:hotRun` |
-| Web en desarrollo (http://localhost:8080) | `.\gradlew.bat :webApp:wasmJsBrowserDevelopmentRun` |
-| Android (dispositivo o emulador conectado) | `.\gradlew.bat :androidApp:installDebug` |
-| Tests de Kotlin (unidad, UI y extremo a extremo; JVM + Wasm) | `.\gradlew.bat allTests` |
-| Cobertura (`build/reports/kover/html`) | `.\gradlew.bat koverHtmlReport` |
-| Tests de las reglas de Firestore | ver abajo |
-
-Con el servidor web de desarrollo en marcha, `allTests` puede quedarse sin memoria: páralo antes
-(y `.\gradlew.bat --stop`).
-
-Tests de las reglas de seguridad (la primera vez: `npm --prefix firebase/tests install`):
+Tests de las reglas de seguridad (la primera vez: `npm --prefix firebase/tests install`). Ojo:
+borran los datos del emulador, no los lances contra el que usas para desarrollar.
 
 ```bash
 firebase emulators:exec --only firestore --project demo-royalchance "npm --prefix firebase/tests test"
@@ -66,37 +51,38 @@ firebase emulators:exec --only firestore --project demo-royalchance "npm --prefi
 
 ## Proyecto real de Firebase
 
-Hecho: apps web y Android registradas y su configuración pública en `firebase.properties`;
-Authentication con el proveedor **Email/contraseña** (el único que usa la app) y Firestore en `eur3`.
-La app no usa `google-services.json` ni su plugin: se inicializa con esos valores.
-
-Las reglas de seguridad están desplegadas. Tras cambiarlas (y pasar sus tests):
+`royalchance-92769`: Authentication con **Email/contraseña** y Firestore en `eur3`. La
+configuración pública de la web está en `web/.env` (no da acceso a nada: la seguridad la ponen las
+reglas de `firebase/firestore.rules`). Tras cambiar las reglas y pasar sus tests:
 
 ```bash
 firebase deploy --only firestore:rules --project royalchance-92769
 ```
 
-Recomendado: en Google Cloud Console, restringir cada API key a su app (dominios de la web y
-paquete + SHA-1 de Android).
-
-## Publicar la PWA
+## Publicar la web (PWA)
 
 ```bash
-./gradlew :webApp:wasmJsBrowserDistribution
+npm --prefix web run build
 firebase deploy --only hosting --project royalchance-92769
 ```
 
-Si cambias algún archivo de `webApp/src/wasmJsMain/resources` (HTML, scripts, iconos), sube
-`CACHE_VERSION` en `sw.js`: así los dispositivos con la versión anterior en caché la descartan.
-Los usuarios ven la versión nueva al segundo arranque (el service worker sirve primero la caché).
+El service worker (Workbox) se actualiza solo: los usuarios ven la versión nueva en el siguiente
+arranque.
 
-Probar la build de producción en local contra los emuladores:
+## Android (APK con Capacitor)
 
 ```bash
-firebase emulators:start --only auth,firestore,hosting --project demo-royalchance
+cd web
+npm run build
+npx cap sync android
+cd android
+./gradlew assembleDebug        # app/build/outputs/apk/debug/app-debug.apk
 ```
 
-## Publicar en Google Play
+Abrir en Android Studio: `npx cap open android`. Cada vez que cambie la web: `npm run build` y
+`npx cap sync android`.
+
+### Publicar en Google Play
 
 1. Crea la clave de subida (una sola vez; guárdala fuera del repositorio y haz copia):
 
@@ -104,7 +90,8 @@ firebase emulators:start --only auth,firestore,hosting --project demo-royalchanc
    keytool -genkeypair -v -keystore royalchance-upload.jks -alias upload -keyalg RSA -keysize 4096 -validity 10000
    ```
 
-2. Crea `keystore.properties` en la raíz (está en `.gitignore`):
+2. Crea `keystore.properties` en la raíz del repositorio (está en `.gitignore`); las rutas son
+   relativas a la raíz:
 
    ```properties
    storeFile=../ruta/a/royalchance-upload.jks
@@ -113,15 +100,11 @@ firebase emulators:start --only auth,firestore,hosting --project demo-royalchanc
    keyPassword=…
    ```
 
-3. Genera el bundle firmado: `.\gradlew.bat :androidApp:bundleRelease` →
-   `androidApp/build/outputs/bundle/release/androidApp-release.aab`. Sin `keystore.properties`
-   sale sin firmar.
-4. En Play Console activa *Play App Signing* y sube el `.aab`. Sube `versionCode` (androidApp) en
-   cada publicación y mantén `versionName` igual a `AppInfo.VERSION` (shared).
-5. Añade la huella SHA-1 de la clave de Play a la app Android en la consola de Firebase.
-
-El release usa R8 (`androidApp/proguard-rules.pro`): prueba el `.aab`/`.apk` de release en un
-dispositivo antes de publicarlo.
+3. `cd web/android && ./gradlew bundleRelease` →
+   `app/build/outputs/bundle/release/app-release.aab` (sin `keystore.properties` sale sin firmar).
+4. En Play Console activa *Play App Signing* y sube el `.aab`. Sube `versionCode` en
+   `web/android/app/build.gradle` en cada publicación (la 2.0.0 es el 2) y mantén `versionName`
+   igual que `version` en `web/package.json`.
 
 ## Antes de publicar
 
@@ -130,50 +113,36 @@ dispositivo antes de publicarlo.
 - [ ] Revisar la política de **casino social** de Google Play (sin dinero real ni premios,
       clasificación de edad, declaración de que las fichas no tienen valor) y la sección de
       seguridad de los datos (email, alias, país, año de nacimiento, progreso).
-- [ ] Restringir las API keys (ver arriba) y valorar Firebase **App Check**.
-- [ ] Probar el release de Android en un dispositivo real y la PWA en iPhone (teclado,
-      rendimiento) y Android.
+- [ ] Restringir la API key web en Google Cloud Console a los dominios de la web
+      (`royalchance-92769.web.app`, `royalchance-92769.firebaseapp.com`; la APK se identifica con
+      el primero) y valorar Firebase **App Check**.
+- [ ] Probar la APK de release en un móvil real y la PWA en iPhone y Android.
 - [ ] Revisar las cuotas del plan gratuito de Firebase (lecturas y escrituras de Firestore).
 
 ## Integración continua
 
-`.github/workflows/ci.yml` (GitHub Actions) ejecuta en cada push a `main`/`develop` y en cada pull
-request: todos los tests con su cobertura, los builds de Android, web y escritorio, y los tests de
-las reglas en el emulador. No despliega: publicar sigue siendo manual.
+`.github/workflows/ci.yml` (GitHub Actions), en cada push a `main`/`develop` y en cada pull request:
+tipos, tests, compilación de la web, APK de depuración y de release, tests de las reglas y de la
+compatibilidad del dominio con ellas. No despliega: publicar sigue siendo manual.
 
 ## Estructura
 
 ```
-androidApp/          host Android (Firebase)
-desktopApp/          host de escritorio (desarrollo, datos en memoria)
-webApp/              host web: index.html, manifest, service worker, iconos
-shared/              App(), AppGraph (inyección de dependencias) y navegación
-core/audio           efectos de sonido sintetizados y su reproducción por plataforma
-core/common          utilidades puras: RandomGenerator, Outcome, nombres de países
-core/designsystem    tema "Noir & Oro", tipografía, iconos, componentes y animaciones
-core/ui              componentes con conocimiento del dominio (avatares, país, saldo)
-core/testing         dobles de prueba: generadores deterministas, TestClock
-domain/              contratos y reglas de negocio (Kotlin puro)
-engine/*             motores de juego puros: cards, blackjack, roulette, slots, dice, poker
-data/                repositorios en memoria, ajustes, sesiones de mesa e historial
-data/firebase        Firebase con los SDK oficiales de Android y JavaScript
-feature/auth         bienvenida, login, registro completo, recuperación, legales
-feature/lobby        lobby del casino
-feature/blackjack    mesa de blackjack
-feature/roulette     ruleta europea
-feature/slots        tragaperras
-feature/dice         dados
-feature/poker        póker contra bots
-feature/profile      progreso: nivel, estadísticas y logros
-feature/history      historial y estadísticas por juego
-feature/settings     ajustes (tema, sonido, animaciones) y cuenta
-firebase/            reglas de Firestore, índices y sus tests
-build-logic/         convention plugins de Gradle
-branding/            SVG maestros del icono y script de generación de PNG
-docs/                arquitectura, decisiones y recursos de terceros
+web/                       la app (Vite + React 19 + TypeScript + Tailwind 4)
+  src/domain/              reglas puras: economía, progresión, logros, validación, historial
+  src/engine/              motores de juego puros: cartas, blackjack, ruleta, slots, dados, póker
+  src/data/                Firebase: sesión y perfil, monedero, historial; ajustes del dispositivo
+  src/features/            pantallas: acceso, casino, progreso, historial, ajustes y las mesas
+  src/ui/                  sistema visual: cartas, fichas, botones, campos, diálogos, orientación
+  src/audio/               efectos de sonido sintetizados (Web Audio)
+  public/                  iconos, fuentes y licencias
+  android/                 proyecto Android de Capacitor
+firebase/                  reglas de Firestore, índices y sus tests
+branding/                  SVG maestros del icono y script de generación de PNG
+docs/                      arquitectura y recursos de terceros
 ```
 
-Regenerar los iconos de la PWA tras cambiar `branding/*.svg`:
+Regenerar los iconos tras cambiar `branding/*.svg`:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File branding/render-icons.ps1

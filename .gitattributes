@@ -1,8 +1,10 @@
-# Script de arranque para macOS/Linux/Git Bash: siempre LF.
-/gradlew        text eol=lf
+# Finales de línea LF en el repositorio.
+*               text=auto eol=lf
 # Scripts de Windows: siempre CRLF.
 *.bat           text eol=crlf
 # Binarios: sin conversiones.
 *.jar           binary
 *.png           binary
+*.woff2         binary
 *.ttf           binary
+*.apk           binary
