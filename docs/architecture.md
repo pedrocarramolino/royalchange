@@ -448,6 +448,14 @@ firebase emulators:exec --only firestore --project demo-royalchance "cd firebase
   deshacer/borrar/repetir y girar/tirar en una fila) abajo.
 - **Póker en mesa baja:** cartas de cada asiento al lado del nombre, la apuesta dentro del asiento y
   cartas comunitarias más pequeñas; botones de apuesta rápida en 2×2 si el panel es estrecho.
+- **Toques que "no respondían" (Safari en iOS):** Compose marca su canvas con
+  `touch-action: pan-x pan-y`, así que el navegador se reservaba los arrastres; un toque con un
+  leve movimiento del dedo se convertía en un intento de desplazar la página, Safari mandaba
+  `pointercancel` y Compose descartaba el toque. La página usa `touch-action: none` (styles.css y
+  `touch.js`, que lo fuerza en el canvas): Compose desplaza por su cuenta con eventos de puntero.
+  `?diagnostico=toques` muestra cada toque y si el navegador lo cancela. Ojo al probar en el
+  navegador integrado: allí `requestAnimationFrame` va a ~2 por segundo y la interfaz se repinta
+  con retraso, lo que parece toques perdidos sin serlo.
 - **Botones en una línea:** el texto se reduce (hasta 11 sp) en vez de partirse. Ojo: el
   autoajuste de `BasicText` solo detecta que no cabe con `maxLines = 1` y salto permitido; con
   `softWrap = false` y elipsis nunca encoge.

@@ -6,12 +6,19 @@ body {
     padding: 0;
     overflow: hidden;
     background: #0e0f13;
+    /* Los gestos son de Compose, no del navegador: sin desplazar ni rebotar la página. Si no, en
+       Safari (iOS) un toque con un leve movimiento se cancela (ver touch.js). */
+    touch-action: none;
+    overscroll-behavior: none;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
 }
 
 /* Compose ocupa toda la ventana. Va después del loader en el DOM, así que lo cubre al pintar. */
 #composeTarget {
     position: fixed;
     inset: 0;
+    touch-action: none;
 }
 
 #loader {
