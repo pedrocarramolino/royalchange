@@ -45,7 +45,7 @@ export function useHoldProgressEvents(held: boolean) {
 /** Texto de un error de la economía visto desde una mesa. */
 export function economyNotice(error: EconomyError): string {
   if (error.type === 'roundInProgress') {
-    const names: Record<GameType, string> = { Blackjack: 'blackjack', Roulette: 'ruleta', Slots: 'slots', Poker: 'póker', Dice: 'dados' };
+    const names: Record<GameType, string> = { Blackjack: 'blackjack', Roulette: 'ruleta', Slots: 'slots', Poker: 'póker', Dice: 'dados', Baccarat: 'baccarat', VideoPoker: 'video póker' };
     return `Tienes fichas en una mano de ${names[error.game]}. Termínala antes de jugar aquí.`;
   }
   return ECONOMY_ERROR_TEXT[error.type];

@@ -1,6 +1,6 @@
 import type { EconomyError, EconomyOperation, EntryKind, GameType, LedgerEntry, ProgressEvent, Wallet, AchievementId } from './economy';
 import { EconomyRules, rescueStatus } from './economy';
-import { achievement, afterRound, dailyBonusStatus, levelFor, newlyUnlocked, sortAchievements } from './progression';
+import { achievement, afterRound, dailyBonusStatus, isDailyPrize, levelFor, newlyUnlocked, sortAchievements } from './progression';
 
 /** Resultado de una operación: monedero nuevo, asiento que lo justifica y avisos para la interfaz. */
 export interface WalletTransition {
@@ -54,7 +54,7 @@ export function applyOperation(wallet: Wallet, operation: EconomyOperation, entr
     case 'claimRescue':
       return claimRescue(wallet, entryId, nowMillis);
     case 'claimDailyBonus':
-      return claimDailyBonus(wallet, operation.today, entryId, nowMillis);
+      return claimDailyBonus(wallet, operation.today, operation.prize, entryId, nowMillis);
     case 'claimAchievement':
       return claimAchievement(wallet, operation.id, entryId, nowMillis);
   }
@@ -115,13 +115,14 @@ function claimRescue(wallet: Wallet, entryId: string, now: number): TransitionRe
   );
 }
 
-function claimDailyBonus(wallet: Wallet, today: number, entryId: string, now: number): TransitionResult {
+function claimDailyBonus(wallet: Wallet, today: number, prize: number, entryId: string, now: number): TransitionResult {
+  if (!isDailyPrize(prize)) return fail({ type: 'invalidDailyPrize' });
   const status = dailyBonusStatus(wallet, today, now);
   if (status.type === 'claimedToday') return fail({ type: 'dailyBonusAlreadyClaimed' });
   if (status.type === 'clockMovedBack') return fail({ type: 'dailyBonusClockMovedBack' });
   return record(
     wallet,
-    { ...wallet, balance: wallet.balance + status.reward, dailyStreak: status.streakDay, lastDailyDay: today, lastDailyAtMillis: now },
+    { ...wallet, balance: wallet.balance + prize, dailyStreak: status.streakDay, lastDailyDay: today, lastDailyAtMillis: now },
     { id: entryId, kind: 'DailyBonus', createdAtMillis: now },
   );
 }

@@ -20,7 +20,7 @@ export const EconomyRules = {
 } as const;
 
 /** Juegos del casino. Los ids son estables: se guardan en la base de datos. */
-export const GAMES = ['Blackjack', 'Roulette', 'Slots', 'Poker', 'Dice'] as const;
+export const GAMES = ['Blackjack', 'Roulette', 'Slots', 'Poker', 'Dice', 'Baccarat', 'VideoPoker'] as const;
 export type GameType = (typeof GAMES)[number];
 
 /** Tipos de asiento contable. Los nombres son estables: las reglas los validan. */
@@ -106,7 +106,8 @@ export type EconomyOperation =
   | { type: 'settleRound'; payout: number }
   | { type: 'instantRound'; game: GameType; stake: number; payout: number }
   | { type: 'claimRescue' }
-  | { type: 'claimDailyBonus'; today: number }
+  /** Tirada diaria: [prize] es la casilla de la ruleta diaria en la que ha caído. */
+  | { type: 'claimDailyBonus'; today: number; prize: number }
   | { type: 'claimAchievement'; id: AchievementId };
 
 export type EconomyError =
@@ -121,6 +122,7 @@ export type EconomyError =
   | { type: 'rescueCoolingDown'; availableAtMillis: number }
   | { type: 'dailyBonusAlreadyClaimed' }
   | { type: 'dailyBonusClockMovedBack' }
+  | { type: 'invalidDailyPrize' }
   | { type: 'achievementLocked' }
   | { type: 'achievementAlreadyClaimed' };
 

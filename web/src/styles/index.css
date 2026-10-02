@@ -198,6 +198,20 @@
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    /* Las animaciones infinitas (cargas, latidos) se quedan quietas en vez de parpadear a toda velocidad. */
+    animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* Bombillas del aro de la ruleta diaria: se encienden por turnos (más deprisa mientras gira). */
+@keyframes bulb {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0.28;
   }
 }

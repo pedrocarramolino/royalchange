@@ -9,6 +9,8 @@ import type { Transition } from 'motion/react';
 export const EASE_OUT: [number, number, number, number] = [0.23, 1, 0.32, 1];
 export const EASE_IN_OUT: [number, number, number, number] = [0.77, 0, 0.175, 1];
 export const EASE_OUT_CSS = 'cubic-bezier(0.23, 1, 0.32, 1)';
+/** Rueda que gira varios segundos y se frena poco a poco (ruleta, ruleta diaria). */
+export const EASE_SPIN_CSS = 'cubic-bezier(0.12, 0.6, 0.25, 1)';
 export const EASE_IN_OUT_CSS = 'cubic-bezier(0.77, 0, 0.175, 1)';
 
 /** Muelle al estilo de Apple: rebote apenas perceptible. */

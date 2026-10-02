@@ -75,7 +75,7 @@ describe.skipIf(!emulator)('reglas de Firestore', () => {
     await register(db, uid, 'AnaTs');
     await assertSucceeds(write(db, uid, openWallet(uid, newId(), Date.now())));
 
-    await run(db, uid, { type: 'claimDailyBonus', today: localEpochDay() });
+    await run(db, uid, { type: 'claimDailyBonus', today: localEpochDay(), prize: 2_500 });
 
     // Rondas instantáneas de todos los juegos: ganar, perder y empatar.
     const rounds: EconomyOperation[] = [
@@ -87,6 +87,7 @@ describe.skipIf(!emulator)('reglas de Firestore', () => {
       { type: 'instantRound', game: 'Dice', stake: 10, payout: 23 },
       { type: 'instantRound', game: 'Roulette', stake: 5_000, payout: 10_000 },
       { type: 'instantRound', game: 'Slots', stake: 10_000, payout: 60_000 },
+      { type: 'instantRound', game: 'Baccarat', stake: 300, payout: 350 },
     ];
     for (const operation of rounds) await run(db, uid, operation);
 
@@ -101,9 +102,13 @@ describe.skipIf(!emulator)('reglas de Firestore', () => {
     await run(db, uid, { type: 'placeBet', game: 'Poker', stake: 100 });
     await run(db, uid, { type: 'settleRound', payout: 0 });
 
+    // Video póker: la apuesta al repartir y el pago al cambiar cartas.
+    await run(db, uid, { type: 'placeBet', game: 'VideoPoker', stake: 100 });
+    await run(db, uid, { type: 'settleRound', payout: 900 });
+
     // Ya hay 10 rondas o más: logros desbloqueados por el camino que se cobran ahora.
     const wallet = await read(db, uid);
-    expect(wallet.rounds).toBe(10);
+    expect(wallet.rounds).toBe(12);
     expect(wallet.unlocked).toEqual(expect.arrayContaining(['FirstWin', 'Rounds10', 'Balance50k']));
     for (const id of wallet.unlocked) await run(db, uid, { type: 'claimAchievement', id });
 
@@ -121,6 +126,24 @@ describe.skipIf(!emulator)('reglas de Firestore', () => {
     }
     await run(db, uid, { type: 'claimRescue' });
     expect((await read(db, uid)).balance).toBe(remaining + 1_000);
+  });
+
+  it('rechaza una tirada diaria con un premio que no está en la ruleta', async () => {
+    const uid = 'eva';
+    const db = env.authenticatedContext(uid).firestore() as unknown as Firestore;
+    await register(db, uid, 'EvaTs');
+    await assertSucceeds(write(db, uid, openWallet(uid, newId(), Date.now())));
+    const current = await read(db, uid);
+    const result = applyOperation(current, { type: 'claimDailyBonus', today: localEpochDay(), prize: 10_000 }, newId(), Date.now());
+    if (!result.ok) throw new Error('inesperado');
+    // Mismo giro, pero declarando 20.000 fichas: saldo, asiento y máximo coherentes entre sí.
+    const forged: WalletTransition = {
+      ...result.value,
+      wallet: { ...result.value.wallet, balance: current.balance + 20_000, highestBalance: current.balance + 20_000 },
+      entry: { ...result.value.entry, amount: 20_000, balanceAfter: current.balance + 20_000 },
+    };
+    await assertFails(write(db, uid, forged));
+    await assertSucceeds(write(db, uid, result.value));
   });
 
   it('rechaza un monedero manipulado aunque el asiento sea coherente', async () => {

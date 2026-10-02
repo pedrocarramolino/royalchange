@@ -22,7 +22,8 @@ interface WalletStore {
   settleRound: (payout: number) => Promise<OperationResult>;
   playInstantRound: (game: GameType, stake: number, payout: number) => Promise<OperationResult>;
   claimRescue: () => Promise<OperationResult>;
-  claimDailyBonus: () => Promise<OperationResult>;
+  /** Tirada diaria: cobra la casilla [prize] de la ruleta diaria. */
+  claimDailyBonus: (prize: number) => Promise<OperationResult>;
   claimAchievement: (id: AchievementId) => Promise<OperationResult>;
   holdEvents: (held: boolean) => void;
   consumeEvent: () => void;
@@ -135,7 +136,7 @@ export const useWallet = create<WalletStore>((set, get) => {
     settleRound: (payout) => execute({ type: 'settleRound', payout }),
     playInstantRound: (game, stake, payout) => execute({ type: 'instantRound', game, stake, payout }),
     claimRescue: () => execute({ type: 'claimRescue' }),
-    claimDailyBonus: () => execute({ type: 'claimDailyBonus', today: localEpochDay() }),
+    claimDailyBonus: (prize) => execute({ type: 'claimDailyBonus', today: localEpochDay(), prize }),
     claimAchievement: (id) => execute({ type: 'claimAchievement', id }),
     holdEvents: (held) => set({ eventsHeld: held }),
     consumeEvent: () => set((s) => ({ events: s.events.slice(1) })),
@@ -157,8 +158,9 @@ export const ECONOMY_ERROR_TEXT: Record<EconomyError['type'], string> = {
   payoutTooHigh: 'Pago no válido.',
   rescueNotNeeded: 'Aún tienes fichas para jugar.',
   rescueCoolingDown: 'La recarga gratuita aún no está disponible.',
-  dailyBonusAlreadyClaimed: 'Ya has cobrado el bono de hoy.',
-  dailyBonusClockMovedBack: 'La hora del dispositivo parece incorrecta. Ajústala para cobrar el bono.',
+  dailyBonusAlreadyClaimed: 'Ya has girado la ruleta diaria hoy.',
+  dailyBonusClockMovedBack: 'La hora del dispositivo parece incorrecta. Ajústala para girar la ruleta diaria.',
+  invalidDailyPrize: 'Premio no válido.',
   achievementLocked: 'Ese logro aún no está desbloqueado.',
   achievementAlreadyClaimed: 'Ya has recogido esa recompensa.',
 };
