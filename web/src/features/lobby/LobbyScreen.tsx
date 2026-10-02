@@ -9,6 +9,8 @@ import { chips, grouped, remaining } from '@/lib/format';
 import { localEpochDay } from '@/lib/time';
 import { Avatar } from '@/ui/Avatar';
 import { Button } from '@/ui/Button';
+import { Dialog } from '@/ui/Dialog';
+import { play } from '@/audio/sound';
 import { Chip } from '@/ui/Chip';
 import { useCountUp } from '@/ui/ChipBalance';
 import { IconClose, IconFlame, IconGift, IconMail } from '@/ui/icons';
@@ -81,6 +83,7 @@ export function LobbyScreen() {
         )}
         {wallet && <RescueCard now={now} />}
         {wallet && <DailyBonusCard now={now} />}
+        {wallet && <DailyBonusDialog now={now} />}
         {wallet && <DailyWheel now={now} onHoldBalance={setHeldBalance} />}
         {wallet && claimable(wallet).length > 0 && (
           <Notice tone="gold" icon={<IconGift className="size-6 text-gold" />} action={{ label: 'Ver', onClick: () => navigate('/progreso') }}>
@@ -285,7 +288,29 @@ function DailyBonusCard({ now }: { now: number }) {
           <span className="text-xs font-semibold text-gold">{wallet.dailyStreak === 1 ? 'Racha de 1 día' : `Racha de ${wallet.dailyStreak} días`}</span>
         )}
       </div>
-      <ol className="mt-3 grid grid-cols-7 gap-1.5" aria-label="Recompensas de la semana">
+      <BonusWeek filled={filled} todayIndex={todayIndex} />
+      <p className="mt-3 text-sm text-ivory-dim">
+        {failed
+          ? 'No se pudo recoger el bono. Vuelve a intentarlo.'
+          : status.type === 'available'
+            ? `Recoge ${chips(status.reward)}. Vuelve cada día para que tu racha crezca.`
+            : status.type === 'claimedToday'
+              ? `Ya lo has recogido hoy. Mañana te esperan ${chips(status.nextReward)}.`
+              : 'La fecha de tu dispositivo parece incorrecta. Corrígela para recoger el bono.'}
+      </p>
+      {status.type === 'available' && (
+        <Button block className="mt-3" loading={busy} onClick={() => void claim()}>
+          Recoger bono
+        </Button>
+      )}
+    </section>
+  );
+}
+
+/** Las siete fichas de la semana: las de la racha encendidas y la de hoy latiendo hasta recogerla. */
+function BonusWeek({ filled, todayIndex }: { filled: number; todayIndex: number }) {
+  return (
+    <ol className="mt-3 grid grid-cols-7 gap-1.5" aria-label="Recompensas de la semana">
         {Array.from({ length: MAX_REWARD_DAY }, (_, i) => {
           const day = i + 1;
           const visualDay = Math.min(day, MAX_REWARD_DAY);
@@ -306,20 +331,89 @@ function DailyBonusCard({ now }: { now: number }) {
           );
         })}
       </ol>
-      <p className="mt-3 text-sm text-ivory-dim">
+  );
+}
+
+/** Días ya avisados con el diálogo del bono (uno por día y jugador, aunque se cierre sin recoger). */
+const promptKey = (uid: string) => `royal-chance-bono-avisado-${uid}`;
+
+/**
+ * Al abrir la app por primera vez en el día, si el bono está disponible, se ofrece en un diálogo.
+ * Si se cierra sin recogerlo, ese día ya no vuelve a salir (sigue en su tarjeta del lobby).
+ */
+function DailyBonusDialog({ now }: { now: number }) {
+  const wallet = useReadyWallet()!;
+  const uid = wallet.uid;
+  const claimDailyBonus = useWallet((s) => s.claimDailyBonus);
+  const today = localEpochDay(new Date(now));
+  const status = dailyBonusStatus(wallet, today, Date.now());
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [claimed, setClaimed] = useState<number | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    if (status.type !== 'available') return;
+    try {
+      if (localStorage.getItem(promptKey(uid)) === String(today)) return;
+      localStorage.setItem(promptKey(uid), String(today));
+    } catch {
+      // Sin almacenamiento: se ofrece igualmente.
+    }
+    setOpen(true);
+    // Solo al cambiar de día (o de jugador): no reabrir tras cada cambio de saldo.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uid, today]);
+
+  const claim = async () => {
+    if (status.type !== 'available') return;
+    const reward = status.reward;
+    setBusy(true);
+    const result = await claimDailyBonus();
+    setBusy(false);
+    if (result.ok) {
+      setClaimed(reward);
+      play('win');
+    } else if (result.error.type === 'dailyBonusAlreadyClaimed') {
+      setOpen(false);
+    } else {
+      setFailed(true);
+    }
+  };
+
+  const streakDay = status.type === 'available' ? status.streakDay : wallet.dailyStreak;
+  return (
+    <Dialog
+      open={open}
+      onClose={() => setOpen(false)}
+      title={claimed !== null ? '¡Bono recogido!' : `Bono diario · Día ${streakDay}`}
+      actions={
+        claimed !== null || status.type !== 'available' ? (
+          <Button block size="lg" onClick={() => setOpen(false)}>
+            A jugar
+          </Button>
+        ) : (
+          <>
+            <Button block size="lg" loading={busy} onClick={() => void claim()}>
+              Recoger {chips(status.reward)}
+            </Button>
+            <Button block variant="ghost" onClick={() => setOpen(false)}>
+              Ahora no
+            </Button>
+          </>
+        )
+      }
+    >
+      <BonusWeek filled={claimed !== null ? Math.min(streakDay, MAX_REWARD_DAY) : streakDay - 1} todayIndex={claimed !== null ? -1 : streakDay} />
+      <p className="mt-4">
         {failed
           ? 'No se pudo recoger el bono. Vuelve a intentarlo.'
-          : status.type === 'available'
-            ? `Recoge ${chips(status.reward)}. Vuelve cada día para que tu racha crezca.`
-            : status.type === 'claimedToday'
-              ? `Ya lo has recogido hoy. Mañana te esperan ${chips(status.nextReward)}.`
-              : 'La fecha de tu dispositivo parece incorrecta. Corrígela para recoger el bono.'}
+          : claimed !== null
+            ? `Has sumado ${chips(claimed)}. ${streakDay > 1 ? `Llevas ${streakDay} días seguidos: vuelve` : 'Vuelve'} mañana para que tu racha crezca.`
+            : streakDay > 1
+              ? `Llevas ${streakDay} días seguidos. Recoge tu bono para mantener la racha.`
+              : 'Recoge tu bono de hoy y vuelve cada día para que tu racha crezca.'}
       </p>
-      {status.type === 'available' && (
-        <Button block className="mt-3" loading={busy} onClick={() => void claim()}>
-          Recoger bono
-        </Button>
-      )}
-    </section>
+    </Dialog>
   );
 }
