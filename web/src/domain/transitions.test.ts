@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Wallet } from './economy';
-import { DAILY_WHEEL, levelFor, xpForRound } from './progression';
+import { DAILY_WHEEL, dailyReward, levelFor, xpForRound } from './progression';
 import { applyOperation, openWallet } from './transitions';
 import { walletFromData, walletToData } from './documents';
 
@@ -94,37 +94,52 @@ describe('recarga', () => {
   });
 });
 
-describe('tirada diaria', () => {
-  it('paga la casilla en la que cae y sube la racha si se gira al día siguiente', () => {
-    const day1 = ok(applyOperation(wallet(), { type: 'claimDailyBonus', today: 20_000, prize: 2_500 }, id(), NOW));
-    expect(day1.wallet).toMatchObject({ dailyStreak: 1, lastDailyDay: 20_000, balance: 12_500 });
-    const day2 = ok(applyOperation(day1.wallet, { type: 'claimDailyBonus', today: 20_001, prize: 250 }, id(), NOW + 86_400_000));
+describe('bono diario', () => {
+  it('sube la racha si se cobra al día siguiente y tiene tope en el día 7', () => {
+    const day1 = ok(applyOperation(wallet(), { type: 'claimDailyBonus', today: 20_000 }, id(), NOW));
+    expect(day1.wallet).toMatchObject({ dailyStreak: 1, lastDailyDay: 20_000, balance: 10_500 });
+    const day2 = ok(applyOperation(day1.wallet, { type: 'claimDailyBonus', today: 20_001 }, id(), NOW + 86_400_000));
     expect(day2.wallet.dailyStreak).toBe(2);
-    expect(day2.entry.amount).toBe(250);
+    expect(day2.entry.amount).toBe(700);
+    expect(dailyReward(9)).toBe(1_700);
   });
 
-  it('la ruleta tiene 12 casillas con varios importes y solo acepta esos premios', () => {
-    expect(DAILY_WHEEL).toHaveLength(12);
-    expect(new Set(DAILY_WHEEL)).toEqual(new Set([250, 500, 1_000, 1_500, 2_500, 5_000, 10_000]));
-    expect(applyOperation(wallet(), { type: 'claimDailyBonus', today: 20_000, prize: 20_000 }, id(), NOW)).toEqual({
-      ok: false,
-      error: { type: 'invalidDailyPrize' },
-    });
-  });
-
-  it('no deja girar dos veces el mismo día ni con el reloj hacia atrás', () => {
-    const day1 = ok(applyOperation(wallet(), { type: 'claimDailyBonus', today: 20_000, prize: 500 }, id(), NOW));
-    expect(applyOperation(day1.wallet, { type: 'claimDailyBonus', today: 20_000, prize: 500 }, id(), NOW).ok).toBe(false);
-    expect(applyOperation(day1.wallet, { type: 'claimDailyBonus', today: 20_001, prize: 500 }, id(), NOW - 1)).toEqual({
+  it('no deja cobrar dos veces el mismo día ni con el reloj hacia atrás', () => {
+    const day1 = ok(applyOperation(wallet(), { type: 'claimDailyBonus', today: 20_000 }, id(), NOW));
+    expect(applyOperation(day1.wallet, { type: 'claimDailyBonus', today: 20_000 }, id(), NOW).ok).toBe(false);
+    expect(applyOperation(day1.wallet, { type: 'claimDailyBonus', today: 20_001 }, id(), NOW - 1)).toEqual({
       ok: false,
       error: { type: 'dailyBonusClockMovedBack' },
     });
   });
 
-  it('si se salta un día la racha vuelve a empezar', () => {
-    const day1 = ok(applyOperation(wallet(), { type: 'claimDailyBonus', today: 20_000, prize: 500 }, id(), NOW));
-    const day3 = ok(applyOperation(day1.wallet, { type: 'claimDailyBonus', today: 20_002, prize: 500 }, id(), NOW + 2 * 86_400_000));
+  it('si se salta un día vuelve a empezar', () => {
+    const day1 = ok(applyOperation(wallet(), { type: 'claimDailyBonus', today: 20_000 }, id(), NOW));
+    const day3 = ok(applyOperation(day1.wallet, { type: 'claimDailyBonus', today: 20_002 }, id(), NOW + 2 * 86_400_000));
     expect(day3.wallet.dailyStreak).toBe(1);
+  });
+});
+
+describe('ruleta diaria', () => {
+  it('paga la casilla en la que cae, una vez al día y sin tocar la racha del bono', () => {
+    const bonus = ok(applyOperation(wallet(), { type: 'claimDailyBonus', today: 20_000 }, id(), NOW));
+    const spin = ok(applyOperation(bonus.wallet, { type: 'spinDailyWheel', today: 20_000, prize: 2_500 }, id(), NOW));
+    expect(spin.wallet).toMatchObject({ balance: 13_000, lastSpinDay: 20_000, dailyStreak: 1, lastDailyDay: 20_000 });
+    expect(spin.entry).toMatchObject({ kind: 'DailySpin', amount: 2_500 });
+    expect(applyOperation(spin.wallet, { type: 'spinDailyWheel', today: 20_000, prize: 250 }, id(), NOW)).toEqual({
+      ok: false,
+      error: { type: 'dailySpinAlreadyUsed' },
+    });
+    expect(applyOperation(spin.wallet, { type: 'spinDailyWheel', today: 20_001, prize: 250 }, id(), NOW + 86_400_000).ok).toBe(true);
+  });
+
+  it('la ruleta tiene 12 casillas con varios importes y solo acepta esos premios', () => {
+    expect(DAILY_WHEEL).toHaveLength(12);
+    expect(new Set(DAILY_WHEEL)).toEqual(new Set([250, 500, 1_000, 1_500, 2_500, 5_000, 10_000]));
+    expect(applyOperation(wallet(), { type: 'spinDailyWheel', today: 20_000, prize: 20_000 }, id(), NOW)).toEqual({
+      ok: false,
+      error: { type: 'invalidDailyPrize' },
+    });
   });
 });
 

@@ -138,8 +138,8 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'Level25', name: 'Gran apostador', description: 'Alcanza el nivel 25 y conviértete en High Roller.', reward: 10_000, progress: level(25) },
   { id: 'Balance50k', name: 'Cincuenta mil', description: 'Reúne 50.000 fichas.', reward: 2_500, progress: balance(50_000) },
   { id: 'Balance250k', name: 'Cuarto de millón', description: 'Reúne 250.000 fichas.', reward: 10_000, progress: balance(250_000) },
-  { id: 'DailyStreak7', name: 'Fiel a la cita', description: 'Gira la ruleta diaria 7 días seguidos.', reward: 1_000, progress: daily(7) },
-  { id: 'DailyStreak30', name: 'Un mes en la mesa', description: 'Gira la ruleta diaria 30 días seguidos.', reward: 5_000, progress: daily(30) },
+  { id: 'DailyStreak7', name: 'Fiel a la cita', description: 'Cobra el bono diario 7 días seguidos.', reward: 1_000, progress: daily(7) },
+  { id: 'DailyStreak30', name: 'Un mes en la mesa', description: 'Cobra el bono diario 30 días seguidos.', reward: 5_000, progress: daily(30) },
 ];
 
 const BY_ID = new Map(ACHIEVEMENTS.map((a) => [a.id, a]));
@@ -168,9 +168,40 @@ export function claimable(wallet: Wallet): AchievementId[] {
   return wallet.unlocked.filter((id) => !wallet.claimed.includes(id));
 }
 
-// ── Tirada diaria ───────────────────────────────────────────────────────────────────────────
-// Un giro por día natural del dispositivo a una ruleta de 12 casillas iguales: todas con la misma
-// probabilidad. Racha +1 si el último giro fue ayer; si no, vuelve a 1 (cuenta para los logros).
+// ── Bono diario ─────────────────────────────────────────────────────────────────────────────
+// Un cobro por día natural del dispositivo. Racha +1 si el último fue ayer; si no, vuelve a 1.
+// Premio 500 + 200 · (día − 1), con tope en el día 7 (1.700).
+
+export const MAX_REWARD_DAY = 7;
+
+export function dailyReward(streakDay: number): number {
+  return 500 + 200 * (Math.min(streakDay, MAX_REWARD_DAY) - 1);
+}
+
+export type DailyBonusStatus =
+  | { type: 'available'; streakDay: number; reward: number }
+  | { type: 'claimedToday'; streakDay: number; nextStreakDay: number; nextReward: number }
+  | { type: 'clockMovedBack' };
+
+export function dailyBonusStatus(wallet: Wallet, today: number, nowMillis: number): DailyBonusStatus {
+  const lastDay = wallet.lastDailyDay;
+  if (wallet.lastDailyAtMillis !== undefined && nowMillis < wallet.lastDailyAtMillis) return { type: 'clockMovedBack' };
+  if (lastDay !== undefined && today < lastDay) return { type: 'clockMovedBack' };
+  if (lastDay === today) {
+    return {
+      type: 'claimedToday',
+      streakDay: wallet.dailyStreak,
+      nextStreakDay: wallet.dailyStreak + 1,
+      nextReward: dailyReward(wallet.dailyStreak + 1),
+    };
+  }
+  const streakDay = lastDay === today - 1 ? wallet.dailyStreak + 1 : 1;
+  return { type: 'available', streakDay, reward: dailyReward(streakDay) };
+}
+
+// ── Ruleta diaria ───────────────────────────────────────────────────────────────────────────
+// Aparte del bono: un giro por día natural del dispositivo a una ruleta de 12 casillas iguales,
+// todas con la misma probabilidad. No toca la racha del bono.
 
 /**
  * Casillas de la ruleta diaria, en orden alrededor de la rueda. Las reglas de Firestore repiten los
@@ -180,15 +211,10 @@ export const DAILY_WHEEL: readonly number[] = [500, 250, 1_000, 500, 2_500, 250,
 
 export const isDailyPrize = (prize: number) => DAILY_WHEEL.includes(prize);
 
-export type DailyBonusStatus =
-  | { type: 'available'; streakDay: number }
-  | { type: 'claimedToday'; streakDay: number }
-  | { type: 'clockMovedBack' };
+export type DailySpinStatus = { type: 'available' } | { type: 'usedToday' } | { type: 'clockMovedBack' };
 
-export function dailyBonusStatus(wallet: Wallet, today: number, nowMillis: number): DailyBonusStatus {
-  const lastDay = wallet.lastDailyDay;
-  if (wallet.lastDailyAtMillis !== undefined && nowMillis < wallet.lastDailyAtMillis) return { type: 'clockMovedBack' };
-  if (lastDay !== undefined && today < lastDay) return { type: 'clockMovedBack' };
-  if (lastDay === today) return { type: 'claimedToday', streakDay: wallet.dailyStreak };
-  return { type: 'available', streakDay: lastDay === today - 1 ? wallet.dailyStreak + 1 : 1 };
+export function dailySpinStatus(wallet: Wallet, today: number, nowMillis: number): DailySpinStatus {
+  if (wallet.lastSpinAtMillis !== undefined && nowMillis < wallet.lastSpinAtMillis) return { type: 'clockMovedBack' };
+  if (wallet.lastSpinDay !== undefined && today < wallet.lastSpinDay) return { type: 'clockMovedBack' };
+  return wallet.lastSpinDay === today ? { type: 'usedToday' } : { type: 'available' };
 }

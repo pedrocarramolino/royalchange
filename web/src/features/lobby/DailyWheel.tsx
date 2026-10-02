@@ -2,7 +2,7 @@ import { memo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useSettings } from '@/data/settings';
 import { useReadyWallet, useWallet } from '@/data/wallet';
-import { DAILY_WHEEL, dailyBonusStatus } from '@/domain/progression';
+import { DAILY_WHEEL, dailySpinStatus } from '@/domain/progression';
 import { secureRandom } from '@/engine/cards';
 import { play } from '@/audio/sound';
 import { chips, grouped, remaining } from '@/lib/format';
@@ -126,14 +126,14 @@ type Phase = { type: 'idle' } | { type: 'spinning'; index: number } | { type: 'w
  */
 export function DailyWheel({ now, onHoldBalance }: { now: number; onHoldBalance: (balance: number | null) => void }) {
   const wallet = useReadyWallet()!;
-  const claimDailyBonus = useWallet((s) => s.claimDailyBonus);
+  const spinDailyWheel = useWallet((s) => s.spinDailyWheel);
   const reducedMotion = useSettings((s) => s.reducedMotion);
   const [phase, setPhase] = useState<Phase>({ type: 'idle' });
   const [failed, setFailed] = useState(false);
   const layer = useRef<HTMLDivElement>(null);
   // En reposo, el premio gordo (la última casilla) queda centrado bajo la flecha.
   const angle = useRef(SEGMENT / 2);
-  const status = dailyBonusStatus(wallet, localEpochDay(new Date(now)), Date.now());
+  const status = dailySpinStatus(wallet, localEpochDay(new Date(now)), Date.now());
 
   const spin = async () => {
     if (phase.type !== 'idle' || status.type !== 'available') return;
@@ -141,15 +141,15 @@ export function DailyWheel({ now, onHoldBalance }: { now: number; onHoldBalance:
     const prize = DAILY_WHEEL[index]!;
     setFailed(false);
     onHoldBalance(wallet.balance);
-    // Se pasa a «girando» antes de cobrar: al cobrar, el monedero ya cuenta la tirada de hoy y, sin
+    // Se pasa a «girando» antes de cobrar: al cobrar, el monedero ya cuenta el giro de hoy y, sin
     // esto, la tarjeta pasaría un instante a la fila compacta y la rueda se desmontaría.
     setPhase({ type: 'spinning', index });
     // El premio se cobra antes de girar: si se cierra la app a mitad de giro, ya está cobrado.
-    const result = await claimDailyBonus(prize);
+    const result = await spinDailyWheel(prize);
     if (!result.ok) {
       onHoldBalance(null);
       setPhase({ type: 'idle' });
-      setFailed(result.error.type !== 'dailyBonusAlreadyClaimed');
+      setFailed(result.error.type !== 'dailySpinAlreadyUsed');
       return;
     }
     play('spin');
@@ -176,10 +176,6 @@ export function DailyWheel({ now, onHoldBalance }: { now: number; onHoldBalance:
     finish();
   };
 
-  const streak = wallet.dailyStreak > 0 && (
-    <span className="shrink-0 text-xs font-semibold text-gold">{wallet.dailyStreak === 1 ? 'Racha de 1 día' : `Racha de ${wallet.dailyStreak} días`}</span>
-  );
-
   // Ya girada hoy (y sin un giro en pantalla): una fila compacta con la cuenta atrás.
   if (phase.type === 'idle' && status.type !== 'available') {
     return (
@@ -195,7 +191,6 @@ export function DailyWheel({ now, onHoldBalance }: { now: number; onHoldBalance:
               : `Vuelve mañana para girar otra vez (en ${remaining(msUntilLocalMidnight(new Date(now)))}).`}
           </p>
         </div>
-        {streak}
       </section>
     );
   }
@@ -205,7 +200,6 @@ export function DailyWheel({ now, onHoldBalance }: { now: number; onHoldBalance:
     <section className="panel relative overflow-hidden rounded-3xl px-4 pt-4 pb-4" aria-label="Ruleta diaria">
       <div className="flex items-center gap-2">
         <h3 className="flex-1 font-display text-lg font-semibold text-gold-gradient">Ruleta diaria</h3>
-        {streak}
       </div>
       <p className="mt-0.5 text-sm text-ivory-dim">Un giro gratis cada día: de 250 a {grouped(TOP_PRIZE)} fichas.</p>
 

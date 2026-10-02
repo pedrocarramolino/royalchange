@@ -24,7 +24,7 @@ export const GAMES = ['Blackjack', 'Roulette', 'Slots', 'Poker', 'Dice', 'Baccar
 export type GameType = (typeof GAMES)[number];
 
 /** Tipos de asiento contable. Los nombres son estables: las reglas los validan. */
-export type EntryKind = 'Welcome' | 'Bet' | 'Settlement' | 'InstantRound' | 'Rescue' | 'DailyBonus' | 'AchievementReward';
+export type EntryKind = 'Welcome' | 'Bet' | 'Settlement' | 'InstantRound' | 'Rescue' | 'DailyBonus' | 'DailySpin' | 'AchievementReward';
 
 /** Logros, en orden de catálogo. Los ids son estables. */
 export const ACHIEVEMENT_IDS = [
@@ -78,6 +78,9 @@ export interface Wallet {
   dailyStreak: number;
   lastDailyDay?: number;
   lastDailyAtMillis?: number;
+  /** Día y hora del último giro de la ruleta diaria (independiente del bono y su racha). */
+  lastSpinDay?: number;
+  lastSpinAtMillis?: number;
   unlocked: AchievementId[];
   claimed: AchievementId[];
 }
@@ -106,8 +109,9 @@ export type EconomyOperation =
   | { type: 'settleRound'; payout: number }
   | { type: 'instantRound'; game: GameType; stake: number; payout: number }
   | { type: 'claimRescue' }
-  /** Tirada diaria: [prize] es la casilla de la ruleta diaria en la que ha caído. */
-  | { type: 'claimDailyBonus'; today: number; prize: number }
+  | { type: 'claimDailyBonus'; today: number }
+  /** Ruleta diaria: [prize] es la casilla en la que ha caído. */
+  | { type: 'spinDailyWheel'; today: number; prize: number }
   | { type: 'claimAchievement'; id: AchievementId };
 
 export type EconomyError =
@@ -123,6 +127,7 @@ export type EconomyError =
   | { type: 'dailyBonusAlreadyClaimed' }
   | { type: 'dailyBonusClockMovedBack' }
   | { type: 'invalidDailyPrize' }
+  | { type: 'dailySpinAlreadyUsed' }
   | { type: 'achievementLocked' }
   | { type: 'achievementAlreadyClaimed' };
 

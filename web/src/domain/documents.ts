@@ -50,6 +50,10 @@ export function walletFromData(data: Data): Wallet {
   if (lastDay !== undefined) wallet.lastDailyDay = lastDay;
   const lastDaily = optNum(data.lastDailyAtMillis);
   if (lastDaily !== undefined) wallet.lastDailyAtMillis = lastDaily;
+  const spinDay = optNum(data.lastSpinDay);
+  if (spinDay !== undefined) wallet.lastSpinDay = spinDay;
+  const spinAt = optNum(data.lastSpinAtMillis);
+  if (spinAt !== undefined) wallet.lastSpinAtMillis = spinAt;
   return wallet;
 }
 

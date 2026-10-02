@@ -153,6 +153,8 @@ function HistoryRow({ item }: { item: HistoryItem }) {
           ? 'Recarga gratuita'
           : item.kind === 'DailyBonus'
             ? 'Bono diario'
+            : item.kind === 'DailySpin'
+              ? 'Ruleta diaria'
             : `Logro: ${item.achievementId ? achievement(item.achievementId).name : ''}`;
   }
   return (

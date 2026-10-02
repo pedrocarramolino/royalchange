@@ -75,7 +75,8 @@ describe.skipIf(!emulator)('reglas de Firestore', () => {
     await register(db, uid, 'AnaTs');
     await assertSucceeds(write(db, uid, openWallet(uid, newId(), Date.now())));
 
-    await run(db, uid, { type: 'claimDailyBonus', today: localEpochDay(), prize: 2_500 });
+    await run(db, uid, { type: 'claimDailyBonus', today: localEpochDay() });
+    await run(db, uid, { type: 'spinDailyWheel', today: localEpochDay(), prize: 2_500 });
 
     // Rondas instantáneas de todos los juegos: ganar, perder y empatar.
     const rounds: EconomyOperation[] = [
@@ -128,13 +129,13 @@ describe.skipIf(!emulator)('reglas de Firestore', () => {
     expect((await read(db, uid)).balance).toBe(remaining + 1_000);
   });
 
-  it('rechaza una tirada diaria con un premio que no está en la ruleta', async () => {
+  it('rechaza un giro de la ruleta diaria con un premio que no está en la ruleta', async () => {
     const uid = 'eva';
     const db = env.authenticatedContext(uid).firestore() as unknown as Firestore;
     await register(db, uid, 'EvaTs');
     await assertSucceeds(write(db, uid, openWallet(uid, newId(), Date.now())));
     const current = await read(db, uid);
-    const result = applyOperation(current, { type: 'claimDailyBonus', today: localEpochDay(), prize: 10_000 }, newId(), Date.now());
+    const result = applyOperation(current, { type: 'spinDailyWheel', today: localEpochDay(), prize: 10_000 }, newId(), Date.now());
     if (!result.ok) throw new Error('inesperado');
     // Mismo giro, pero declarando 20.000 fichas: saldo, asiento y máximo coherentes entre sí.
     const forged: WalletTransition = {

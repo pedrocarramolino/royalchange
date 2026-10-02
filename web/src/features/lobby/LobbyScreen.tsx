@@ -4,13 +4,14 @@ import { motion } from 'motion/react';
 import { useAuth } from '@/data/auth';
 import { useWallet, useReadyWallet } from '@/data/wallet';
 import { EconomyRules, rescueStatus } from '@/domain/economy';
-import { claimable, levelProgress, TITLE_NAMES } from '@/domain/progression';
+import { claimable, dailyBonusStatus, dailyReward, levelProgress, MAX_REWARD_DAY, TITLE_NAMES } from '@/domain/progression';
 import { chips, grouped, remaining } from '@/lib/format';
+import { localEpochDay } from '@/lib/time';
 import { Avatar } from '@/ui/Avatar';
 import { Button } from '@/ui/Button';
 import { Chip } from '@/ui/Chip';
 import { useCountUp } from '@/ui/ChipBalance';
-import { IconClose, IconGift, IconMail } from '@/ui/icons';
+import { IconClose, IconFlame, IconGift, IconMail } from '@/ui/icons';
 import { DailyWheel } from './DailyWheel';
 import { BaccaratArt, BlackjackArt, DiceArt, PokerArt, RouletteArt, SlotsArt, VideoPokerArt } from './GameArt';
 
@@ -79,6 +80,7 @@ export function LobbyScreen() {
           </Notice>
         )}
         {wallet && <RescueCard now={now} />}
+        {wallet && <DailyBonusCard now={now} />}
         {wallet && <DailyWheel now={now} onHoldBalance={setHeldBalance} />}
         {wallet && claimable(wallet).length > 0 && (
           <Notice tone="gold" icon={<IconGift className="size-6 text-gold" />} action={{ label: 'Ver', onClick: () => navigate('/progreso') }}>
@@ -251,5 +253,73 @@ function RescueCard({ now }: { now: number }) {
     >
       {failed ? 'No se pudo recoger la recarga. Vuelve a intentarlo.' : `Te has quedado sin fichas. Recoge ${chips(EconomyRules.RESCUE_GRANT)} gratis para seguir jugando.`}
     </Notice>
+  );
+}
+
+/** Bono diario: siete fichas, una por día de racha; la del día de hoy brilla hasta recogerla. */
+function DailyBonusCard({ now }: { now: number }) {
+  const wallet = useReadyWallet()!;
+  const claimDailyBonus = useWallet((s) => s.claimDailyBonus);
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const status = dailyBonusStatus(wallet, localEpochDay(new Date(now)), Date.now());
+
+  const filled = status.type === 'available' ? status.streakDay - 1 : status.type === 'claimedToday' ? status.streakDay : 0;
+  const todayIndex = status.type === 'available' ? status.streakDay : -1;
+
+  const claim = async () => {
+    setBusy(true);
+    const result = await claimDailyBonus();
+    setBusy(false);
+    setFailed(!result.ok && result.error.type !== 'dailyBonusAlreadyClaimed');
+  };
+
+  return (
+    <section className="panel rounded-3xl px-4 pt-4 pb-4" aria-label="Bono diario">
+      <div className="flex items-center gap-2">
+        <IconFlame className="size-5 text-gold" />
+        <h3 className="flex-1 font-semibold text-ivory">
+          {status.type === 'available' ? `Bono diario · Día ${status.streakDay}` : 'Bono diario'}
+        </h3>
+        {wallet.dailyStreak > 0 && status.type !== 'available' && (
+          <span className="text-xs font-semibold text-gold">{wallet.dailyStreak === 1 ? 'Racha de 1 día' : `Racha de ${wallet.dailyStreak} días`}</span>
+        )}
+      </div>
+      <ol className="mt-3 grid grid-cols-7 gap-1.5" aria-label="Recompensas de la semana">
+        {Array.from({ length: MAX_REWARD_DAY }, (_, i) => {
+          const day = i + 1;
+          const visualDay = Math.min(day, MAX_REWARD_DAY);
+          const done = day <= Math.min(filled, MAX_REWARD_DAY);
+          const today = day === Math.min(todayIndex, MAX_REWARD_DAY);
+          return (
+            <li key={day} className="flex flex-col items-center gap-1">
+              <motion.span
+                className={`grid place-items-center rounded-full ${today ? 'ring-2 ring-gold-light' : ''}`}
+                animate={today ? { scale: [1, 1.08, 1] } : { scale: 1 }}
+                transition={today ? { repeat: Infinity, duration: 1.6 } : undefined}
+                style={{ opacity: done || today ? 1 : 0.32 }}
+              >
+                <Chip value={dailyReward(visualDay) >= 1000 ? 1000 : 500} size={34} label={dailyReward(visualDay) >= 1000 ? `${(dailyReward(visualDay) / 1000).toFixed(1).replace('.0', '')}K` : String(dailyReward(visualDay))} />
+              </motion.span>
+              <span className={`text-[10px] font-semibold ${today ? 'text-gold-light' : 'text-mute'}`}>{day === MAX_REWARD_DAY ? '7+' : `Día ${day}`}</span>
+            </li>
+          );
+        })}
+      </ol>
+      <p className="mt-3 text-sm text-ivory-dim">
+        {failed
+          ? 'No se pudo recoger el bono. Vuelve a intentarlo.'
+          : status.type === 'available'
+            ? `Recoge ${chips(status.reward)}. Vuelve cada día para que tu racha crezca.`
+            : status.type === 'claimedToday'
+              ? `Ya lo has recogido hoy. Mañana te esperan ${chips(status.nextReward)}.`
+              : 'La fecha de tu dispositivo parece incorrecta. Corrígela para recoger el bono.'}
+      </p>
+      {status.type === 'available' && (
+        <Button block className="mt-3" loading={busy} onClick={() => void claim()}>
+          Recoger bono
+        </Button>
+      )}
+    </section>
   );
 }

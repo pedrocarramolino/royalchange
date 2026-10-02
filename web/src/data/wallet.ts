@@ -22,8 +22,9 @@ interface WalletStore {
   settleRound: (payout: number) => Promise<OperationResult>;
   playInstantRound: (game: GameType, stake: number, payout: number) => Promise<OperationResult>;
   claimRescue: () => Promise<OperationResult>;
-  /** Tirada diaria: cobra la casilla [prize] de la ruleta diaria. */
-  claimDailyBonus: (prize: number) => Promise<OperationResult>;
+  claimDailyBonus: () => Promise<OperationResult>;
+  /** Ruleta diaria: cobra la casilla [prize] en la que ha caído. */
+  spinDailyWheel: (prize: number) => Promise<OperationResult>;
   claimAchievement: (id: AchievementId) => Promise<OperationResult>;
   holdEvents: (held: boolean) => void;
   consumeEvent: () => void;
@@ -136,7 +137,8 @@ export const useWallet = create<WalletStore>((set, get) => {
     settleRound: (payout) => execute({ type: 'settleRound', payout }),
     playInstantRound: (game, stake, payout) => execute({ type: 'instantRound', game, stake, payout }),
     claimRescue: () => execute({ type: 'claimRescue' }),
-    claimDailyBonus: (prize) => execute({ type: 'claimDailyBonus', today: localEpochDay(), prize }),
+    claimDailyBonus: () => execute({ type: 'claimDailyBonus', today: localEpochDay() }),
+    spinDailyWheel: (prize) => execute({ type: 'spinDailyWheel', today: localEpochDay(), prize }),
     claimAchievement: (id) => execute({ type: 'claimAchievement', id }),
     holdEvents: (held) => set({ eventsHeld: held }),
     consumeEvent: () => set((s) => ({ events: s.events.slice(1) })),
@@ -158,9 +160,10 @@ export const ECONOMY_ERROR_TEXT: Record<EconomyError['type'], string> = {
   payoutTooHigh: 'Pago no válido.',
   rescueNotNeeded: 'Aún tienes fichas para jugar.',
   rescueCoolingDown: 'La recarga gratuita aún no está disponible.',
-  dailyBonusAlreadyClaimed: 'Ya has girado la ruleta diaria hoy.',
-  dailyBonusClockMovedBack: 'La hora del dispositivo parece incorrecta. Ajústala para girar la ruleta diaria.',
+  dailyBonusAlreadyClaimed: 'Ya has cobrado el bono de hoy.',
+  dailyBonusClockMovedBack: 'La hora del dispositivo parece incorrecta. Ajústala para cobrar el bono.',
   invalidDailyPrize: 'Premio no válido.',
+  dailySpinAlreadyUsed: 'Ya has girado la ruleta diaria hoy.',
   achievementLocked: 'Ese logro aún no está desbloqueado.',
   achievementAlreadyClaimed: 'Ya has recogido esa recompensa.',
 };

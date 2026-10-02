@@ -83,7 +83,7 @@ service cloud.firestore {
     // Casillas de la ruleta diaria (DAILY_WHEEL en domain/progression.ts).
     function dailyWheelPrizes() { return [250, 500, 1000, 1500, 2500, 5000, 10000]; }
     function entryKinds() {
-      return ['Welcome', 'Bet', 'Settlement', 'InstantRound', 'Rescue', 'DailyBonus', 'AchievementReward'];
+      return ['Welcome', 'Bet', 'Settlement', 'InstantRound', 'Rescue', 'DailyBonus', 'DailySpin', 'AchievementReward'];
     }
 
     // Progresión: repite ExperienceRules, Levels, DailyBonusRules y Achievements (módulo domain).
@@ -133,7 +133,7 @@ service cloud.firestore {
         && data.keys().hasOnly([
           'uid', 'balance', 'seq', 'lastEntryId', 'openRound', 'lastRescueAtMillis', 'xp', 'rounds',
           'wins', 'losses', 'pushes', 'winStreak', 'bestWinStreak', 'highestBalance', 'dailyStreak',
-          'lastDailyDay', 'lastDailyAtMillis', 'unlocked', 'claimed'
+          'lastDailyDay', 'lastDailyAtMillis', 'lastSpinDay', 'lastSpinAtMillis', 'unlocked', 'claimed'
         ])
         && data.uid == uid
         && data.balance is int && data.balance >= 0
@@ -147,6 +147,8 @@ service cloud.firestore {
         && data.dailyStreak is int
         && (!('lastDailyDay' in data) || data.lastDailyDay is int)
         && (!('lastDailyAtMillis' in data) || data.lastDailyAtMillis is int)
+        && (!('lastSpinDay' in data) || data.lastSpinDay is int)
+        && (!('lastSpinAtMillis' in data) || data.lastSpinAtMillis is int)
         && data.unlocked is list && data.unlocked.toSet().hasOnly(achievementIds())
         && data.claimed is list && data.claimed.toSet().hasOnly(data.unlocked);
     }
@@ -201,6 +203,12 @@ service cloud.firestore {
         && after.get('lastDailyAtMillis', null) == before.get('lastDailyAtMillis', null);
     }
 
+    // La ruleta diaria solo cambia con su propio giro.
+    function keepsDailySpin(before, after) {
+      return after.get('lastSpinDay', null) == before.get('lastSpinDay', null)
+        && after.get('lastSpinAtMillis', null) == before.get('lastSpinAtMillis', null);
+    }
+
     function keepsClaims(before, after) {
       return after.claimed.toSet() == before.get('claimed', []).toSet();
     }
@@ -220,6 +228,7 @@ service cloud.firestore {
         && after.winStreak == streak
         && after.bestWinStreak == (streak > best ? streak : best)
         && keepsDailyBonus(before, after)
+        && keepsDailySpin(before, after)
         && keepsClaims(before, after);
     }
 
@@ -267,6 +276,7 @@ service cloud.firestore {
         && keepsRescueTime(before, after)
         && keepsCounters(before, after)
         && keepsDailyBonus(before, after)
+        && keepsDailySpin(before, after)
         && keepsClaims(before, after);
     }
 
@@ -317,14 +327,14 @@ service cloud.firestore {
         && (last == null || after.lastRescueAtMillis >= last + rescueCooldownMillis())
         && keepsCounters(before, after)
         && keepsDailyBonus(before, after)
+        && keepsDailySpin(before, after)
         && keepsClaims(before, after);
     }
 
-    // Tirada diaria: un día del dispositivo posterior al último cobro y, como mucho, un día de
+    // Bono diario: un día del dispositivo posterior al último cobro y, como mucho, un día de
     // diferencia con el día UTC del servidor (las zonas horarias van de UTC−12 a UTC+14). Racha +1
-    // si es el día siguiente; si no, vuelve a 1. El premio es una casilla de la ruleta diaria; las
-    // versiones de la app anteriores a la ruleta cobraban 500 + 200 · (día − 1), con tope en el día 7,
-    // y se sigue aceptando para que no fallen hasta que se actualicen.
+    // si es el día siguiente; si no, vuelve a 1. Premio 500 + 200 · (día − 1), con tope en el día 7.
+    // (Una versión de un día cobraba aquí la casilla de la ruleta; se acepta hasta que se actualice.)
     function validDailyBonus(before, after, e) {
       let lastDay = before.get('lastDailyDay', null);
       let streak = (lastDay != null && after.lastDailyDay == lastDay + 1) ? previous(before, 'dailyStreak') + 1 : 1;
@@ -337,11 +347,31 @@ service cloud.firestore {
         && after.lastDailyDay <= serverDay + 1
         && after.dailyStreak == streak
         && after.lastDailyAtMillis == e.createdAtMillis
-        && (after.balance - before.balance in dailyWheelPrizes()
-          || after.balance - before.balance == 500 + 200 * (rewardDay - 1))
+        && (after.balance - before.balance == 500 + 200 * (rewardDay - 1)
+          || after.balance - before.balance in dailyWheelPrizes())
         && after.get('openRound', null) == before.get('openRound', null)
         && keepsRescueTime(before, after)
         && keepsCounters(before, after)
+        && keepsDailySpin(before, after)
+        && keepsClaims(before, after);
+    }
+
+    // Ruleta diaria: un giro por día del dispositivo (como el bono, cerca del día del servidor) y un
+    // premio que sea una de sus casillas. Independiente del bono: no toca su racha.
+    function validDailySpin(before, after, e) {
+      let lastDay = before.get('lastSpinDay', null);
+      let serverDay = math.floor(request.time.toMillis() / 86400000);
+      return e.kind == 'DailySpin'
+        && after.lastSpinDay is int
+        && (lastDay == null || after.lastSpinDay > lastDay)
+        && after.lastSpinDay >= serverDay - 1
+        && after.lastSpinDay <= serverDay + 1
+        && after.lastSpinAtMillis == e.createdAtMillis
+        && after.balance - before.balance in dailyWheelPrizes()
+        && after.get('openRound', null) == before.get('openRound', null)
+        && keepsRescueTime(before, after)
+        && keepsCounters(before, after)
+        && keepsDailyBonus(before, after)
         && keepsClaims(before, after);
     }
 
@@ -356,7 +386,8 @@ service cloud.firestore {
         && after.get('openRound', null) == before.get('openRound', null)
         && keepsRescueTime(before, after)
         && keepsCounters(before, after)
-        && keepsDailyBonus(before, after);
+        && keepsDailyBonus(before, after)
+        && keepsDailySpin(before, after);
     }
 
     // El asiento cuadra con el cambio de saldo y es una de las operaciones permitidas. El saldo
@@ -378,6 +409,7 @@ service cloud.firestore {
         : e.kind == 'InstantRound' ? validInstantRound(before, after, e)
         : e.kind == 'Rescue' ? validRescue(before, after, e)
         : e.kind == 'DailyBonus' ? validDailyBonus(before, after, e)
+        : e.kind == 'DailySpin' ? validDailySpin(before, after, e)
         : e.kind == 'AchievementReward' ? validAchievementClaim(before, after, e)
         : false;
     }
@@ -392,6 +424,7 @@ service cloud.firestore {
         && after.highestBalance == welcomeGrant()
         && after.dailyStreak == 0
         && !('lastDailyDay' in after) && !('lastDailyAtMillis' in after)
+        && !('lastSpinDay' in after) && !('lastSpinAtMillis' in after)
         && after.unlocked.size() == 0 && after.claimed.size() == 0
         && e.kind == 'Welcome'
         && e.seq == 1
