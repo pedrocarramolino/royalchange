@@ -63,8 +63,19 @@ internal fun PokerTableView(table: PokerState, modifier: Modifier = Modifier) {
     val casino = RoyalTheme.casinoColors
     BoxWithConstraints(modifier) {
         val compact = maxWidth < 600.dp
-        val cardWidth = if (compact) 26.dp else 36.dp
-        val boardCardWidth = if (compact) 38.dp else 56.dp
+        // Móvil girado: mesa ancha y baja. Las cartas de cada asiento van al lado del nombre (no
+        // encima) y todo es algo más pequeño, para que los asientos no tapen el centro.
+        val low = maxWidth > maxHeight && maxHeight < 400.dp
+        val cardWidth = when {
+            low -> 22.dp
+            compact -> 26.dp
+            else -> 36.dp
+        }
+        val boardCardWidth = when {
+            low -> 30.dp
+            compact -> 38.dp
+            else -> 56.dp
+        }
         Canvas(Modifier.fillMaxSize()) {
             val inset = Offset(size.width * 0.08f, size.height * 0.12f)
             val ovalSize = Size(size.width - inset.x * 2, size.height - inset.y * 2)
@@ -79,14 +90,16 @@ internal fun PokerTableView(table: PokerState, modifier: Modifier = Modifier) {
         val positions = buildList {
             add(0.5f to 0.5f)
             angles.forEach { add((0.5 + 0.40 * cos(it)).toFloat() to (0.5 + 0.40 * sin(it)).toFloat()) }
-            angles.forEach { add((0.5 + 0.25 * cos(it)).toFloat() to (0.5 + 0.22 * sin(it)).toFloat()) }
+            val betRadius = if (low) 0.30 to 0.27 else 0.25 to 0.22
+            angles.forEach { add((0.5 + betRadius.first * cos(it)).toFloat() to (0.5 + betRadius.second * sin(it)).toFloat()) }
         }
 
         Layout(
             content = {
                 CenterView(table, boardCardWidth)
-                table.seats.forEachIndexed { index, seat -> SeatView(table, index, seat, cardWidth, compact) }
-                table.seats.forEach { seat -> BetView(seat) }
+                table.seats.forEachIndexed { index, seat -> SeatView(table, index, seat, cardWidth, compact, sideCards = low) }
+                // En la mesa baja la apuesta va dentro de cada asiento: fuera se montaba encima de ellos.
+                table.seats.forEach { seat -> if (low) Box(Modifier.size(1.dp)) else BetView(seat) }
             },
             modifier = Modifier.fillMaxSize(),
         ) { measurables, constraints ->
@@ -140,8 +153,7 @@ private fun CenterView(table: PokerState, cardWidth: Dp) {
 }
 
 @Composable
-private fun SeatView(table: PokerState, index: Int, seat: Seat, cardWidth: Dp, compact: Boolean) {
-    val casino = RoyalTheme.casinoColors
+private fun SeatView(table: PokerState, index: Int, seat: Seat, cardWidth: Dp, compact: Boolean, sideCards: Boolean) {
     val active = table.toAct == index && table.phase == PokerPhase.Betting
     val won = table.phase == PokerPhase.HandOver && table.awards.any { index in it.winners }
     val out = seat.hole.isEmpty() && seat.stack == 0L
@@ -159,42 +171,64 @@ private fun SeatView(table: PokerState, index: Int, seat: Seat, cardWidth: Dp, c
     }
     val description = stringResource(Res.string.poker_seat_description, seat.name, chipsText(Chips(seat.stack)), status.orEmpty(), cardsDescription)
 
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
-            .alpha(if (seat.folded || out) 0.45f else 1f)
-            .clearAndSetSemantics { contentDescription = description },
-    ) {
-        Row(horizontalArrangement = Arrangement.spacedBy((-6).dp)) {
-            seat.hole.forEach { card -> PokerCard(card, faceDown = !showCards, width = cardWidth) }
+    val seatModifier = Modifier
+        .alpha(if (seat.folded || out) 0.45f else 1f)
+        .clearAndSetSemantics { contentDescription = description }
+    val cards = @Composable {
+        Row(horizontalArrangement = Arrangement.spacedBy(if (sideCards) (-4).dp else (-6).dp)) {
+            // Las del jugador, algo más grandes: son las que más se miran.
+            val width = if (sideCards && seat.isHuman) cardWidth * 1.3f else cardWidth
+            seat.hole.forEach { card -> PokerCard(card, faceDown = !showCards, width = width) }
         }
-        Surface(
-            shape = MaterialTheme.shapes.medium,
-            color = Color.Black.copy(alpha = 0.65f),
-            border = when {
-                won -> BorderStroke(2.dp, casino.gold)
-                active -> BorderStroke(2.dp, casino.goldLight)
-                else -> BorderStroke(1.dp, casino.onFelt.copy(alpha = 0.25f))
-            },
+    }
+    if (sideCards) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp), modifier = seatModifier) {
+            cards()
+            SeatInfo(table, index, seat, status, active, won, compact = true, showBet = true)
+        }
+    } else {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = seatModifier) {
+            cards()
+            SeatInfo(table, index, seat, status, active, won, compact)
+        }
+    }
+}
+
+@Composable
+private fun SeatInfo(table: PokerState, index: Int, seat: Seat, status: String?, active: Boolean, won: Boolean, compact: Boolean, showBet: Boolean = false) {
+    val casino = RoyalTheme.casinoColors
+    Surface(
+        shape = MaterialTheme.shapes.medium,
+        color = Color.Black.copy(alpha = 0.65f),
+        border = when {
+            won -> BorderStroke(2.dp, casino.gold)
+            active -> BorderStroke(2.dp, casino.goldLight)
+            else -> BorderStroke(1.dp, casino.onFelt.copy(alpha = 0.25f))
+        },
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp).widthIn(min = if (compact) 64.dp else 88.dp, max = if (compact) 84.dp else 120.dp),
         ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp).widthIn(min = if (compact) 64.dp else 88.dp, max = if (compact) 84.dp else 120.dp),
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    if (table.button == index) DealerButton()
-                    Text(
-                        seat.name,
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = if (seat.isHuman) casino.gold else casino.onFelt,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                Text(chipsText(Chips(seat.stack)), style = MaterialTheme.typography.labelSmall, color = casino.onFelt.copy(alpha = 0.9f), maxLines = 1)
-                if (status != null) {
-                    Text(status, style = MaterialTheme.typography.labelSmall, color = if (active) casino.goldLight else casino.gold.copy(alpha = 0.85f), maxLines = 1)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                if (table.button == index) DealerButton()
+                Text(
+                    seat.name,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = if (seat.isHuman) casino.gold else casino.onFelt,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Text(chipsText(Chips(seat.stack)), style = MaterialTheme.typography.labelSmall, color = casino.onFelt.copy(alpha = 0.9f), maxLines = 1)
+            if (status != null) {
+                Text(status, style = MaterialTheme.typography.labelSmall, color = if (active) casino.goldLight else casino.gold.copy(alpha = 0.85f), maxLines = 1)
+            }
+            if (showBet && seat.bet > 0) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                    StakeMarker(seat.bet, size = 14.dp)
+                    Text(chipsText(Chips(seat.bet)), style = MaterialTheme.typography.labelSmall, color = casino.onFelt, maxLines = 1)
                 }
             }
         }

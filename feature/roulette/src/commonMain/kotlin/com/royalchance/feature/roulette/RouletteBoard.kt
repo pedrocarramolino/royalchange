@@ -124,6 +124,55 @@ internal fun RouletteBoard(state: RouletteUiState, onPlace: (RouletteBet) -> Uni
     }
 }
 
+private const val ZERO_WEIGHT = 1f
+private const val COLUMN_BET_WEIGHT = 1.1f
+
+/**
+ * Tapete europeo en horizontal, como en una mesa real (para el móvil girado, con poca altura):
+ * el 0 a la izquierda, tres filas de doce números (el 3 arriba), las columnas (2:1) a la derecha
+ * y, debajo, las docenas y las apuestas sencillas.
+ */
+@Composable
+internal fun RouletteBoardHorizontal(state: RouletteUiState, onPlace: (RouletteBet) -> Unit, rowHeight: Dp, modifier: Modifier = Modifier) {
+    Column(modifier) {
+        Row(Modifier.fillMaxWidth().height(rowHeight * 3)) {
+            Cell(RouletteBet.Straight(0), "0", PocketGreen, state, onPlace, Modifier.weight(ZERO_WEIGHT))
+            Column(Modifier.weight(12f)) {
+                (0..2).forEach { fromTop ->
+                    Row(Modifier.weight(1f)) {
+                        (1..12).forEach { column ->
+                            val number = 3 * column - fromTop
+                            Cell(RouletteBet.Straight(number), number.toString(), pocketColor(number), state, onPlace, Modifier.weight(1f))
+                        }
+                    }
+                }
+            }
+            Column(Modifier.weight(COLUMN_BET_WEIGHT)) {
+                (3 downTo 1).forEach { column -> Cell(RouletteBet.Column(column), "2:1", null, state, onPlace, Modifier.weight(1f)) }
+            }
+        }
+        Row(Modifier.fillMaxWidth().height(rowHeight)) {
+            Spacer(Modifier.weight(ZERO_WEIGHT))
+            (1..3).forEach { dozen ->
+                Cell(RouletteBet.Dozen(dozen), stringResource(Res.string.roulette_dozen_label, dozen * 12 - 11, dozen * 12), null, state, onPlace, Modifier.weight(4f))
+            }
+            Spacer(Modifier.weight(COLUMN_BET_WEIGHT))
+        }
+        Row(Modifier.fillMaxWidth().height(rowHeight)) {
+            Spacer(Modifier.weight(ZERO_WEIGHT))
+            OUTSIDE_BETS.forEach { (bet, label) ->
+                val color = when (bet) {
+                    RouletteBet.Red -> PocketRed
+                    RouletteBet.Black -> PocketBlack
+                    else -> null
+                }
+                Cell(bet, label?.let { stringResource(it) } ?: "", color, state, onPlace, Modifier.weight(2f), diamond = color != null)
+            }
+            Spacer(Modifier.weight(COLUMN_BET_WEIGHT))
+        }
+    }
+}
+
 /** Apuestas sencillas, de arriba abajo, con su texto (rojo y negro se dibujan con un rombo). */
 private val OUTSIDE_BETS: List<Pair<RouletteBet, StringResource?>> = listOf(
     RouletteBet.Low to Res.string.roulette_label_low,

@@ -1,5 +1,14 @@
 package com.royalchance.feature.slots
 
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.TextAutoSize
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.sp
+import com.royalchance.core.designsystem.component.isLandscapePhone
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -129,11 +138,14 @@ internal fun SlotsScreen(viewModel: SlotsViewModel, eventGate: ProgressEventGate
         controls = { Controls(state, viewModel, onShowPaytable = { showPaytable = true }) },
     ) {
         BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            val cell = minOf((maxWidth - 64.dp) / SlotMachine.REELS, (maxHeight - 140.dp) / SlotMachine.ROWS, 110.dp).coerceAtLeast(44.dp)
+            // Móvil girado: poca altura, así que se reserva menos sitio para el resultado.
+            val compact = isLandscapePhone(maxWidth, maxHeight)
+            val reserved = if (compact) 88.dp else 140.dp
+            val cell = minOf((maxWidth - 64.dp) / SlotMachine.REELS, (maxHeight - reserved) / SlotMachine.ROWS, 110.dp).coerceAtLeast(44.dp)
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(RoyalSpacing.l),
-                modifier = Modifier.verticalScroll(rememberScrollState()).padding(RoyalSpacing.l),
+                verticalArrangement = Arrangement.spacedBy(if (compact) RoyalSpacing.s else RoyalSpacing.l),
+                modifier = Modifier.verticalScroll(rememberScrollState()).padding(horizontal = RoyalSpacing.l, vertical = if (compact) RoyalSpacing.s else RoyalSpacing.l),
             ) {
                 val spin = state.lastSpin?.spin
                 val highlighted = if (state.showResult && spin != null) {
@@ -152,7 +164,7 @@ internal fun SlotsScreen(viewModel: SlotsViewModel, eventGate: ProgressEventGate
                     cellSize = cell,
                     modifier = Modifier.clearAndSetSemantics { contentDescription = reelsDescription },
                 )
-                ResultPanel(state)
+                ResultPanel(state, compact)
             }
             WinCelebration(trigger = resultKey?.takeIf { bigWin }, modifier = Modifier.matchParentSize())
         }
@@ -162,13 +174,13 @@ internal fun SlotsScreen(viewModel: SlotsViewModel, eventGate: ProgressEventGate
 }
 
 @Composable
-private fun ResultPanel(state: SlotsUiState) {
+private fun ResultPanel(state: SlotsUiState, compact: Boolean) {
     val casino = RoyalTheme.casinoColors
     val spin = state.lastSpin?.spin
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(RoyalSpacing.xs),
-        modifier = Modifier.heightIn(min = 72.dp).semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
+        modifier = Modifier.heightIn(min = if (compact) 40.dp else 72.dp).semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
     ) {
         when {
             state.spinning -> Text(stringResource(Res.string.slots_spinning), style = MaterialTheme.typography.titleMedium, color = casino.onFelt)
@@ -179,11 +191,12 @@ private fun ResultPanel(state: SlotsUiState) {
                     } else {
                         stringResource(Res.string.slots_partial, chipsText(Chips(spin.totalPayout)), chipsText(Chips(spin.totalBet)))
                     },
-                    style = MaterialTheme.typography.headlineSmall,
+                    style = if (compact) MaterialTheme.typography.titleMedium else MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     color = casino.gold,
+                    textAlign = TextAlign.Center,
                 )
-                spin.wins.take(4).forEach { win ->
+                spin.wins.take(if (compact) 2 else 4).forEach { win ->
                     Text(
                         stringResource(Res.string.slots_line_win, win.line + 1, win.count, symbolName(win.symbol), chipsText(Chips(win.payout))),
                         style = MaterialTheme.typography.labelMedium,
@@ -222,11 +235,13 @@ private fun Controls(state: SlotsUiState, viewModel: SlotsViewModel, onShowPayta
             Row(verticalAlignment = Alignment.CenterVertically) {
                 StepButton("−", downDescription, viewModel::decreaseBet, enabled = state.canSpin && state.betIndex > 0)
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
-                    Text(stringResource(Res.string.slots_bet, chipsText(Chips(state.totalBet))), style = MaterialTheme.typography.titleMedium)
+                    // En una línea: en el panel lateral del móvil girado no cabe a tamaño completo.
+                    FittedText(stringResource(Res.string.slots_bet, chipsText(Chips(state.totalBet))), MaterialTheme.typography.titleMedium, LocalContentColor.current)
                     Text(
                         stringResource(Res.string.slots_line_bet, chipsText(Chips(state.lineBet)), SlotMachine.LINES.size),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
                     )
                 }
                 StepButton("+", upDescription, viewModel::increaseBet, enabled = state.canSpin && state.betIndex < state.rules.lineBets.lastIndex)
@@ -244,6 +259,18 @@ private fun Controls(state: SlotsUiState, viewModel: SlotsViewModel, onShowPayta
             }
         }
     }
+}
+
+/** Texto en una sola línea que reduce la letra (hasta 10 sp) si no cabe. */
+@Composable
+private fun FittedText(text: String, style: TextStyle, color: Color) {
+    BasicText(
+        text = text,
+        style = style.merge(color = color, textAlign = TextAlign.Center),
+        maxLines = 1,
+        overflow = TextOverflow.Clip,
+        autoSize = TextAutoSize.StepBased(minFontSize = 10.sp, maxFontSize = style.fontSize, stepSize = 0.5.sp),
+    )
 }
 
 /** Botón redondo para subir o bajar la apuesta. */

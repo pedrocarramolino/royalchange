@@ -1,5 +1,6 @@
 package com.royalchance.feature.poker
 
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -282,13 +283,24 @@ private fun HeroActions(table: PokerState, legal: LegalActions, viewModel: Poker
     val unit = table.rules.chipUnit
     var raiseTo by remember(table.handNumber, table.street, legal.minRaiseTo) { mutableLongStateOf(legal.minRaiseTo) }
     if (legal.canRaise) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(RoyalSpacing.xs)) {
-            val pot = table.pot
-            fun target(amount: Long) = (amount / unit * unit).coerceIn(legal.minRaiseTo, legal.maxRaiseTo)
-            PresetButton(stringResource(Res.string.poker_min)) { raiseTo = legal.minRaiseTo }
-            PresetButton(stringResource(Res.string.poker_half_pot)) { raiseTo = target(table.currentBet + pot / 2) }
-            PresetButton(stringResource(Res.string.poker_pot_size)) { raiseTo = target(table.currentBet + pot) }
-            PresetButton(stringResource(Res.string.poker_all_in)) { raiseTo = legal.maxRaiseTo }
+        val pot = table.pot
+        fun target(amount: Long) = (amount / unit * unit).coerceIn(legal.minRaiseTo, legal.maxRaiseTo)
+        val presets = listOf<Pair<String, () -> Unit>>(
+            stringResource(Res.string.poker_min) to { raiseTo = legal.minRaiseTo },
+            stringResource(Res.string.poker_half_pot) to { raiseTo = target(table.currentBet + pot / 2) },
+            stringResource(Res.string.poker_pot_size) to { raiseTo = target(table.currentBet + pot) },
+            stringResource(Res.string.poker_all_in) to { raiseTo = legal.maxRaiseTo },
+        )
+        // En un panel estrecho (móvil girado) los cuatro no caben en una fila: van en dos.
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val perRow = if (maxWidth < 360.dp) 2 else 4
+            Column {
+                presets.chunked(perRow).forEach { row ->
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(RoyalSpacing.xs)) {
+                        row.forEach { (label, onClick) -> PresetButton(label, onClick, Modifier.weight(1f)) }
+                    }
+                }
+            }
         }
         if (legal.maxRaiseTo > legal.minRaiseTo) {
             Slider(
@@ -316,8 +328,8 @@ private fun HeroActions(table: PokerState, legal: LegalActions, viewModel: Poker
 }
 
 @Composable
-private fun PresetButton(label: String, onClick: () -> Unit) {
-    RoyalTextButton(text = label, onClick = onClick)
+private fun PresetButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    RoyalTextButton(text = label, onClick = onClick, modifier = modifier)
 }
 
 @Composable

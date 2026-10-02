@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -39,11 +40,14 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.royalchance.core.common.text.formatGrouped
 import com.royalchance.core.designsystem.component.BannerTone
+import com.royalchance.core.designsystem.component.BetActionBar
+import com.royalchance.core.designsystem.component.BetBarAction
 import com.royalchance.core.designsystem.component.BetChip
 import com.royalchance.core.designsystem.component.GameTableLayout
 import com.royalchance.core.designsystem.component.InfoBanner
@@ -51,6 +55,7 @@ import com.royalchance.core.designsystem.component.RoyalPrimaryButton
 import com.royalchance.core.designsystem.component.RoyalTextButton
 import com.royalchance.core.designsystem.component.RoyalTopBar
 import com.royalchance.core.designsystem.component.feltBackground
+import com.royalchance.core.designsystem.component.isLandscapePhone
 import com.royalchance.core.designsystem.theme.RoyalSpacing
 import com.royalchance.core.designsystem.theme.RoyalTheme
 import com.royalchance.core.ui.ChipBalance
@@ -102,11 +107,17 @@ internal fun RouletteScreen(viewModel: RouletteViewModel, eventGate: ProgressEve
     val resultKey = if (state.showResult) spin?.id else null
     SoundOnChange(resultKey, spin?.let { resultSound(it.spin.totalPayout - it.spin.totalStake, bigWin) })
 
-    GameTableLayout(
-        modifier = Modifier
+    BoxWithConstraints(
+        Modifier
             .fillMaxSize()
             .feltBackground(casino.feltBrush)
             .windowInsetsPadding(WindowInsets.safeDrawing),
+    ) {
+    // Móvil girado: el tapete en horizontal ocupa todo el ancho y los controles van en una barra
+    // abajo; el panel lateral dejaría el tapete demasiado estrecho.
+    val compact = isLandscapePhone(maxWidth, maxHeight)
+    GameTableLayout(
+        modifier = Modifier.fillMaxSize(),
         topBar = {
             RoyalTopBar(
                 title = stringResource(Res.string.roulette_title),
@@ -116,13 +127,18 @@ internal fun RouletteScreen(viewModel: RouletteViewModel, eventGate: ProgressEve
                 actions = { state.balance?.let { ChipBalance(it, color = casino.gold, modifier = Modifier.padding(end = RoyalSpacing.l)) } },
             )
         },
-        controls = { Controls(state, viewModel) },
+        controls = if (compact) null else ({ Controls(state, viewModel) }),
     ) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val width = maxWidth
             val height = maxHeight
-            // Rueda y tapete lado a lado si hay anchura (escritorio, tablet o móvil en horizontal).
-            if (width >= 840.dp || width > height) {
+            if (compact) {
+                Column(Modifier.fillMaxSize()) {
+                    CompactTable(state, viewModel, Modifier.weight(1f).fillMaxWidth())
+                    CompactControls(state, viewModel)
+                }
+            } else if (width >= 840.dp || width > height) {
+                // Rueda y tapete lado a lado si hay anchura (escritorio, tablet).
                 val rowHeight = ((height - RoyalSpacing.l * 2) / 14).coerceIn(28.dp, 44.dp)
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(RoyalSpacing.xl),
@@ -165,6 +181,58 @@ internal fun RouletteScreen(viewModel: RouletteViewModel, eventGate: ProgressEve
             WinCelebration(trigger = resultKey?.takeIf { bigWin }, modifier = Modifier.matchParentSize())
         }
     }
+    }
+}
+
+/** Móvil en horizontal: rueda y resultado a la izquierda, tapete horizontal al lado. */
+@Composable
+private fun CompactTable(state: RouletteUiState, viewModel: RouletteViewModel, modifier: Modifier) {
+    BoxWithConstraints(modifier.padding(horizontal = RoyalSpacing.l, vertical = RoyalSpacing.s)) {
+        val rowHeight = (maxHeight / 5).coerceIn(24.dp, 46.dp)
+        // Debajo de la rueda caben el número y el balance (dos líneas).
+        val wheelSize = (maxHeight - 76.dp).coerceIn(72.dp, 150.dp)
+        Row(horizontalArrangement = Arrangement.spacedBy(RoyalSpacing.m), verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxSize()) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(RoyalSpacing.xs, Alignment.CenterVertically),
+                modifier = Modifier.width(wheelSize.coerceAtLeast(150.dp)),
+            ) {
+                Wheel(state, viewModel::onSpinShown, wheelSize)
+                ResultPanel(state, Alignment.CenterHorizontally, compact = true)
+            }
+            RouletteBoardHorizontal(state, viewModel::place, rowHeight, Modifier.weight(1f))
+        }
+    }
+}
+
+/** Controles en una sola fila, para el móvil en horizontal. */
+@Composable
+private fun CompactControls(state: RouletteUiState, viewModel: RouletteViewModel) {
+    BetActionBar(
+        chipValues = CHIP_VALUES,
+        selectedChip = state.chip,
+        chipDescription = { stringResource(Res.string.roulette_chip, chipsText(Chips(it))) },
+        onSelectChip = viewModel::selectChip,
+        actions = listOf(
+            BetBarAction(stringResource(Res.string.roulette_undo), state.canBet && state.canUndo, viewModel::undo),
+            BetBarAction(stringResource(Res.string.roulette_clear), state.canBet && state.bets.isNotEmpty(), viewModel::clear),
+            BetBarAction(stringResource(Res.string.roulette_repeat), state.canBet && state.bets.isEmpty() && state.lastBets.isNotEmpty(), viewModel::repeat),
+        ),
+        primaryText = stringResource(Res.string.roulette_spin),
+        onPrimary = viewModel::spin,
+        primaryEnabled = state.canBet && state.bets.isNotEmpty(),
+        primaryLoading = state.busy || state.spinning,
+        notice = state.notice?.let { notice ->
+            {
+                InfoBanner(
+                    message = notice.message(),
+                    tone = BannerTone.Error,
+                    actionLabel = stringResource(Res.string.roulette_dismiss),
+                    onAction = viewModel::dismissNotice,
+                )
+            }
+        },
+    )
 }
 
 @Composable
@@ -183,7 +251,8 @@ private fun Wheel(state: RouletteUiState, onSpinShown: (Long) -> Unit, size: Dp)
 
 /** Estado de la ronda: apuestas, bola en juego o el número que ha salido con el balance. */
 @Composable
-private fun ResultPanel(state: RouletteUiState, alignment: Alignment.Horizontal) {
+private fun ResultPanel(state: RouletteUiState, alignment: Alignment.Horizontal, compact: Boolean = false) {
+    val textStyle = if (compact) MaterialTheme.typography.labelLarge else MaterialTheme.typography.titleMedium
     val casino = RoyalTheme.casinoColors
     Column(
         horizontalAlignment = alignment,
@@ -192,13 +261,13 @@ private fun ResultPanel(state: RouletteUiState, alignment: Alignment.Horizontal)
     ) {
         val spin = state.lastSpin?.spin
         when {
-            state.spinning -> Text(stringResource(Res.string.roulette_spinning), style = MaterialTheme.typography.titleMedium, color = casino.onFelt)
+            state.spinning -> Text(stringResource(Res.string.roulette_spinning), style = textStyle, color = casino.onFelt, textAlign = if (compact) TextAlign.Center else null)
             state.showResult && spin != null -> {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(RoyalSpacing.s)) {
-                    NumberBadge(spin.number, 40.dp)
+                    NumberBadge(spin.number, if (compact) 28.dp else 40.dp)
                     Text(
                         text = stringResource(Res.string.roulette_result, spin.number, colorName(spin.number)),
-                        style = MaterialTheme.typography.titleMedium,
+                        style = textStyle,
                         color = casino.onFelt,
                     )
                 }
@@ -208,14 +277,15 @@ private fun ResultPanel(state: RouletteUiState, alignment: Alignment.Horizontal)
                     net < 0 -> stringResource(Res.string.roulette_net_lost, chipsText(Chips(-net))) to casino.suitRed
                     else -> stringResource(Res.string.roulette_net_even) to casino.onFelt
                 }
-                Text(text, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = color)
+                Text(text, style = if (compact) MaterialTheme.typography.labelLarge else MaterialTheme.typography.titleSmall, textAlign = TextAlign.Center, fontWeight = FontWeight.Bold, color = color)
             }
             state.bets.isNotEmpty() -> Text(
                 stringResource(Res.string.roulette_total_bet, chipsText(Chips(state.totalBet))),
-                style = MaterialTheme.typography.titleMedium,
+                style = textStyle,
                 color = casino.onFelt,
+                textAlign = if (compact) TextAlign.Center else null,
             )
-            else -> Text(stringResource(Res.string.roulette_place_bets), style = MaterialTheme.typography.titleMedium, color = casino.onFelt)
+            else -> Text(stringResource(Res.string.roulette_place_bets), style = textStyle, color = casino.onFelt, textAlign = if (compact) TextAlign.Center else null)
         }
     }
 }

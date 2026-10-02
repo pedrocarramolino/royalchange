@@ -1,5 +1,10 @@
 package com.royalchance.feature.dice
 
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.unit.Dp
+import com.royalchance.core.designsystem.component.BetActionBar
+import com.royalchance.core.designsystem.component.BetBarAction
+import com.royalchance.core.designsystem.component.isLandscapePhone
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -130,11 +135,17 @@ internal fun DiceScreen(viewModel: DiceViewModel, eventGate: ProgressEventGate, 
     val resultKey = if (state.showResult) thrown?.id else null
     SoundOnChange(resultKey, thrown?.let { resultSound(it.result.totalPayout - it.result.totalStake, bigWin) })
 
-    GameTableLayout(
-        modifier = Modifier
+    BoxWithConstraints(
+        Modifier
             .fillMaxSize()
             .feltBackground(casino.feltBrush)
             .windowInsetsPadding(WindowInsets.safeDrawing),
+    ) {
+    // Móvil girado: dados a la izquierda, tapete compacto a la derecha y controles en una barra
+    // abajo; con el panel lateral el tapete quedaba fuera de la pantalla.
+    val compact = isLandscapePhone(maxWidth, maxHeight)
+    GameTableLayout(
+        modifier = Modifier.fillMaxSize(),
         topBar = {
             RoyalTopBar(
                 title = stringResource(Res.string.dice_title),
@@ -144,11 +155,16 @@ internal fun DiceScreen(viewModel: DiceViewModel, eventGate: ProgressEventGate, 
                 actions = { state.balance?.let { ChipBalance(it, color = casino.gold, modifier = Modifier.padding(end = RoyalSpacing.l)) } },
             )
         },
-        controls = { Controls(state, viewModel) },
+        controls = if (compact) null else ({ Controls(state, viewModel) }),
     ) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val dieSize = if (maxWidth < 600.dp) 64.dp else 88.dp
-            Column(
+            if (compact) {
+                Column(Modifier.fillMaxSize()) {
+                    CompactTable(state, viewModel, Modifier.weight(1f).fillMaxWidth())
+                    CompactControls(state, viewModel)
+                }
+            } else Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(RoyalSpacing.l),
                 modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(RoyalSpacing.l),
@@ -172,24 +188,107 @@ internal fun DiceScreen(viewModel: DiceViewModel, eventGate: ProgressEventGate, 
             WinCelebration(trigger = resultKey?.takeIf { bigWin }, modifier = Modifier.matchParentSize())
         }
     }
+    }
+}
+
+/** Móvil en horizontal: dados y resultado a la izquierda, tapete compacto al lado. */
+@Composable
+private fun CompactTable(state: DiceUiState, viewModel: DiceViewModel, modifier: Modifier) {
+    BoxWithConstraints(modifier.padding(horizontal = RoyalSpacing.l, vertical = RoyalSpacing.s)) {
+        val dieSize = ((maxHeight - 64.dp) / 1.5f).coerceIn(36.dp, 64.dp)
+        val rowHeight = ((maxHeight - 8.dp) / 3).coerceIn(40.dp, 64.dp)
+        Row(horizontalArrangement = Arrangement.spacedBy(RoyalSpacing.m), verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxSize()) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(RoyalSpacing.xs, Alignment.CenterVertically),
+                modifier = Modifier.width(maxOf(dieSize * 2 + 40.dp, 150.dp)),
+            ) {
+                val description = stringResource(Res.string.dice_view)
+                Box(Modifier.height(dieSize * 1.5f), contentAlignment = Alignment.BottomCenter) {
+                    DicePair(
+                        roll = state.lastThrow?.result?.roll,
+                        throwId = state.lastThrow?.id,
+                        rolling = state.rolling,
+                        durationMillis = DiceViewModel.ROLL_DURATION.inWholeMilliseconds.toInt(),
+                        onRollShown = viewModel::onRollShown,
+                        size = dieSize,
+                        modifier = Modifier.clearAndSetSemantics { contentDescription = description },
+                    )
+                }
+                ResultPanel(state, compact = true)
+            }
+            CompactDiceBoard(state, viewModel::place, rowHeight, Modifier.weight(1f))
+        }
+    }
+}
+
+/** Tapete en tres filas: suma, siete y dobles arriba; sumas exactas en las dos de abajo. */
+@Composable
+private fun CompactDiceBoard(state: DiceUiState, onPlace: (DiceBet) -> Unit, rowHeight: Dp, modifier: Modifier) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = modifier) {
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.height(rowHeight)) {
+            BetCell(DiceBet.Low, stringResource(Res.string.dice_label_low), state, onPlace, Modifier.weight(1f).fillMaxHeight(), compact = true)
+            BetCell(DiceBet.Seven, stringResource(Res.string.dice_label_seven), state, onPlace, Modifier.weight(1f).fillMaxHeight(), compact = true)
+            BetCell(DiceBet.High, stringResource(Res.string.dice_label_high), state, onPlace, Modifier.weight(1f).fillMaxHeight(), compact = true)
+            BetCell(DiceBet.Doubles, stringResource(Res.string.dice_label_doubles), state, onPlace, Modifier.weight(1f).fillMaxHeight(), compact = true)
+        }
+        listOf(listOf(2, 3, 4, 5, 6), listOf(8, 9, 10, 11, 12)).forEach { sums ->
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.height(rowHeight)) {
+                sums.forEach { total -> BetCell(DiceBet.Sum(total), total.toString(), state, onPlace, Modifier.weight(1f).fillMaxHeight(), compact = true) }
+            }
+        }
+    }
+}
+
+/** Controles en una sola fila, para el móvil en horizontal. */
+@Composable
+private fun CompactControls(state: DiceUiState, viewModel: DiceViewModel) {
+    BetActionBar(
+        chipValues = CHIP_VALUES,
+        selectedChip = state.chip,
+        chipDescription = { stringResource(Res.string.dice_chip, chipsText(Chips(it))) },
+        onSelectChip = viewModel::selectChip,
+        actions = listOf(
+            BetBarAction(stringResource(Res.string.dice_undo), state.canBet && state.canUndo, viewModel::undo),
+            BetBarAction(stringResource(Res.string.dice_clear), state.canBet && state.bets.isNotEmpty(), viewModel::clear),
+            BetBarAction(stringResource(Res.string.dice_repeat), state.canBet && state.bets.isEmpty() && state.lastBets.isNotEmpty(), viewModel::repeat),
+        ),
+        primaryText = stringResource(Res.string.dice_roll),
+        onPrimary = viewModel::roll,
+        primaryEnabled = state.canBet && state.bets.isNotEmpty(),
+        primaryLoading = state.busy || state.rolling,
+        notice = state.notice?.let { notice ->
+            {
+                InfoBanner(
+                    message = notice.message(),
+                    tone = BannerTone.Error,
+                    actionLabel = stringResource(Res.string.dice_dismiss),
+                    onAction = viewModel::dismissNotice,
+                )
+            }
+        },
+    )
 }
 
 @Composable
-private fun ResultPanel(state: DiceUiState) {
+private fun ResultPanel(state: DiceUiState, compact: Boolean = false) {
     val casino = RoyalTheme.casinoColors
+    val textStyle = if (compact) MaterialTheme.typography.labelLarge else MaterialTheme.typography.titleMedium
+    val align = if (compact) TextAlign.Center else null
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(RoyalSpacing.xs),
-        modifier = Modifier.heightIn(min = 48.dp).semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
+        modifier = Modifier.heightIn(min = if (compact) 0.dp else 48.dp).semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
     ) {
         val result = state.lastThrow?.result
         when {
-            state.rolling -> Text(stringResource(Res.string.dice_rolling), style = MaterialTheme.typography.titleMedium, color = casino.onFelt)
+            state.rolling -> Text(stringResource(Res.string.dice_rolling), style = textStyle, color = casino.onFelt, textAlign = align)
             state.showResult && result != null -> {
                 Text(
                     stringResource(Res.string.dice_result, result.roll.first, result.roll.second, result.roll.sum),
-                    style = MaterialTheme.typography.titleMedium,
+                    style = textStyle,
                     color = casino.onFelt,
+                    textAlign = align,
                 )
                 val net = result.totalPayout - result.totalStake
                 val (text, color) = when {
@@ -197,14 +296,15 @@ private fun ResultPanel(state: DiceUiState) {
                     net < 0 -> stringResource(Res.string.dice_net_lost, chipsText(Chips(-net))) to casino.suitRed
                     else -> stringResource(Res.string.dice_net_even) to casino.onFelt
                 }
-                Text(text, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = color)
+                Text(text, style = if (compact) MaterialTheme.typography.labelLarge else MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = color, textAlign = align)
             }
             state.bets.isNotEmpty() -> Text(
                 stringResource(Res.string.dice_total_bet, chipsText(Chips(state.totalBet))),
-                style = MaterialTheme.typography.titleMedium,
+                style = textStyle,
                 color = casino.onFelt,
+                textAlign = align,
             )
-            else -> Text(stringResource(Res.string.dice_place_bets), style = MaterialTheme.typography.titleMedium, color = casino.onFelt)
+            else -> Text(stringResource(Res.string.dice_place_bets), style = textStyle, color = casino.onFelt, textAlign = align)
         }
     }
 }
@@ -269,7 +369,7 @@ private fun DiceBoard(state: DiceUiState, onPlace: (DiceBet) -> Unit, modifier: 
 }
 
 @Composable
-private fun BetCell(bet: DiceBet, label: String, state: DiceUiState, onPlace: (DiceBet) -> Unit, modifier: Modifier) {
+private fun BetCell(bet: DiceBet, label: String, state: DiceUiState, onPlace: (DiceBet) -> Unit, modifier: Modifier, compact: Boolean = false) {
     val casino = RoyalTheme.casinoColors
     val result = if (state.showResult) state.lastThrow?.result?.results?.firstOrNull { it.bet == bet } else null
     val stake = if (state.showResult) result?.stake ?: 0 else state.stakeOn(bet)
@@ -293,7 +393,7 @@ private fun BetCell(bet: DiceBet, label: String, state: DiceUiState, onPlace: (D
     Box(
         contentAlignment = Alignment.Center,
         modifier = modifier
-            .heightIn(min = 56.dp)
+            .heightIn(min = if (compact) 40.dp else 56.dp)
             .background(Color.Black.copy(alpha = if (winning) 0.35f else 0.18f), MaterialTheme.shapes.small)
             .border(
                 if (winning) BorderStroke(3.dp, casino.gold) else BorderStroke(1.dp, casino.onFelt.copy(alpha = 0.35f)),
@@ -306,8 +406,15 @@ private fun BetCell(bet: DiceBet, label: String, state: DiceUiState, onPlace: (D
                 if (state.canBet) onClick { onPlace(bet); true }
             },
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(vertical = RoyalSpacing.s, horizontal = 4.dp)) {
-            Text(label, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = if (winning) casino.gold else casino.onFelt, textAlign = TextAlign.Center)
+        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(vertical = if (compact) 2.dp else RoyalSpacing.s, horizontal = 4.dp)) {
+            Text(
+                label,
+                style = if (compact) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                color = if (winning) casino.gold else casino.onFelt,
+                textAlign = TextAlign.Center,
+                maxLines = if (compact) 2 else Int.MAX_VALUE,
+            )
             Text(multiplier, style = MaterialTheme.typography.labelSmall, color = casino.gold.copy(alpha = 0.9f))
         }
         if (stake > 0) {

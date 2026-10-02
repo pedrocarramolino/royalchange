@@ -441,7 +441,13 @@ firebase emulators:exec --only firestore --project demo-royalchance "cd firebase
   (lado corto < 600 dp) en la orientación equivocada, tapa la pantalla con un aviso para girarlo.
   En una mesa el aviso trae «Volver al casino» por si el giro automático está bloqueado.
 - **`GameTableLayout`:** en un móvil en horizontal los controles van en un panel lateral derecho
-  (40 % del ancho, 260–360 dp, con scroll) y la mesa ocupa el resto.
+  (40 % del ancho, 260–360 dp, con scroll) y la mesa ocupa el resto (Blackjack, Slots, Póker).
+- **Ruleta y Dados en el móvil girado:** sin panel lateral (el tapete no cabía). Tapete compacto a
+  lo ancho (ruleta horizontal como en una mesa real: 0 a la izquierda, 3×12, docenas y sencillas
+  debajo; dados en 3 filas), rueda/dados y resultado a la izquierda y `BetActionBar` (fichas,
+  deshacer/borrar/repetir y girar/tirar en una fila) abajo.
+- **Póker en mesa baja:** cartas de cada asiento al lado del nombre, la apuesta dentro del asiento y
+  cartas comunitarias más pequeñas; botones de apuesta rápida en 2×2 si el panel es estrecho.
 - **Botones en una línea:** el texto se reduce (hasta 11 sp) en vez de partirse. Ojo: el
   autoajuste de `BasicText` solo detecta que no cabe con `maxLines = 1` y salto permitido; con
   `softWrap = false` y elipsis nunca encoge.
