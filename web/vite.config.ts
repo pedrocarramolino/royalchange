@@ -12,8 +12,8 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
-      // El service worker se actualiza solo: la siguiente apertura usa la versión nueva.
-      registerType: 'autoUpdate',
+      // La versión nueva se aplica desde src/pwa.ts cuando es seguro recargar (fuera de las mesas).
+      registerType: 'prompt',
       // En Capacitor (APK) la app ya va empaquetada: el registro se omite en src/pwa.ts.
       injectRegister: false,
       filename: 'sw.js',
