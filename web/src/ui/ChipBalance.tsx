@@ -3,9 +3,9 @@ import { grouped } from '@/lib/format';
 import { Chip } from './Chip';
 
 /** Cifra que cuenta hasta su nuevo valor (sube o baja) en lugar de saltar. */
-export function useCountUp(target: number, durationMs = 650): number {
-  const [shown, setShown] = useState(target);
-  const from = useRef(target);
+export function useCountUp(target: number, durationMs = 650, initial = target): number {
+  const [shown, setShown] = useState(initial);
+  const from = useRef(initial);
   const frame = useRef(0);
   useEffect(() => {
     const start = performance.now();
