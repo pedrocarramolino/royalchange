@@ -172,8 +172,17 @@ export default function RouletteScreen() {
           <div className="shrink-0">
             <RouletteWheel size={wheelSize} spin={wheelSpin} reducedMotion={reducedMotion} onSettled={onSettled} />
           </div>
-          <div className="relative">
-            <RouletteBoard width={boardWidth} height={tableHeight} bets={showResult && result ? new Map(result.results.map((r) => [r.bet, r.stake])) : bets} winning={showResult && result ? result.number : null} payouts={payouts} disabled={!canBet} onPlace={place} />
+          <div className="relative flex flex-col items-end gap-1">
+            {/* Lo apostado en esta tirada, siempre a la vista (en la barra de abajo no cabe en el móvil). */}
+            <p className="tabular h-[18px] text-[13px] leading-[18px] font-semibold text-ivory-dim" aria-live="polite">
+              Apostado: <span className="font-bold text-gold-light">{chips(showResult && result ? result.totalStake : total)}</span>
+              {showResult && result && result.totalPayout > 0 && (
+                <>
+                  {' · '}Cobrado: <span className="font-bold text-gold-light">{chips(result.totalPayout)}</span>
+                </>
+              )}
+            </p>
+            <RouletteBoard width={boardWidth} height={tableHeight - 22} bets={showResult && result ? new Map(result.results.map((r) => [r.bet, r.stake])) : bets} winning={showResult && result ? result.number : null} payouts={payouts} disabled={!canBet} onPlace={place} />
             {showResult && result && (
               <div className="pointer-events-none absolute inset-x-0 top-[38%] flex -translate-y-1/2 justify-center">
                 <ResultBanner
