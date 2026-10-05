@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { AnimatePresence, motion } from 'motion/react';
-import { EASE_OUT } from '@/ui/motion';
+import { EASE_OUT, SPRING } from '@/ui/motion';
 import { useAuth } from '@/data/auth';
 import { useWallet, useReadyWallet } from '@/data/wallet';
 import { EconomyRules, rescueStatus } from '@/domain/economy';
@@ -104,17 +104,21 @@ export function LobbyScreen() {
             key={path}
             type="button"
             onClick={() => navigate(path)}
-            // Se abre a menudo: entrada corta y sutil, con un escalonado breve.
-            initial={{ opacity: 0, transform: 'translateY(8px)' }}
-            animate={{ opacity: 1, transform: 'translateY(0px)' }}
-            transition={{ duration: 0.25, ease: EASE_OUT, delay: 0.04 * i }}
+            // Se abre a menudo: entrada corta y sutil al llegar a cada tarjeta (una sola vez), con la
+            // columna derecha un pelín después.
+            initial={{ opacity: 0, transform: 'translateY(12px)' }}
+            whileInView={{ opacity: 1, transform: 'translateY(0px)' }}
+            viewport={{ once: true, amount: 0.25 }}
+            transition={{ duration: 0.3, ease: EASE_OUT, delay: i < 4 ? 0.04 * i : 0.05 * (i % 2) }}
             whileTap={{ scale: 0.97 }}
             className={`group relative isolate flex flex-col overflow-hidden rounded-3xl text-left shadow-[0_14px_30px_-14px_rgb(0_0_0/0.9)] ring-1 ring-gold/25 transition-shadow duration-200 ease-out [@media(hover:hover)_and_(pointer:fine)]:hover:shadow-[0_18px_34px_-12px_rgb(0_0_0/0.9),0_0_0_1px_rgb(212_175_106/0.5)] ${(i === GAMES.length - 1 && GAMES.length % 2 === 1) ? 'col-span-2' : ''}`}
             aria-label={`${name}. ${description}`}
           >
             {/* «isolate» y el recorte propio: Safari no siempre recorta las esquinas con contenido girado o animado. */}
             <div className={`felt relative shrink-0 overflow-hidden ${(i === GAMES.length - 1 && GAMES.length % 2 === 1) ? 'h-32' : 'h-36'}`}>
-              <Art />
+              <div className="size-full transition-transform duration-300 ease-out group-active:scale-[1.05] [@media(hover:hover)_and_(pointer:fine)]:group-hover:scale-[1.05]">
+                <Art />
+              </div>
             </div>
             {/* Rellena lo que sobra: si la tarjeta de al lado tiene una línea más de texto, no queda hueco arriba (un botón centra su contenido). */}
             <div className="w-full flex-1 bg-gradient-to-b from-ink-2 to-ink-1 px-4 pt-3 pb-4">
@@ -171,9 +175,16 @@ function BalanceHero({ state, balance, xp, onProgress }: { state: string; balanc
           <p className="mt-2 text-[15px] text-ivory">Tu saldo no está disponible ahora mismo. Vuelve a intentarlo en unos minutos.</p>
         )}
         <div className="pointer-events-none absolute top-4 right-4 flex -space-x-3" aria-hidden>
-          <Chip value={5000} size={44} />
-          <Chip value={1000} size={44} />
-          <Chip value={100} size={44} />
+          {[5000, 1000, 100].map((value, i) => (
+            <motion.div
+              key={value}
+              initial={{ opacity: 0, transform: 'translateY(-14px)' }}
+              animate={{ opacity: 1, transform: 'translateY(0px)' }}
+              transition={{ ...SPRING, delay: 0.1 + i * 0.08 }}
+            >
+              <Chip value={value} size={44} />
+            </motion.div>
+          ))}
         </div>
       </div>
       <button type="button" onClick={onProgress} className="block w-full bg-ink-2 px-5 py-3.5 text-left hover:bg-ink-3" aria-label={`Nivel ${level.level}, ${TITLE_NAMES[level.title]}. Ver tu progreso`}>
@@ -189,9 +200,9 @@ function BalanceHero({ state, balance, xp, onProgress }: { state: string; balanc
           {/* Escala horizontal (va por la GPU) en vez de animar el ancho. */}
           <motion.div
             className="h-full w-full origin-left rounded-full metal-gold"
-            initial={false}
+            initial={{ transform: 'scaleX(0)' }}
             animate={{ transform: `scaleX(${level.fraction})` }}
-            transition={{ duration: 0.6, ease: EASE_OUT }}
+            transition={{ duration: 0.8, ease: EASE_OUT, delay: 0.2 }}
           />
         </div>
       </button>

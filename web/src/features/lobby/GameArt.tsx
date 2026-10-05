@@ -43,7 +43,7 @@ export function RouletteArt({ size = 92 }: { size?: number }) {
   const r = 50;
   return (
     <div className="grid h-full w-full place-items-center">
-      <svg viewBox="0 0 100 100" width={size} height={size} aria-hidden className="drop-shadow-[0_8px_14px_rgb(0_0_0/0.6)]">
+      <svg viewBox="0 0 100 100" width={size} height={size} aria-hidden className="drop-shadow-[0_8px_14px_rgb(0_0_0/0.6)] transition-transform duration-700 ease-out group-active:rotate-[50deg] [@media(hover:hover)_and_(pointer:fine)]:group-hover:rotate-[50deg]">
         <circle cx="50" cy="50" r="49" fill="#2a1a0f" stroke="#d4af6a" strokeWidth="1.5" />
         {WHEEL_ORDER.map((n, i) => {
           const a0 = ((i - 0.5) / 37) * Math.PI * 2 - Math.PI / 2;
@@ -105,10 +105,10 @@ export function Die({ value, size }: { value: number; size: number }) {
 export function DiceArt() {
   return (
     <div className="relative h-full w-full">
-      <div className="absolute top-1/2 left-1/2 -translate-x-[95%] -translate-y-[40%] -rotate-12 drop-shadow-[0_8px_10px_rgb(0_0_0/0.6)]">
+      <div className="absolute top-1/2 left-1/2 -translate-x-[95%] -translate-y-[40%] -rotate-12 drop-shadow-[0_8px_10px_rgb(0_0_0/0.6)] transition-transform duration-300 ease-out group-active:-rotate-[32deg] [@media(hover:hover)_and_(pointer:fine)]:group-hover:-rotate-[32deg]">
         <Die value={5} size={46} />
       </div>
-      <div className="absolute top-1/2 left-1/2 -translate-x-[5%] -translate-y-[62%] rotate-[14deg] drop-shadow-[0_8px_10px_rgb(0_0_0/0.6)]">
+      <div className="absolute top-1/2 left-1/2 -translate-x-[5%] -translate-y-[62%] rotate-[14deg] drop-shadow-[0_8px_10px_rgb(0_0_0/0.6)] transition-transform duration-300 ease-out group-active:rotate-[36deg] [@media(hover:hover)_and_(pointer:fine)]:group-hover:rotate-[36deg]">
         <Die value={2} size={46} />
       </div>
     </div>
