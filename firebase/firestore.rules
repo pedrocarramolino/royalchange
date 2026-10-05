@@ -334,7 +334,6 @@ service cloud.firestore {
     // Bono diario: un día del dispositivo posterior al último cobro y, como mucho, un día de
     // diferencia con el día UTC del servidor (las zonas horarias van de UTC−12 a UTC+14). Racha +1
     // si es el día siguiente; si no, vuelve a 1. Premio 500 + 200 · (día − 1), con tope en el día 7.
-    // (Una versión de un día cobraba aquí la casilla de la ruleta; se acepta hasta que se actualice.)
     function validDailyBonus(before, after, e) {
       let lastDay = before.get('lastDailyDay', null);
       let streak = (lastDay != null && after.lastDailyDay == lastDay + 1) ? previous(before, 'dailyStreak') + 1 : 1;
@@ -347,8 +346,7 @@ service cloud.firestore {
         && after.lastDailyDay <= serverDay + 1
         && after.dailyStreak == streak
         && after.lastDailyAtMillis == e.createdAtMillis
-        && (after.balance - before.balance == 500 + 200 * (rewardDay - 1)
-          || after.balance - before.balance in dailyWheelPrizes())
+        && after.balance - before.balance == 500 + 200 * (rewardDay - 1)
         && after.get('openRound', null) == before.get('openRound', null)
         && keepsRescueTime(before, after)
         && keepsCounters(before, after)
