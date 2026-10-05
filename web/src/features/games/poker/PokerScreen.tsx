@@ -6,8 +6,7 @@ import { chips, grouped } from '@/lib/format';
 import { play, resultSound } from '@/audio/sound';
 import { Button } from '@/ui/Button';
 import { ChipStack } from '@/ui/Chip';
-import { PlayingCard } from '@/ui/PlayingCard';
-import { CHIP_DROP, EASE_OUT } from '@/ui/motion';
+import { CHIP_DROP, EASE_IN_OUT, EASE_OUT } from '@/ui/motion';
 import type { Card } from '@/engine/cards';
 import { Celebration } from '../shared/Celebration';
 import { useDealFrom } from '../shared/deal';
@@ -126,7 +125,11 @@ const BET_POS: [number, number][] = [
 ];
 
 function PokerTable({ table }: { table: PokerState }) {
-  const height = Math.max(200, useTableSize().height);
+  const size = useTableSize();
+  const height = Math.max(200, size.height);
+  // Tamaño en píxeles de la mesa (máximo max-w-5xl), para mover fichas y cartas hacia el centro.
+  const W = Math.min(size.width, 1024);
+  const toCenter = (x: number, y: number) => ({ dx: (0.5 - x) * W, dy: (0.5 - y) * height });
   const boardCard = Math.round(Math.min(64, Math.max(34, height * 0.17)));
   const heroCard = Math.round(Math.min(72, Math.max(40, height * 0.2)));
   const botCard = Math.round(Math.min(40, Math.max(24, height * 0.11)));
@@ -180,7 +183,8 @@ function PokerTable({ table }: { table: PokerState }) {
                 animate={{ opacity: 1, transform: 'translateY(0px) scale(1)' }}
                 transition={{ duration: 0.3, ease: EASE_OUT, delay: (i < 3 ? i : 0) * 0.12 }}
               >
-                <PlayingCard rank={card.rank} suit={card.suit} width={boardCard} />
+                {/* Llegan boca abajo y el crupier las destapa una a una. */}
+                <FlipCard rank={card.rank} suit={card.suit} faceDown={false} dealtFaceDown delay={0.3 + (i < 3 ? i : 0) * 0.15} width={boardCard} />
               </motion.div>
             ) : (
               <div key={i} className="rounded-md border border-dashed border-gold-light/25" style={{ width: boardCard, height: boardCard * 1.4 }} />
@@ -195,7 +199,8 @@ function PokerTable({ table }: { table: PokerState }) {
         )}
       </div>
 
-      {/* Apuestas de la calle actual. */}
+      {/* Apuestas de la calle actual: al cerrarse la calle se deslizan al bote. */}
+      <AnimatePresence>
       {table.seats.map((seat, i) =>
         seat.bet > 0 ? (
           <motion.div
@@ -204,6 +209,11 @@ function PokerTable({ table }: { table: PokerState }) {
             style={{ left: `${BET_POS[i]![0] * 100}%`, top: `${BET_POS[i]![1] * 100}%` }}
             initial={CHIP_DROP.initial}
             animate={CHIP_DROP.animate}
+            exit={{
+              opacity: 0,
+              transform: `translate(${toCenter(BET_POS[i]![0], BET_POS[i]![1]).dx}px, ${toCenter(BET_POS[i]![0], BET_POS[i]![1]).dy}px) scale(0.6)`,
+              transition: { duration: 0.35, ease: EASE_IN_OUT },
+            }}
             transition={CHIP_DROP.transition}
           >
             <ChipStack amount={seat.bet} size={18} max={3} />
@@ -211,10 +221,30 @@ function PokerTable({ table }: { table: PokerState }) {
           </motion.div>
         ) : null,
       )}
+      </AnimatePresence>
 
       {table.seats.map((seat, i) => (
-        <SeatView key={i} table={table} index={i} seat={seat} cardWidth={i === HERO ? heroCard : botCard} />
+        <SeatView key={i} table={table} index={i} seat={seat} cardWidth={i === HERO ? heroCard : botCard} toCenter={toCenter(SEAT_POS[i]![0], SEAT_POS[i]![1])} />
       ))}
+
+      {/* Al acabar la mano, el bote viaja hasta quien lo gana. */}
+      {handOver &&
+        table.awards.flatMap((award, a) =>
+          award.winners.map((w) => {
+            const { dx, dy } = toCenter(SEAT_POS[w]![0], w === HERO ? 0.86 : SEAT_POS[w]![1]);
+            return (
+              <motion.div
+                key={`bote-${table.handNumber}-${a}-${w}`}
+                className="pointer-events-none absolute top-1/2 left-1/2 z-20 -translate-x-1/2 -translate-y-1/2"
+                initial={{ opacity: 0, transform: 'translate(0px, 0px) scale(1)' }}
+                animate={{ opacity: [0, 1, 1, 0], transform: ['translate(0px, 0px) scale(1)', 'translate(0px, 0px) scale(1.1)', `translate(${-dx}px, ${-dy}px) scale(0.8)`, `translate(${-dx}px, ${-dy}px) scale(0.8)`] }}
+                transition={{ duration: 1.1, times: [0, 0.15, 0.75, 1], ease: EASE_IN_OUT, delay: 0.15 }}
+              >
+                <ChipStack amount={award.amount / award.winners.length} size={20} max={4} />
+              </motion.div>
+            );
+          }),
+        )}
 
       <AnimatePresence>
         {handOver && table.awards.length > 0 && (
@@ -246,7 +276,7 @@ function HoleCard({ card, width, faceDown, overlap, tilt, delay }: { card: Card;
   );
 }
 
-function SeatView({ table, index, seat, cardWidth }: { table: PokerState; index: number; seat: Seat; cardWidth: number }) {
+function SeatView({ table, index, seat, cardWidth, toCenter }: { table: PokerState; index: number; seat: Seat; cardWidth: number; toCenter: { dx: number; dy: number } }) {
   const [x, y] = SEAT_POS[index]!;
   const active = table.phase === 'betting' && table.toAct === index;
   const won = table.phase === 'handOver' && table.awards.some((a) => a.winners.includes(index));
@@ -265,7 +295,13 @@ function SeatView({ table, index, seat, cardWidth }: { table: PokerState; index:
       aria-label={description}
     >
       {seat.hole.length > 0 && (
-        <div className="flex">
+        <motion.div
+          className="flex"
+          initial={false}
+          // Al retirarse, sus cartas se deslizan un poco hacia el centro y se apagan.
+          animate={seat.folded ? { opacity: 0.3, transform: `translate(${toCenter.dx * 0.18}px, ${toCenter.dy * 0.18}px) scale(0.85)` } : { opacity: 1, transform: 'translate(0px, 0px) scale(1)' }}
+          transition={{ duration: 0.35, ease: EASE_OUT }}
+        >
           {seat.hole.map((card, ci) => (
             <HoleCard
               key={`${table.handNumber}-${ci}`}
@@ -278,7 +314,7 @@ function SeatView({ table, index, seat, cardWidth }: { table: PokerState; index:
               delay={(ci * 6 + index) * 0.08}
             />
           ))}
-        </div>
+        </motion.div>
       )}
       <div
         className={`relative min-w-[78px] rounded-2xl px-2.5 py-1 text-center ring-1 transition-shadow ${
