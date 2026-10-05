@@ -79,11 +79,16 @@ export default function ScratchScreen() {
     if (big) setCelebrate(Date.now());
   }, [finished, ticket]);
 
-  // Medidas: el boleto manda; a su lado, la tabla de premios.
+  // Medidas: el boleto manda. En el móvil (vertical) la tabla de premios va debajo, en dos filas;
+  // en pantallas anchas, al lado.
+  const stacked = table.width < table.height * 1.15;
   const sideWidth = table.width >= 560 ? 156 : 124;
   const pad = 12;
-  const header = Math.round(Math.max(30, Math.min(48, table.height * 0.15)));
-  const grid = Math.max(120, Math.min(table.height - 20 - header - pad * 2, table.width - sideWidth - 48 - pad * 2));
+  const header = stacked ? 46 : Math.round(Math.max(30, Math.min(48, table.height * 0.15)));
+  const prizesHeight = 84;
+  const grid = stacked
+    ? Math.max(120, Math.min(420, table.width - 24 - pad * 2, table.height - prizesHeight - 36 - header - pad * 2))
+    : Math.max(120, Math.min(table.height - 20 - header - pad * 2, table.width - sideWidth - 48 - pad * 2));
   const gap = Math.round(grid * 0.035);
   const cell = (grid - gap * 2) / 3;
   const prize = finished && ticket ? ticket.data.prize : null;
@@ -100,6 +105,7 @@ export default function ScratchScreen() {
     <GameShell
       title="Rasca y gana"
       surface="dark"
+      portrait
       heldBalance={held}
       notice={notice && <TableNotice onDismiss={() => setNotice(null)}>{notice}</TableNotice>}
       controls={
@@ -130,7 +136,7 @@ export default function ScratchScreen() {
       }
     >
       <SlotSvgDefs />
-      <div className="flex h-full items-center justify-center gap-5 px-3 py-2">
+      <div className={`flex h-full items-center justify-center px-3 py-2 ${stacked ? 'flex-col gap-4' : 'gap-5'}`}>
         <div className="relative shrink-0" style={{ width: grid + pad * 2, height: grid + header + pad * 2 }}>
           <AnimatePresence mode="popLayout" initial={false}>
             <motion.div
@@ -190,8 +196,12 @@ export default function ScratchScreen() {
           </AnimatePresence>
         </div>
 
-        <aside className="flex shrink-0 flex-col gap-1 self-center" style={{ width: sideWidth }} aria-label="Premios por tres iguales">
-          <p className="felt-print mb-0.5 text-center text-[10px] font-bold">Tres iguales</p>
+        <aside
+          className={stacked ? 'grid shrink-0 grid-cols-4 gap-1.5' : 'flex shrink-0 flex-col gap-1 self-center'}
+          style={{ width: stacked ? grid + pad * 2 : sideWidth }}
+          aria-label="Premios por tres iguales"
+        >
+          <p className={`felt-print mb-0.5 text-center text-[10px] font-bold ${stacked ? 'col-span-4' : ''}`}>Tres iguales</p>
           {SCRATCH_PRIZES.map((p) => {
             const hit = prize?.symbol === p.symbol;
             const close = teasing.has(p.symbol);
@@ -207,7 +217,7 @@ export default function ScratchScreen() {
                 <span className="grid place-items-center rounded-md bg-[#fbf3df] p-0.5">
                   <SlotSymbolArt symbol={p.symbol} size={table.height < 260 ? 15 : 19} />
                 </span>
-                <span className="flex-1 text-[10px] font-semibold text-ivory-dim">× 3</span>
+                <span className="flex-1 text-[10px] font-semibold text-ivory-dim">{stacked ? '' : '× 3'}</span>
                 <span className={`tabular text-[12px] font-bold ${hit ? 'text-gold-light' : 'text-ivory'}`}>×{p.multiplier}</span>
                 {/* A uno del trío: late el aro de su premio. */}
                 {close && <span className="pointer-events-none absolute inset-0 animate-pulse rounded-lg ring-2 ring-gold-light" aria-hidden />}

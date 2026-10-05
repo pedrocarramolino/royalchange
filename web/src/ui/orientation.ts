@@ -47,12 +47,13 @@ interface OrientationStore {
 
 export const useOrientationStore = create<OrientationStore>(() => ({ landscapeRequests: 0 }));
 
-/** La pantalla que la llama se juega en horizontal (en el móvil). */
-export function useRequireLandscape() {
+/** La pantalla que la llama se juega en horizontal (en el móvil), salvo que [enabled] sea `false`. */
+export function useRequireLandscape(enabled = true) {
   useEffect(() => {
+    if (!enabled) return;
     useOrientationStore.setState((s) => ({ landscapeRequests: s.landscapeRequests + 1 }));
     return () => useOrientationStore.setState((s) => ({ landscapeRequests: s.landscapeRequests - 1 }));
-  }, []);
+  }, [enabled]);
 }
 
 /**

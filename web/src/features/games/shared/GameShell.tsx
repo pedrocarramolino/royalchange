@@ -65,6 +65,8 @@ interface GameShellProps {
   surface?: 'felt' | 'dark';
   /** Saldo que se muestra en lugar del real mientras se desvela un resultado ya contabilizado. */
   heldBalance?: number | null;
+  /** Juego en vertical (rasca y gana): no pide horizontal ni se gira; va como el resto de la app. */
+  portrait?: boolean;
 }
 
 /**
@@ -74,13 +76,13 @@ interface GameShellProps {
  * Si el móvil está en vertical (Safari en iOS no deja fijar la orientación, o el giro automático
  * está bloqueado), la mesa se pinta girada 90°: basta con poner el móvil de lado, sin avisos.
  */
-export function GameShell({ title, children, controls, actions, notice, surface = 'felt', heldBalance = null }: GameShellProps) {
-  useRequireLandscape();
+export function GameShell({ title, children, controls, actions, notice, surface = 'felt', heldBalance = null, portrait = false }: GameShellProps) {
+  useRequireLandscape(!portrait);
   const navigate = useNavigate();
   const wallet = useReadyWallet();
   const viewport = useViewport();
   const [frame, setFrame] = useState<HTMLDivElement | null>(null);
-  const rotated = isPhone(viewport) && !isLandscape(viewport);
+  const rotated = !portrait && isPhone(viewport) && !isLandscape(viewport);
   const insets = useSafeArea();
   const angle = useScreenAngle();
   const main = useRef<HTMLElement>(null);
@@ -119,7 +121,7 @@ export function GameShell({ title, children, controls, actions, notice, surface 
   } as CSSProperties;
   // Móvil en horizontal: la isla queda a la izquierda (girado a la izquierda) o a la derecha.
   const landscapeStyle =
-    isPhone(viewport) && !rotated
+    isPhone(viewport) && !rotated && !portrait
       ? ({
           '--safe-left': `${angle === 270 ? insets.left : Math.max(insets.left, ISLAND_CLEARANCE)}px`,
           '--safe-right': `${angle === 270 ? Math.max(insets.right, ISLAND_CLEARANCE) : insets.right}px`,
@@ -166,8 +168,8 @@ export function GameShell({ title, children, controls, actions, notice, surface 
               )}
             </AnimatePresence>
           </div>
-          {/* Avisos de nivel y logros dentro de la mesa: giran con ella. */}
-          <ProgressToasts />
+          {/* Avisos de nivel y logros dentro de la mesa: giran con ella (en vertical los pinta la app). */}
+          {!portrait && <ProgressToasts />}
         </div>
     </PortalTarget.Provider>
   );
