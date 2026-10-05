@@ -42,11 +42,16 @@ export default function RouletteScreen() {
   const balance = wallet?.balance ?? 0;
   const canBet = !spinning && !busy;
 
+  // Al arrastrar el dedo llegan varias fichas antes de volver a pintar: se parte de lo último apostado.
+  const latest = useRef({ bets, showResult });
+  latest.current = { bets, showResult };
+
   const place = (bet: RouletteBet) => {
     if (!canBet) return;
     // Al apostar tras una tirada, el tapete se limpia.
-    const base = showResult ? new Map<RouletteBet, number>() : bets;
-    const nextTotal = (showResult ? 0 : total) + chip;
+    const current = latest.current;
+    const base = current.showResult ? new Map<RouletteBet, number>() : current.bets;
+    const nextTotal = [...base.values()].reduce((s, v) => s + v, 0) + chip;
     if (nextTotal > ROULETTE_RULES.maximumTotalBet) {
       setNotice(`El máximo por tirada es de ${chips(ROULETTE_RULES.maximumTotalBet)}.`);
       return;
@@ -58,6 +63,7 @@ export default function RouletteScreen() {
     setHistory((h) => [...h, base]);
     const next = new Map(base);
     next.set(bet, (next.get(bet) ?? 0) + chip);
+    latest.current = { bets: next, showResult: false };
     setBets(next);
     setShowResult(false);
     setResult(null);

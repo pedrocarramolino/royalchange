@@ -93,6 +93,21 @@ function betAt(x: number, y: number): RouletteBet | null {
   return `n:${3 * (col + 1) - row}`;
 }
 
+/**
+ * Pleno bajo el dedo al arrastrar: solo números y solo desde el centro de la casilla, para que al
+ * cruzar las líneas no se cuelen caballos ni esquinas.
+ */
+function numberAt(x: number, y: number): RouletteBet | null {
+  if (y >= 3 || x >= 13) return null;
+  if (x < 1) return x > EDGE && x < 1 - EDGE ? 'n:0' : null;
+  const col = Math.floor(x - 1);
+  const row = Math.floor(y);
+  const dx = x - 1 - col;
+  const dy = y - row;
+  if (dx < EDGE || dx > 1 - EDGE || dy < EDGE || dy > 1 - EDGE) return null;
+  return `n:${3 * (col + 1) - row}`;
+}
+
 interface BoardProps {
   width: number;
   height: number;
@@ -108,28 +123,46 @@ interface BoardProps {
 export function RouletteBoard({ width, height, bets, winning, payouts, disabled, onPlace }: BoardProps) {
   const unit = Math.min(width / COLS, height / ROWS);
   const ref = useRef<HTMLDivElement>(null);
-  const onPointerUp = (event: PointerEvent<HTMLDivElement>) => {
-    if (disabled || !ref.current) return;
-    // Coordenadas locales del tapete: ya tienen en cuenta el giro de la mesa (móvil en vertical).
-    let x = event.nativeEvent.offsetX;
-    let y = event.nativeEvent.offsetY;
-    if (event.target !== event.currentTarget) {
-      const rect = ref.current.getBoundingClientRect();
-      x = event.clientX - rect.left;
-      y = event.clientY - rect.top;
-    }
-    const bet = betAt(x / unit, y / unit);
+  // Gesto en curso: lo apostado en él, para no repetir ficha al pasar dos veces por el mismo número.
+  const gesture = useRef<{ id: number; placed: Set<RouletteBet> } | null>(null);
+  // Coordenadas locales del tapete (en casillas): ya tienen en cuenta el giro de la mesa (móvil en
+  // vertical). Con el puntero capturado, los eventos siempre llegan al propio tapete.
+  const local = (event: PointerEvent<HTMLDivElement>) => ({ x: event.nativeEvent.offsetX / unit, y: event.nativeEvent.offsetY / unit });
+
+  // Al tocar se pone la ficha; sin levantar el dedo, cada número por el que pasa recibe otra.
+  const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    if (disabled || event.target !== event.currentTarget || (event.pointerType === 'mouse' && event.button !== 0)) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    const { x, y } = local(event);
+    const bet = betAt(x, y);
+    gesture.current = { id: event.pointerId, placed: new Set(bet ? [bet] : []) };
     if (bet && betNumbers(bet).length) onPlace(bet);
+  };
+  const onPointerMove = (event: PointerEvent<HTMLDivElement>) => {
+    const current = gesture.current;
+    if (disabled || !current || current.id !== event.pointerId) return;
+    const { x, y } = local(event);
+    const bet = numberAt(x, y);
+    if (!bet || current.placed.has(bet)) return;
+    current.placed.add(bet);
+    onPlace(bet);
+  };
+  const endGesture = (event: PointerEvent<HTMLDivElement>) => {
+    if (gesture.current?.id === event.pointerId) gesture.current = null;
   };
   const winners = winning !== null ? new Set([winning]) : null;
   return (
     <div
       ref={ref}
-      onPointerUp={onPointerUp}
-      className="relative touch-manipulation select-none"
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={endGesture}
+      onPointerCancel={endGesture}
+      // Sin desplazamiento ni zoom del navegador: el dedo puede recorrer el tapete apostando.
+      className="relative touch-none select-none"
       style={{ width: unit * COLS, height: unit * ROWS }}
       role="group"
-      aria-label="Tapete de apuestas: toca un número, entre dos números o en una esquina"
+      aria-label="Tapete de apuestas: toca un número, entre dos números o en una esquina; arrastra el dedo para apostar a varios números"
     >
       <BoardPrint unit={unit} winners={winners} />
       {/* Aro dorado que late sobre el número ganador. */}
