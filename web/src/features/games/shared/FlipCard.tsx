@@ -17,6 +17,7 @@ export function FlipCard({
   faceDown,
   width,
   delay = 0,
+  duration = 0.45,
   dealtFaceDown = false,
 }: {
   rank: Rank;
@@ -24,6 +25,8 @@ export function FlipCard({
   faceDown: boolean;
   width: number;
   delay?: number;
+  /** Segundos que tarda en girar. */
+  duration?: number;
   dealtFaceDown?: boolean;
 }) {
   return (
@@ -33,7 +36,7 @@ export function FlipCard({
         style={{ transformStyle: 'preserve-3d' }}
         initial={dealtFaceDown ? { transform: 'rotateY(180deg)' } : false}
         animate={{ transform: faceDown ? 'rotateY(180deg)' : 'rotateY(0deg)' }}
-        transition={{ duration: 0.45, ease: EASE_IN_OUT, delay }}
+        transition={{ duration, ease: EASE_IN_OUT, delay }}
       >
         <div className="absolute inset-0" style={FACE} aria-hidden={faceDown}>
           <PlayingCard rank={rank} suit={suit} width={width} />

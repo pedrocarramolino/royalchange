@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { motion } from 'motion/react';
+import { AnimatePresence, motion } from 'motion/react';
 import { useWallet, useReadyWallet } from '@/data/wallet';
 import { useSettings } from '@/data/settings';
 import { BACCARAT_BET_NAME, BACCARAT_BETS, BACCARAT_RULES, dealBaccarat, handTotal, type BaccaratBet, type BaccaratRound, type Coup, type CoupWinner } from '@/engine/baccarat';
@@ -9,7 +9,7 @@ import { play, resultSound, BIG_WIN_MULTIPLIER } from '@/audio/sound';
 import { Button } from '@/ui/Button';
 import { ChipStack } from '@/ui/Chip';
 import { IconRepeat, IconTrash, IconUndo } from '@/ui/icons';
-import { CHIP_DROP, EASE_OUT, SPRING } from '@/ui/motion';
+import { CHIP_DROP, EASE_IN_OUT, EASE_OUT, SPRING } from '@/ui/motion';
 import { Celebration } from '../shared/Celebration';
 import { ChipRack } from '../shared/ChipRack';
 import { useDealFrom } from '../shared/deal';
@@ -60,6 +60,8 @@ function useBeadRoad(): [CoupWinner[], (winner: CoupWinner) => void] {
 interface CardTiming {
   deal: number;
   flip: number;
+  /** Segundos que tarda en destaparse: las terceras, despacio y con suspense. */
+  duration: number;
 }
 
 /**
@@ -73,21 +75,23 @@ function schedule(coup: Coup, reduced: boolean) {
   const player: CardTiming[] = [];
   const banker: CardTiming[] = [];
   const reveals: { ms: number; side: 'player' | 'banker'; count: number }[] = [];
+  const flip = 0.45;
+  const squeeze = reduced ? flip : 0.95;
   const flipPlayer = 4 * gap + (reduced ? 0.1 : 0.35);
   const flipBanker = flipPlayer + settle + 0.1;
-  player.push({ deal: 0, flip: flipPlayer }, { deal: 2 * gap, flip: flipPlayer });
-  banker.push({ deal: gap, flip: flipBanker }, { deal: 3 * gap, flip: flipBanker });
-  reveals.push({ ms: (flipPlayer + 0.45) * 1000, side: 'player', count: 2 }, { ms: (flipBanker + 0.45) * 1000, side: 'banker', count: 2 });
+  player.push({ deal: 0, flip: flipPlayer, duration: flip }, { deal: 2 * gap, flip: flipPlayer, duration: flip });
+  banker.push({ deal: gap, flip: flipBanker, duration: flip }, { deal: 3 * gap, flip: flipBanker, duration: flip });
+  reveals.push({ ms: (flipPlayer + flip) * 1000, side: 'player', count: 2 }, { ms: (flipBanker + flip) * 1000, side: 'banker', count: 2 });
   let time = flipBanker + settle + 0.25;
   if (coup.player.length === 3) {
-    player.push({ deal: time, flip: time + settle });
-    reveals.push({ ms: (time + settle + 0.45) * 1000, side: 'player', count: 3 });
-    time += settle * 2 + 0.25;
+    player.push({ deal: time, flip: time + settle, duration: squeeze });
+    reveals.push({ ms: (time + settle + squeeze) * 1000, side: 'player', count: 3 });
+    time += settle + squeeze + 0.3;
   }
   if (coup.banker.length === 3) {
-    banker.push({ deal: time, flip: time + settle });
-    reveals.push({ ms: (time + settle + 0.45) * 1000, side: 'banker', count: 3 });
-    time += settle * 2 + 0.25;
+    banker.push({ deal: time, flip: time + settle, duration: squeeze });
+    reveals.push({ ms: (time + settle + squeeze) * 1000, side: 'banker', count: 3 });
+    time += settle + squeeze + 0.3;
   }
   const deals = [...player, ...banker].map((c) => c.deal * 1000);
   return { player, banker, reveals, deals, endMs: (time + 0.2) * 1000 };
@@ -299,6 +303,7 @@ function HandArea({
   const cardHeight = (cardWidth * 350) / 250;
   const won = result === side;
   const tie = result === 'tie';
+  const natural = shown >= 2 && handTotal(cards.slice(0, 2)) >= 8;
   return (
     <section
       className="flex flex-col items-center gap-1.5 transition-opacity duration-300 ease-out"
@@ -321,6 +326,17 @@ function HandArea({
         >
           {total ?? '–'}
         </motion.span>
+        {natural && !won && !tie && (
+          <motion.span
+            className="rounded-full px-2 py-0.5 text-[10px] font-black tracking-wider text-white uppercase ring-1 ring-white/30"
+            style={{ background: color }}
+            initial={{ opacity: 0, transform: 'translateY(4px) scale(0.9)' }}
+            animate={{ opacity: 1, transform: 'translateY(0px) scale(1)' }}
+            transition={SPRING}
+          >
+            Natural
+          </motion.span>
+        )}
         {(won || tie) && (
           <motion.span
             className="rounded-full bg-gold-light px-2 py-0.5 text-[10px] font-black tracking-wider text-on-gold uppercase"
@@ -328,18 +344,31 @@ function HandArea({
             animate={{ opacity: 1, scale: 1 }}
             transition={SPRING}
           >
-            {won ? 'Gana' : 'Empate'}
+            {won ? (natural ? 'Natural · gana' : 'Gana') : 'Empate'}
           </motion.span>
         )}
       </div>
-      <div
-        className={`flex items-center rounded-xl border-2 border-dashed p-1.5 transition-shadow duration-300 ${won ? 'shadow-[0_0_22px_rgb(243_223_162/0.45)]' : ''}`}
+      <motion.div
+        className={`relative flex items-center rounded-xl border-2 border-dashed p-1.5 transition-shadow duration-300 ${won ? 'shadow-[0_0_22px_rgb(243_223_162/0.45)]' : ''}`}
         style={{ minWidth: cardWidth * 2 + cardHeight + 18, minHeight: cardHeight + 16, borderColor: won ? '#f3dfa2' : `${color}55`, background: tint }}
+        initial={false}
+        animate={{ scale: won ? [1, 1.04, 1] : 1 }}
+        transition={{ duration: 0.5, ease: EASE_OUT }}
       >
-        {cards.map((card, i) => (
-          <BaccaratCard key={`${roundId}-${side}-${i}`} card={card} width={cardWidth} timing={timing[i]} sideways={i === 2} overlap={i === 1 ? -cardWidth * 0.1 : i === 2 ? 4 : 0} />
-        ))}
-      </div>
+        {/* Al empezar otra mano, el crupier recoge las cartas: suben y se desvanecen (sin ocupar sitio). */}
+        <AnimatePresence mode="popLayout">
+          {cards.map((card, i) => (
+            <motion.div
+              key={`${roundId}-${side}-${i}`}
+              className="flex"
+              initial={false}
+              exit={{ opacity: 0, transform: 'translateY(-14px) scale(0.92)', transition: { duration: 0.25, ease: EASE_IN_OUT, delay: i * 0.04 } }}
+            >
+              <BaccaratCard card={card} width={cardWidth} timing={timing[i]} sideways={i === 2} overlap={i === 1 ? -cardWidth * 0.1 : i === 2 ? 4 : 0} />
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </motion.div>
     </section>
   );
 }
@@ -348,7 +377,7 @@ function HandArea({
 function BaccaratCard({ card, width, timing, sideways, overlap }: { card: Card; width: number; timing: CardTiming | undefined; sideways: boolean; overlap: number }) {
   const ref = useRef<HTMLDivElement>(null);
   useDealFrom(ref, '[data-shoe]', timing?.deal, sideways ? 90 : 0);
-  const face = <FlipCard rank={card.rank} suit={card.suit} faceDown={false} dealtFaceDown={timing !== undefined} delay={timing?.flip ?? 0} width={width} />;
+  const face = <FlipCard rank={card.rank} suit={card.suit} faceDown={false} dealtFaceDown={timing !== undefined} delay={timing?.flip ?? 0} duration={timing?.duration} width={width} />;
   if (!sideways) {
     return (
       <div ref={ref} style={{ marginLeft: overlap }}>
@@ -443,7 +472,20 @@ function BetBox({
         />
       )}
       {stake ? (
-        <motion.span className="absolute -top-2 -right-2 flex items-center gap-0.5" initial={CHIP_DROP.initial} animate={{ ...CHIP_DROP.animate, opacity: lost ? 0.3 : 1 }} transition={CHIP_DROP.transition}>
+        <motion.span
+          // Cada ficha añadida cae; al cobrar saltan y pasan a valer el premio; las perdidas se las lleva el crupier.
+          key={won ? 'cobrada' : lost ? 'perdida' : stake}
+          className="absolute -top-2 -right-2 flex items-center gap-0.5"
+          initial={won ? { opacity: 0.6, transform: 'translateY(0px) scale(0.8)' } : lost ? false : CHIP_DROP.initial}
+          animate={
+            won
+              ? { opacity: 1, transform: ['translateY(0px) scale(0.8)', 'translateY(-6px) scale(1.15)', 'translateY(0px) scale(1)'] }
+              : lost
+                ? { opacity: [1, 1, 0.25], transform: ['translateY(0px) scale(1)', 'translateY(0px) scale(1)', 'translateY(-14px) scale(0.85)'] }
+                : CHIP_DROP.animate
+          }
+          transition={won ? { duration: 0.45, ease: EASE_OUT } : lost ? { duration: 0.7, times: [0, 0.4, 1], ease: EASE_IN_OUT } : CHIP_DROP.transition}
+        >
           <ChipStack amount={won ? payout! : stake} size={24} max={3} />
           <span className="tabular rounded bg-black/60 px-1 text-[10px] font-bold text-gold-light">{grouped(won ? payout! : stake)}</span>
         </motion.span>
