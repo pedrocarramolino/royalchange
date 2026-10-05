@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { motion } from 'motion/react';
 import { useAuth } from '@/data/auth';
 import { useReadyWallet } from '@/data/wallet';
 import { HISTORY_PAGE_SIZE, ledgerBefore, loadStatistics } from '@/data/history';
@@ -8,6 +9,7 @@ import { historyItems, type GameStats, type HistoryItem } from '@/domain/history
 import { achievement } from '@/domain/progression';
 import { chips, formatDateTime, grouped, signed } from '@/lib/format';
 import { Button } from '@/ui/Button';
+import { EASE_OUT } from '@/ui/motion';
 
 const GAME_NAME: Record<GameType, string> = { Blackjack: 'Blackjack', Roulette: 'Ruleta', Slots: 'Slots', Poker: 'Póker', Dice: 'Dados', Baccarat: 'Baccarat', VideoPoker: 'Video póker', Plinko: 'Plinko', Scratch: 'Rasca y gana' };
 
@@ -79,29 +81,45 @@ export function HistoryScreen() {
       )}
 
       {state !== 'failed' && stats && !anyRounds && rounds === 0 && state === 'ready' && (
-        <div className="mt-6 rounded-3xl bg-ink-2 px-5 py-8 text-center">
+        <motion.div className="mt-6 rounded-3xl bg-ink-2 px-5 py-8 text-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3, ease: EASE_OUT }}>
           <p className="font-display text-lg font-semibold text-ivory">Aún no hay partidas</p>
           <p className="mt-2 text-sm leading-relaxed text-ivory-dim">
             Cuando juegues, aquí aparecerá cada partida con su apuesta y su resultado, además de tus estadísticas por juego.
           </p>
-        </div>
+        </motion.div>
       )}
 
       {stats && anyRounds && (
         <>
           <h2 className="mt-6 mb-3 px-1 text-xs font-bold tracking-[0.2em] text-gold uppercase">Por juego</h2>
           <ul className="grid grid-cols-1 gap-2">
-            {GAMES.map((game) => {
+            {GAMES.map((game, i) => {
               const s = stats[game];
               const net = s ? s.returned - s.staked : 0;
+              const winRate = s && s.rounds > 0 ? s.wins / s.rounds : 0;
               return (
-                <li key={game} className="panel flex items-center gap-4 rounded-2xl px-4 py-3">
+                <motion.li
+                  key={game}
+                  className="panel flex items-center gap-4 rounded-2xl px-4 py-3"
+                  initial={{ opacity: 0, transform: 'translateY(8px)' }}
+                  animate={{ opacity: 1, transform: 'translateY(0px)' }}
+                  transition={{ duration: 0.3, ease: EASE_OUT, delay: i * 0.035 }}
+                >
                   <span className="w-24 shrink-0 font-display font-semibold text-gold-light">{GAME_NAME[game]}</span>
                   {s && s.rounds > 0 ? (
                     <div className="min-w-0 flex-1 text-sm">
                       <p className="text-ivory">
-                        {grouped(s.rounds)} {s.rounds === 1 ? 'ronda' : 'rondas'} · {Math.round((s.wins / s.rounds) * 100)} % ganadas
+                        {grouped(s.rounds)} {s.rounds === 1 ? 'ronda' : 'rondas'} · {Math.round(winRate * 100)} % ganadas
                       </p>
+                      {/* % de rondas ganadas: la barra se llena al aparecer. */}
+                      <div className="my-1 h-1 overflow-hidden rounded-full bg-ink-4" aria-hidden>
+                        <motion.div
+                          className="h-full w-full origin-left rounded-full metal-gold"
+                          initial={{ transform: 'scaleX(0)' }}
+                          animate={{ transform: `scaleX(${winRate})` }}
+                          transition={{ duration: 0.7, ease: EASE_OUT, delay: 0.15 + i * 0.035 }}
+                        />
+                      </div>
                       <p className="text-xs text-ivory-dim">
                         Balance: <span className={net > 0 ? 'text-emerald' : net < 0 ? 'text-ruby-bright' : ''}>{signed(net)}</span>
                         {s.biggestWin > 0 && <> · Mejor ronda: +{grouped(s.biggestWin)}</>}
@@ -110,7 +128,7 @@ export function HistoryScreen() {
                   ) : (
                     <p className="flex-1 text-sm text-mute">Sin partidas todavía</p>
                   )}
-                </li>
+                </motion.li>
               );
             })}
           </ul>
@@ -121,8 +139,8 @@ export function HistoryScreen() {
         <>
           <h2 className="mt-8 mb-3 px-1 text-xs font-bold tracking-[0.2em] text-gold uppercase">Últimos movimientos</h2>
           <ul className="flex flex-col gap-1.5">
-            {items.map((item) => (
-              <HistoryRow key={item.seq} item={item} />
+            {items.map((item, i) => (
+              <HistoryRow key={item.seq} item={item} order={i % HISTORY_PAGE_SIZE} />
             ))}
           </ul>
           {nextBefore !== null && (
@@ -136,7 +154,7 @@ export function HistoryScreen() {
   );
 }
 
-function HistoryRow({ item }: { item: HistoryItem }) {
+function HistoryRow({ item, order }: { item: HistoryItem; order: number }) {
   let title: string;
   let detail: string | null = null;
   let net: number | null;
@@ -158,7 +176,14 @@ function HistoryRow({ item }: { item: HistoryItem }) {
             : `Logro: ${item.achievementId ? achievement(item.achievementId).name : ''}`;
   }
   return (
-    <li className="flex items-center gap-3 rounded-2xl bg-ink-1 px-4 py-3 ring-1 ring-white/5">
+    <motion.li
+      layout="position"
+      className="flex items-center gap-3 rounded-2xl bg-ink-1 px-4 py-3 ring-1 ring-white/5"
+      initial={{ opacity: 0, transform: 'translateY(6px)' }}
+      animate={{ opacity: 1, transform: 'translateY(0px)' }}
+      // Escalonado corto: como mucho las diez primeras de cada página.
+      transition={{ duration: 0.25, ease: EASE_OUT, delay: Math.min(order, 10) * 0.03 }}
+    >
       <div className="min-w-0 flex-1">
         <p className="truncate font-semibold text-ivory">{title}</p>
         <p className="truncate text-xs text-mute">
@@ -170,6 +195,6 @@ function HistoryRow({ item }: { item: HistoryItem }) {
         {net !== null && <p className={`tabular font-bold ${net > 0 ? 'text-emerald' : net < 0 ? 'text-ruby-bright' : 'text-ivory-dim'}`}>{signed(net)}</p>}
         <p className="tabular text-[11px] text-mute">Saldo {grouped(item.balanceAfter)}</p>
       </div>
-    </li>
+    </motion.li>
   );
 }
