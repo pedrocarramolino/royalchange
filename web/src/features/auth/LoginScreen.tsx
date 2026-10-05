@@ -14,6 +14,7 @@ export function LoginScreen() {
   const [submitted, setSubmitted] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
   const emailError = submitted ? validateEmail(email) : null;
   const passwordError = submitted && !password ? 'required' : null;
@@ -26,13 +27,16 @@ export function LoginScreen() {
     setBusy(true);
     const result = await signIn(email, password);
     setBusy(false);
-    if (!result.ok) setError(AUTH_ERROR_TEXT[result.error]);
+    if (!result.ok) {
+      setError(AUTH_ERROR_TEXT[result.error]);
+      setAttempt((n) => n + 1);
+    }
   };
 
   return (
     <AuthLayout title="Iniciar sesión" subtitle="Te estábamos esperando. Tu mesa sigue preparada.">
       <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
-        {error && <FormBanner>{error}</FormBanner>}
+        {error && <FormBanner key={attempt}>{error}</FormBanner>}
         <TextField
           label="Email"
           type="email"

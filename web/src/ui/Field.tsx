@@ -1,4 +1,6 @@
 import { useId, useState, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
+import { EASE_OUT } from './motion';
 
 interface FieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'size'> {
   label: string;
@@ -8,7 +10,7 @@ interface FieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'size'>
 }
 
 const fieldBox =
-  'w-full rounded-2xl border bg-ink-1 px-4 pt-6 pb-2 text-ivory outline-none transition-colors placeholder:text-mute/70 focus:border-gold';
+  'w-full rounded-2xl border bg-ink-1 px-4 pt-6 pb-2 text-ivory outline-none transition-[border-color,box-shadow] duration-200 ease-out placeholder:text-mute/70 focus:border-gold focus:shadow-[0_0_0_3px_rgb(212_175_106/0.16)]';
 
 /** Campo de texto con etiqueta flotante fija, ayuda y error accesibles. */
 export function TextField({ label, error, help, trailing, className = '', id, ...rest }: FieldProps) {
@@ -30,15 +32,33 @@ export function TextField({ label, error, help, trailing, className = '', id, ..
         />
         {trailing && <div className="absolute inset-y-0 right-1 flex items-center">{trailing}</div>}
       </div>
-      {error ? (
-        <p id={`${inputId}-error`} className="mt-1.5 px-1 text-sm text-ruby-bright">
-          {error}
-        </p>
-      ) : help ? (
-        <p id={`${inputId}-help`} className="mt-1.5 px-1 text-xs text-mute">
-          {help}
-        </p>
-      ) : null}
+      <AnimatePresence mode="wait" initial={false}>
+        {error ? (
+          <motion.p
+            key="error"
+            id={`${inputId}-error`}
+            className="mt-1.5 px-1 text-sm text-ruby-bright"
+            initial={{ opacity: 0, transform: 'translateY(-3px)' }}
+            animate={{ opacity: 1, transform: 'translateY(0px)' }}
+            exit={{ opacity: 0, transition: { duration: 0.1 } }}
+            transition={{ duration: 0.2, ease: EASE_OUT }}
+          >
+            {error}
+          </motion.p>
+        ) : help ? (
+          <motion.p
+            key="help"
+            id={`${inputId}-help`}
+            className="mt-1.5 px-1 text-xs text-mute"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, transition: { duration: 0.1 } }}
+            transition={{ duration: 0.2, ease: EASE_OUT }}
+          >
+            {help}
+          </motion.p>
+        ) : null}
+      </AnimatePresence>
     </div>
   );
 }
@@ -125,21 +145,34 @@ export function Checkbox({ checked, onChange, children, error }: CheckProps) {
   const id = useId();
   return (
     <div>
-      <label htmlFor={id} className="flex cursor-pointer items-start gap-3 py-2">
+      <label htmlFor={id} className="group flex cursor-pointer items-start gap-3 py-2">
         <input id={id} type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="peer sr-only" />
         <span
-          className={`mt-0.5 grid size-6 shrink-0 place-items-center rounded-md border-2 transition-colors peer-focus-visible:outline-2 peer-focus-visible:outline-gold-light ${checked ? 'border-gold bg-gold text-on-gold' : error ? 'border-ruby-bright' : 'border-mute'}`}
+          className={`mt-0.5 grid size-6 shrink-0 place-items-center rounded-md border-2 transition-[background-color,border-color,scale] duration-150 ease-out group-active:scale-90 peer-focus-visible:outline-2 peer-focus-visible:outline-gold-light ${checked ? 'border-gold bg-gold text-on-gold' : error ? 'border-ruby-bright' : 'border-mute'}`}
           aria-hidden
         >
           {checked && (
             <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M5 12.5l4.5 4.5L19 7.5" />
+              {/* La marca se dibuja de izquierda a derecha. */}
+              <motion.path d="M5 12.5l4.5 4.5L19 7.5" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 0.22, ease: EASE_OUT }} />
             </svg>
           )}
         </span>
         <span className="text-[15px] leading-snug text-ivory">{children}</span>
       </label>
-      {error && <p className="-mt-1 mb-1 pl-9 text-sm text-ruby-bright">{error}</p>}
+      <AnimatePresence initial={false}>
+        {error && (
+          <motion.p
+            className="-mt-1 mb-1 pl-9 text-sm text-ruby-bright"
+            initial={{ opacity: 0, transform: 'translateY(-3px)' }}
+            animate={{ opacity: 1, transform: 'translateY(0px)' }}
+            exit={{ opacity: 0, transition: { duration: 0.1 } }}
+            transition={{ duration: 0.2, ease: EASE_OUT }}
+          >
+            {error}
+          </motion.p>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

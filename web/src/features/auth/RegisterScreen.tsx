@@ -1,4 +1,6 @@
 import { useMemo, useState, type FormEvent } from 'react';
+import { motion } from 'motion/react';
+import { SPRING } from '@/ui/motion';
 import { AUTH_ERROR_TEXT, useAuth } from '@/data/auth';
 import { countries, suggestedCountry } from '@/domain/countries';
 import {
@@ -47,6 +49,7 @@ export function RegisterScreen({ mode }: { mode: Mode }) {
   const [submitted, setSubmitted] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
   const [aliasTaken, setAliasTaken] = useState(false);
   const [legal, setLegal] = useState<LegalDocument | null>(null);
   const countryOptions = useMemo(() => countries().map((c) => ({ value: c.code, label: c.name })), []);
@@ -88,6 +91,7 @@ export function RegisterScreen({ mode }: { mode: Mode }) {
     if (!result.ok) {
       if (result.error === 'aliasTaken') setAliasTaken(true);
       setError(AUTH_ERROR_TEXT[result.error]);
+      setAttempt((n) => n + 1);
     }
   };
 
@@ -100,7 +104,7 @@ export function RegisterScreen({ mode }: { mode: Mode }) {
       <form onSubmit={submit} noValidate className="flex flex-col">
         {error && (
           <div className="mb-4">
-            <FormBanner>{error}</FormBanner>
+            <FormBanner key={attempt}>{error}</FormBanner>
           </div>
         )}
 
@@ -109,7 +113,7 @@ export function RegisterScreen({ mode }: { mode: Mode }) {
           <legend className="mb-3 text-sm font-semibold text-ivory-dim">Elige tu avatar</legend>
           <div className="grid grid-cols-4 gap-3" role="radiogroup">
             {AVATARS.map((id) => (
-              <button
+              <motion.button
                 key={id}
                 type="button"
                 role="radio"
@@ -117,9 +121,18 @@ export function RegisterScreen({ mode }: { mode: Mode }) {
                 aria-label={avatarName(id)}
                 onClick={() => setAvatar(id)}
                 className="grid place-items-center rounded-full py-1"
+                whileTap={{ scale: 0.9 }}
               >
-                <Avatar id={id} size={56} selected={avatar === id} />
-              </button>
+                {/* El elegido da un pequeño salto. */}
+                <motion.span
+                  className="block rounded-full"
+                  initial={false}
+                  animate={{ transform: avatar === id ? 'scale(1.08)' : 'scale(1)' }}
+                  transition={SPRING}
+                >
+                  <Avatar id={id} size={56} selected={avatar === id} />
+                </motion.span>
+              </motion.button>
             ))}
           </div>
         </fieldset>
@@ -160,7 +173,7 @@ export function RegisterScreen({ mode }: { mode: Mode }) {
                   <div className="mt-3 px-1" aria-live="polite">
                     <div className="flex gap-1.5" aria-hidden>
                       {[1, 2, 3, 4].map((bar) => (
-                        <span key={bar} className={`h-1 flex-1 rounded-full ${bar <= strength.bars ? strength.color : 'bg-ink-4'}`} />
+                        <span key={bar} className={`h-1 flex-1 rounded-full transition-colors duration-300 ease-out ${bar <= strength.bars ? strength.color : 'bg-ink-4'}`} />
                       ))}
                     </div>
                     <p className="mt-2 text-xs font-semibold text-ivory-dim">{strength.label}</p>
@@ -170,8 +183,17 @@ export function RegisterScreen({ mode }: { mode: Mode }) {
                   {(Object.keys(PASSWORD_REQUIREMENT_TEXT) as PasswordRequirement[]).map((req) => {
                     const met = password.length > 0 && !unmet.has(req);
                     return (
-                      <li key={req} className={`flex items-center gap-1.5 text-xs ${met ? 'text-emerald' : 'text-mute'}`}>
-                        <span aria-hidden>{met ? '✓' : '·'}</span>
+                      <li key={req} className={`flex items-center gap-1.5 text-xs transition-colors duration-200 ${met ? 'text-emerald' : 'text-mute'}`}>
+                        <motion.span
+                          key={met ? 'cumplido' : 'pendiente'}
+                          className="inline-block"
+                          initial={met ? { transform: 'scale(0.4)', opacity: 0 } : false}
+                          animate={{ transform: 'scale(1)', opacity: 1 }}
+                          transition={SPRING}
+                          aria-hidden
+                        >
+                          {met ? '✓' : '·'}
+                        </motion.span>
                         {PASSWORD_REQUIREMENT_TEXT[req]}
                         <span className="sr-only">{met ? ' (cumplido)' : ' (pendiente)'}</span>
                       </li>

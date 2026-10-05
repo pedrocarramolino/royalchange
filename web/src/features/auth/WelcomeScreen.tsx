@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router';
 import { motion } from 'motion/react';
 import { Button } from '@/ui/Button';
+import { EASE_OUT } from '@/ui/motion';
 import { PlayingCard, type Rank } from '@/ui/PlayingCard';
 import type { SuitName } from '@/ui/Suit';
 import { BrandMark, Wordmark } from '@/ui/Brand';
@@ -20,10 +21,15 @@ export function WelcomeScreen() {
     <div className="relative h-full overflow-y-auto">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_90%_55%_at_50%_30%,rgb(15_91_69/0.55),transparent_70%)]" aria-hidden />
       <div className="safe-top safe-pb-8 safe-px-6 relative mx-auto flex min-h-full max-w-md flex-col">
-        <div className="mt-8 flex items-center justify-center gap-3">
+        <motion.div
+          className="mt-8 flex items-center justify-center gap-3"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.4, ease: EASE_OUT }}
+        >
           <BrandMark size={40} />
           <Wordmark className="text-[15px]" />
-        </div>
+        </motion.div>
 
         <div className="relative mx-auto mt-10 h-56 w-72" aria-label="Escalera real de picas a ases" role="img">
           {HAND.map(([rank, suit], i) => {
@@ -43,12 +49,29 @@ export function WelcomeScreen() {
           })}
         </div>
 
-        <h1 className="mt-12 text-center font-display text-[32px] leading-tight font-semibold text-gold-gradient">Bienvenido a la mesa</h1>
-        <p className="mx-auto mt-3 max-w-xs text-center text-[15px] leading-relaxed text-ivory-dim">
+        <motion.h1
+          className="mt-12 text-center font-display text-[32px] leading-tight font-semibold text-gold-gradient"
+          initial={{ opacity: 0, transform: 'translateY(10px)' }}
+          animate={{ opacity: 1, transform: 'translateY(0px)' }}
+          transition={{ duration: 0.4, ease: EASE_OUT, delay: 0.55 }}
+        >
+          Bienvenido a la mesa
+        </motion.h1>
+        <motion.p
+          className="mx-auto mt-3 max-w-xs text-center text-[15px] leading-relaxed text-ivory-dim"
+          initial={{ opacity: 0, transform: 'translateY(10px)' }}
+          animate={{ opacity: 1, transform: 'translateY(0px)' }}
+          transition={{ duration: 0.4, ease: EASE_OUT, delay: 0.62 }}
+        >
           Blackjack, ruleta, póker, slots y dados. Juega con fichas virtuales, sube de nivel y consigue logros.
-        </p>
+        </motion.p>
 
-        <div className="mt-auto flex flex-col gap-3 pt-10">
+        <motion.div
+          className="mt-auto flex flex-col gap-3 pt-10"
+          initial={{ opacity: 0, transform: 'translateY(12px)' }}
+          animate={{ opacity: 1, transform: 'translateY(0px)' }}
+          transition={{ duration: 0.4, ease: EASE_OUT, delay: 0.72 }}
+        >
           <Button size="lg" block onClick={() => navigate('/registro')}>
             Crear cuenta
           </Button>
@@ -58,7 +81,7 @@ export function WelcomeScreen() {
           <p className="mt-3 text-center text-xs leading-relaxed text-mute">
             Solo para mayores de 18 años. Las fichas son virtuales: no se compran, no se canjean y no tienen valor monetario.
           </p>
-        </div>
+        </motion.div>
       </div>
     </div>
   );
