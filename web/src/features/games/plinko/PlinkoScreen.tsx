@@ -75,8 +75,8 @@ export default function PlinkoScreen() {
 
   // Medidas: el tablero manda; a la derecha, las últimas bolas.
   const sideWidth = table.width >= 560 ? 120 : 84;
-  const gap = Math.max(12, Math.min((table.height - 12) / (PLINKO_ROWS + 2.3), (table.width - sideWidth - 48) / 14.2));
-  const boardWidth = gap * 14.2;
+  const gap = Math.max(12, Math.min((table.height - 12) / (PLINKO_ROWS + 2.3), (table.width - sideWidth - 48) / (PLINKO_ROWS + 2.2)));
+  const boardWidth = gap * (PLINKO_ROWS + 2.2);
   const boardHeight = gap * (PLINKO_ROWS + 2.3);
   const last = recent[0];
 

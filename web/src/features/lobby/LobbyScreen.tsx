@@ -24,7 +24,7 @@ const GAMES = [
   { path: '/mesa/dados', name: 'Dados', description: 'Mayor, menor y combinaciones.', Art: DiceArt },
   { path: '/mesa/poker', name: 'Póker', description: 'Texas Hold’em contra bots.', Art: PokerArt },
   { path: '/mesa/baccarat', name: 'Baccarat', description: 'Jugador o banca: gana el que más se acerque a 9.', Art: BaccaratArt },
-  { path: '/mesa/plinko', name: 'Plinko', description: 'Suelta la bola y mira dónde cae: hasta ×170.', Art: PlinkoArt },
+  { path: '/mesa/plinko', name: 'Plinko', description: 'Suelta la bola y mira dónde cae: hasta ×29.', Art: PlinkoArt },
   { path: '/mesa/video-poker', name: 'Video póker', description: 'Jacks or Better: guarda cartas, cambia el resto y busca la escalera real.', Art: VideoPokerArt },
 ];
 
