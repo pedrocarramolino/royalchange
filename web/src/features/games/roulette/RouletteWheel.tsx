@@ -106,7 +106,12 @@ export function RouletteWheel({ size, spin, reducedMotion, onSettled }: { size: 
     const controls = [
       animate(wheel, wheelTarget, { duration, ease: easing }),
       animate(ballAngle, ballTarget, { duration, ease: easing }),
-      animate(ballRadius, [0.47, 0.47, 0.44, 0.36], { duration, times: [0, 0.55, 0.8, 1], ease: 'easeIn' }),
+      // La bola baja del aro, choca con los trastes (dos botes cada vez más pequeños) y se queda en su casilla.
+      animate(ballRadius, reducedMotion ? [0.47, 0.36] : [0.47, 0.47, 0.44, 0.37, 0.405, 0.36, 0.375, 0.36], {
+        duration,
+        times: reducedMotion ? [0, 1] : [0, 0.55, 0.78, 0.86, 0.9, 0.94, 0.97, 1],
+        ease: 'easeInOut',
+      }),
     ];
     const timer = setTimeout(() => settled.current(spin.id), duration * 1000 + 120);
     return () => {

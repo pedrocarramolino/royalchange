@@ -24,6 +24,8 @@ import { ChipStack } from '@/ui/Chip';
 import { Celebration, ResultBanner } from '../shared/Celebration';
 import { useDealFrom } from '../shared/deal';
 import { FlipCard } from '../shared/FlipCard';
+import { motion } from 'motion/react';
+import { EASE_OUT, SPRING } from '@/ui/motion';
 import { ChipRack, TABLE_CHIPS } from '../shared/ChipRack';
 import { TableAction } from '../shared/TableAction';
 import { IconTrash } from '@/ui/icons';
@@ -397,7 +399,13 @@ function Hand({
   const value = handValue(hand.cards);
   const outcomeLabel: Record<string, string> = { blackjack: 'Blackjack', win: 'Gana', push: 'Empate', loss: 'Pierde' };
   return (
-    <div className={`relative flex items-end gap-2 rounded-2xl p-1 transition-shadow ${active ? 'shadow-[0_0_0_2px_#f3dfa2,0_0_24px_rgb(243_223_162/0.35)]' : ''}`}>
+    <div
+      className={`relative flex items-end gap-2 rounded-2xl p-1 transition-[box-shadow,opacity] duration-300 ease-out ${
+        active || (result && result.outcome !== 'loss' && result.outcome !== 'push') ? 'shadow-[0_0_0_2px_#f3dfa2,0_0_24px_rgb(243_223_162/0.35)]' : ''
+      }`}
+      // Al acabar: la mano que gana brilla y la que pierde se atenúa.
+      style={{ opacity: result?.outcome === 'loss' ? 0.55 : 1 }}
+    >
       <div className="flex items-end" style={{ paddingTop: (hand.cards.length - 1) * cardWidth * 0.12 }}>
         {hand.cards.map((card, ci) => (
           <div key={`${ci}-${card.rank}${card.suit}`} style={{ marginBottom: ci * cardWidth * 0.12 }}>
@@ -428,11 +436,19 @@ function Hand({
 function ValueBadge({ label, value, soft, bust, extra, tone = 'neutral' }: { label: string; value: number; soft: boolean; bust: boolean; extra?: string | undefined; tone?: 'win' | 'lose' | 'neutral' }) {
   const color = tone === 'win' ? 'bg-emerald/90 text-[#00281d]' : tone === 'lose' || bust ? 'bg-ruby text-ivory' : 'bg-black/60 text-ivory';
   const text = bust ? `${value} · Se pasa` : soft ? `${value - 10}/${value}` : String(value);
+  // Rebota un poco cada vez que cambia (carta nueva, resultado).
   return (
-    <span className={`tabular mt-1 rounded-full px-2.5 py-0.5 text-xs font-bold ring-1 ring-white/15 ${color}`} aria-label={`${label}: ${value}${bust ? ', se pasa' : ''}${extra ? `, ${extra}` : ''}`}>
+    <motion.span
+      key={`${text}-${extra ?? ''}-${tone}`}
+      className={`tabular mt-1 rounded-full px-2.5 py-0.5 text-xs font-bold ring-1 ring-white/15 ${color}`}
+      aria-label={`${label}: ${value}${bust ? ', se pasa' : ''}${extra ? `, ${extra}` : ''}`}
+      initial={{ scale: 0.8, opacity: 0.5 }}
+      animate={{ scale: 1, opacity: 1 }}
+      transition={SPRING}
+    >
       {text}
       {extra && <span className="ml-1.5 font-display">{extra}</span>}
-    </span>
+    </motion.span>
   );
 }
 
@@ -442,7 +458,14 @@ function BetCircle({ amount, width }: { amount: number | null; width: number }) 
   return (
     <div className="mb-3 flex flex-col items-center gap-1">
       <div className="grid place-items-center rounded-full border-2 border-dashed border-gold-light/50" style={{ width: size, height: size }}>
-        {amount ? <ChipStack amount={amount} size={size * 0.5} max={5} /> : <span className="felt-print text-[10px]">Apuesta</span>}
+        {/* Cada ficha que se añade cae sobre el montón. */}
+        {amount ? (
+          <motion.div key={amount} initial={{ opacity: 0.6, transform: 'translateY(-8px) scale(1.08)' }} animate={{ opacity: 1, transform: 'translateY(0px) scale(1)' }} transition={{ duration: 0.18, ease: EASE_OUT }}>
+            <ChipStack amount={amount} size={size * 0.5} max={5} />
+          </motion.div>
+        ) : (
+          <span className="felt-print text-[10px]">Apuesta</span>
+        )}
       </div>
       {amount ? <span className="tabular text-xs font-bold text-gold-light">{grouped(amount)}</span> : null}
     </div>

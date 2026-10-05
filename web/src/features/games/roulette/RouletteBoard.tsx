@@ -4,7 +4,7 @@ import { colorOf } from './wheel';
 import { betName, betNumbers, type RouletteBet } from '@/engine/roulette';
 import { Chip } from '@/ui/Chip';
 import { chipLabel } from '@/lib/format';
-import { CHIP_DROP } from '@/ui/motion';
+import { CHIP_DROP, EASE_OUT } from '@/ui/motion';
 
 // Tapete horizontal, en unidades de casilla: 0 a la izquierda (1 de ancho), 12 columnas de 3
 // números, 2:1 a la derecha; debajo, docenas (0,8 de alto) y apuestas sencillas (0,8).
@@ -132,6 +132,23 @@ export function RouletteBoard({ width, height, bets, winning, payouts, disabled,
       aria-label="Tapete de apuestas: toca un número, entre dos números o en una esquina"
     >
       <BoardPrint unit={unit} winners={winners} />
+      {/* Aro dorado que late sobre el número ganador. */}
+      {winning !== null && (
+        <motion.span
+          key={`win-${winning}`}
+          className="pointer-events-none absolute rounded-full ring-2 ring-gold-light"
+          style={{
+            left: anchorOf(`n:${winning}`).x * unit - unit * 0.42,
+            top: anchorOf(`n:${winning}`).y * unit - unit * 0.42,
+            width: unit * 0.84,
+            height: unit * 0.84,
+            boxShadow: '0 0 14px rgb(243 223 162 / 0.7)',
+          }}
+          initial={{ opacity: 0, scale: 1.6 }}
+          animate={{ opacity: 1, scale: [1.6, 1, 1.12, 1] }}
+          transition={{ duration: 0.9, ease: EASE_OUT }}
+        />
+      )}
       {/* Botones accesibles (lectores de pantalla y teclado): plenos y apuestas exteriores. */}
       <div className="sr-only">
         {[...Array.from({ length: 37 }, (_, i) => `n:${i}`), 'column:1', 'column:2', 'column:3', 'dozen:1', 'dozen:2', 'dozen:3', 'low', 'even', 'red', 'black', 'odd', 'high'].map((bet) => (
@@ -148,12 +165,13 @@ export function RouletteBoard({ width, height, bets, winning, payouts, disabled,
         const size = Math.max(18, unit * 0.62);
         return (
           <motion.div
-            key={bet}
+            // Al cobrar, la ficha pasa a valer el premio y salta; si se pierde, se hunde y se apaga.
+            key={payout ? `${bet}-cobrada` : bet}
             className="pointer-events-none absolute"
             style={{ left: x * unit - size / 2, top: y * unit - size / 2 }}
-            initial={CHIP_DROP.initial}
-            animate={{ ...CHIP_DROP.animate, opacity: lost ? 0.25 : 1 }}
-            transition={CHIP_DROP.transition}
+            initial={payout ? { opacity: 0.6, transform: 'translateY(0px) scale(0.8)' } : CHIP_DROP.initial}
+            animate={lost ? { opacity: 0.25, transform: 'translateY(3px) scale(0.92)' } : payout ? { opacity: 1, transform: ['translateY(0px) scale(0.8)', 'translateY(-6px) scale(1.15)', 'translateY(0px) scale(1)'] } : CHIP_DROP.animate}
+            transition={payout ? { duration: 0.45, ease: EASE_OUT } : lost ? { duration: 0.35, ease: EASE_OUT } : CHIP_DROP.transition}
           >
             <Chip value={payout ?? amount} size={size} label={chipLabel(payout ?? amount)} />
             {/* Brillo de la ficha ganadora: dos latidos y se queda quieta. */}
