@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useReadyWallet } from '@/data/wallet';
-import { ACTION_LABEL, CATEGORY_NAME, inHand, legalActions, POKER_TABLES, pot, type PokerState, type Seat } from '@/engine/poker';
+import { ACTION_LABEL, allBotsOut, CATEGORY_NAME, inHand, legalActions, POKER_TABLES, pot, type PokerState, type Seat } from '@/engine/poker';
 import { chips, grouped } from '@/lib/format';
 import { play, resultSound } from '@/audio/sound';
 import { Button } from '@/ui/Button';
@@ -270,7 +270,7 @@ function SeatView({ table, index, seat, cardWidth, toCenter }: { table: PokerSta
   const won = table.phase === 'handOver' && table.awards.some((a) => a.winners.includes(index));
   const out = seat.hole.length === 0 && seat.stack === 0;
   const showCards = seat.isHuman || (table.showdown && inHand(seat));
-  const status = active && !seat.isHuman ? 'Pensando…' : seat.lastAction ? ACTION_LABEL[seat.lastAction] : null;
+  const status = out && !seat.isHuman ? 'Eliminado' : active && !seat.isHuman ? 'Pensando…' : seat.lastAction ? ACTION_LABEL[seat.lastAction] : null;
   const hero = index === HERO;
   const description = `${seat.isHuman ? 'Tú' : seat.name}: ${chips(seat.stack)}${status ? `, ${status}` : ''}${seat.folded ? ', retirado' : ''}`;
   // Los asientos de abajo (el jugador) y de arriba van pegados al borde: en una mesa baja (móvil) no
@@ -392,6 +392,7 @@ function Controls({ table, poker }: { table: PokerState; poker: ReturnType<typeo
 
   const needsRebuy = hero.stack < table.rules.bigBlind && table.phase !== 'betting';
   const waitingOthers = table.phase === 'betting';
+  const tableWon = !waitingOthers && !needsRebuy && allBotsOut(table);
   return (
     <div className="flex h-[68px] items-center gap-3 px-3">
       <p className="line-clamp-2 min-w-0 flex-1 text-sm leading-snug text-ivory-dim" aria-live="polite">
@@ -401,7 +402,13 @@ function Controls({ table, poker }: { table: PokerState; poker: ReturnType<typeo
             : `Turno de ${table.toAct !== null ? table.seats[table.toAct]!.name : '…'}`
           : needsRebuy
             ? 'Te has quedado sin fichas en la mesa. Recompra para seguir.'
-            : (
+            : tableWon
+              ? (
+                <>
+                  <span className="font-semibold text-gold-light">¡Has eliminado a todos!</span> Tienes {chips(hero.stack)} en la mesa.
+                </>
+              )
+              : (
               <>
                 En la mesa: <span className="font-semibold text-gold-light">{chips(hero.stack)}</span>
                 <br />
@@ -419,7 +426,7 @@ function Controls({ table, poker }: { table: PokerState; poker: ReturnType<typeo
           </Button>
         ) : (
           <Button className="min-w-36" loading={poker.busy} onClick={poker.dealNextHand}>
-            Repartir
+            {tableWon ? 'Nuevos rivales' : 'Repartir'}
           </Button>
         ))}
     </div>

@@ -5,7 +5,7 @@ import { applyBlackjack, availableMoves, handValue, initialBlackjack, type Black
 import { betNumbers, roulettePayout, settleRoulette, validateRoulette } from './roulette';
 import { dicePayout, settleDice, validateDice } from './dice';
 import { evaluateLine, LINES, pay, PAYTABLE, settleSlots, STRIPS, SYMBOLS, type SlotSymbol } from './slots';
-import { applyPoker, categoryOf, createTable, evaluateHand, legalActions, pot, startHand, POKER_TABLES, type PokerState } from './poker';
+import { allBotsOut, applyPoker, categoryOf, createTable, refillBots, evaluateHand, legalActions, pot, startHand, POKER_TABLES, type PokerState } from './poker';
 
 const c = (code: string): Card => {
   const suit: Record<string, SuitName> = { s: 'spades', h: 'hearts', d: 'diamonds', c: 'clubs' };
@@ -173,6 +173,20 @@ describe('póker', () => {
     expect(counts.get('TwoPair')).toBe(123_552);
     expect(counts.get('OnePair')).toBe(1_098_240);
     expect(counts.get('HighCard')).toBe(1_302_540);
+  });
+
+  it('los bots eliminados siguen fuera hasta que no queda ninguno', () => {
+    const table = createTable(POKER_TABLES[0]!, 'Tú', 1_000, () => 0);
+    const someOut: PokerState = { ...table, seats: table.seats.map((s, i) => (i === 1 ? { ...s, stack: 0 } : s)) };
+    expect(allBotsOut(someOut)).toBe(false);
+    // Con un rival eliminado se sigue jugando con los demás: el asiento queda vacío.
+    expect(startHand(someOut)!.seats[1]!.hole).toHaveLength(0);
+    const allOut: PokerState = { ...table, seats: table.seats.map((s) => (s.isHuman ? { ...s, stack: 6_000 } : { ...s, stack: 0 })) };
+    expect(allBotsOut(allOut)).toBe(true);
+    expect(startHand(allOut)).toBeNull();
+    const fresh = refillBots(allOut);
+    expect(fresh.seats.every((s) => s.stack > 0)).toBe(true);
+    expect(fresh.seats[0]!.stack).toBe(6_000);
   });
 
   it('una mano completa conserva las fichas de la mesa', () => {

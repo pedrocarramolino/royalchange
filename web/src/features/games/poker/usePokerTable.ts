@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/data/auth';
 import { useWallet } from '@/data/wallet';
 import type { EconomyError } from '@/domain/economy';
-import { applyPoker, botDecide, createTable, POKER_TABLES, refillBots, startHand, type PokerAction, type PokerRules, type PokerState } from '@/engine/poker';
+import { allBotsOut, applyPoker, botDecide, createTable, POKER_TABLES, refillBots, startHand, type PokerAction, type PokerRules, type PokerState } from '@/engine/poker';
 import { play } from '@/audio/sound';
 import { economyNotice, loadSession, saveSession, clearSession, wait } from '../shared/session';
 
@@ -190,7 +190,9 @@ export function usePokerTable() {
     void act(async () => {
       // La pila en la mesa nunca supera el saldo real (pudo bajar jugando en otro dispositivo).
       const unit = current.rules.chipUnit;
-      const refilled = refillBots(current);
+      // Los bots eliminados no se reemplazan: así puedes quedarte con las fichas de todos. Solo
+      // cuando no queda ninguno se sientan otros nuevos.
+      const refilled = allBotsOut(current) ? refillBots(current) : { ...current };
       refilled.seats = refilled.seats.map((s, i) => (i === HERO ? { ...s, stack: Math.min(s.stack, Math.floor(balance.current / unit) * unit) } : s));
       if (refilled.seats[HERO]!.stack < refilled.rules.bigBlind) {
         commit(refilled);

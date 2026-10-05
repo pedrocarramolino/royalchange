@@ -489,7 +489,10 @@ export function createTable(rules: PokerRules, playerName: string, buyIn: number
   return { rules, seats, button: random(SEATS), deck: [], board: [], street: 'preflop', phase: 'waiting', toAct: null, currentBet: 0, minRaise: 0, handNumber: 0, awards: [], showdown: false };
 }
 
-/** Sustituye a los bots sin fichas por otros nuevos entre manos. */
+/** Mesa nueva: sustituye a los bots sin fichas por otros (cuando el jugador ha eliminado a todos). */
+/** Ningún bot tiene fichas: el jugador se ha quedado con todo lo de la mesa. */
+export const allBotsOut = (state: PokerState) => state.seats.every((s) => s.isHuman || s.stack === 0);
+
 export function refillBots(state: PokerState, random: RandomInt = secureRandom): PokerState {
   const used = new Set(state.seats.map((s) => s.name));
   const available = shuffle(BOT_NAMES.filter((n) => !used.has(n)), random);
