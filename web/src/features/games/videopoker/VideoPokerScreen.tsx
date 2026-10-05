@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { motion } from 'motion/react';
+import { AnimatePresence, motion } from 'motion/react';
 import { useWallet, useReadyWallet } from '@/data/wallet';
 import type { Card } from '@/engine/cards';
 import {
@@ -18,6 +18,9 @@ import { play, resultSound, BIG_WIN_MULTIPLIER } from '@/audio/sound';
 import { Button } from '@/ui/Button';
 import { cardName, PlayingCard } from '@/ui/PlayingCard';
 import { EASE_OUT } from '@/ui/motion';
+
+/** Carta que se va al cambiarla (o el dorso al repartir): cae un poco y se desvanece. */
+const DISCARD = { opacity: 0, transform: 'translateY(14px) scale(0.96)', transition: { duration: 0.16, ease: EASE_OUT } };
 import { Celebration } from '../shared/Celebration';
 import { FlipCard } from '../shared/FlipCard';
 import { GameShell, TableNotice, useTableSize } from '../shared/GameShell';
@@ -194,26 +197,38 @@ export default function VideoPokerScreen() {
       <div className="flex h-full items-center justify-center gap-4 px-3 py-2">
         <Paytable width={payWidth} bet={phase === 'dealt' && open ? open.bet : (final?.bet ?? bet)} current={currentHand} final={phase === 'result'} short={payWidth < 190} dense={table.height < 230} />
         <div className="flex min-w-0 flex-col items-center gap-2">
-          <p className={`line-clamp-2 max-w-full text-center text-[13px] leading-snug font-semibold ${phase === 'result' && final?.hand ? 'font-display text-[17px] text-gold-gradient' : 'text-ivory-dim'}`} aria-live="polite">
+          <motion.p
+            key={status}
+            className={`line-clamp-2 max-w-full text-center text-[13px] leading-snug font-semibold ${phase === 'result' && final?.hand ? 'font-display text-[17px] text-gold-gradient' : 'text-ivory-dim'}`}
+            aria-live="polite"
+            initial={{ opacity: 0, transform: 'translateY(4px)' }}
+            animate={{ opacity: 1, transform: 'translateY(0px)' }}
+            transition={{ duration: 0.2, ease: EASE_OUT, delay: phase === 'result' ? 0.5 : 0 }}
+          >
             {status}
-          </p>
+          </motion.p>
           <div className="flex gap-2.5 pt-2">
             {Array.from({ length: 5 }, (_, i) => {
               const card = shown?.[i];
               if (!card) {
                 return (
-                  <div key={`back-${i}`} className="pb-5 opacity-60">
-                    <PlayingCard rank="A" suit="spades" faceDown width={cardWidth} />
-                  </div>
+                  <AnimatePresence key={`slot-${i}`} mode="wait" initial={false}>
+                    <motion.div key="back" className="pb-5" initial={{ opacity: 0 }} animate={{ opacity: 0.6 }} exit={DISCARD}>
+                      <PlayingCard rank="A" suit="spades" faceDown width={cardWidth} />
+                    </motion.div>
+                  </AnimatePresence>
                 );
               }
               const held = phase === 'dealt' && !!open?.held[i];
               // Cartas nuevas (reparto y las cambiadas): llegan boca abajo y se destapan por turnos.
               const order = phase === 'result' && final ? final.replaced.slice(0, i).filter(Boolean).length : i;
               const fresh = phase === 'dealt' || (phase === 'result' && !!final?.replaced[i]);
+              // Cada hueco cambia su carta en dos tiempos: la vieja se va y después llega la nueva.
               return (
-                <button
+                <AnimatePresence key={`slot-${i}`} mode="wait" initial={false}>
+                <motion.button
                   key={`${dealId}-${i}-${card.rank}${card.suit}`}
+                  exit={DISCARD}
                   type="button"
                   disabled={phase !== 'dealt' || busy}
                   onClick={() => toggle(i)}
@@ -225,19 +240,37 @@ export default function VideoPokerScreen() {
                     className="relative"
                     initial={fresh ? { opacity: 0, transform: 'translateY(-14px)' } : false}
                     animate={{ opacity: winners && !winners[i] ? 0.45 : 1, transform: held ? 'translateY(-8px)' : 'translateY(0px)' }}
-                    transition={{ duration: 0.22, ease: EASE_OUT, delay: fresh && !held ? order * 0.1 : 0 }}
+                    // Retener o soltar es un interruptor: muelle (se puede pulsar otra vez a mitad).
+                    transition={{
+                      transform: { type: 'spring', duration: 0.35, bounce: 0.25, delay: fresh && !held ? order * 0.1 : 0 },
+                      opacity: { duration: 0.25, ease: EASE_OUT, delay: fresh ? order * 0.1 : 0.45 },
+                    }}
                   >
                     <FlipCard rank={card.rank} suit={card.suit} faceDown={false} dealtFaceDown={fresh} delay={0.15 + order * 0.1} width={cardWidth} />
-                    {(held || (winners && winners[i])) && <span className="pointer-events-none absolute inset-0 rounded-[9%] shadow-[0_0_0_2px_#f3dfa2,0_0_16px_rgb(243_223_162/0.55)]" />}
+                    <AnimatePresence>
+                      {(held || (winners && winners[i])) && (
+                        <motion.span
+                          className="pointer-events-none absolute inset-0 rounded-[9%] shadow-[0_0_0_2px_#f3dfa2,0_0_16px_rgb(243_223_162/0.55)]"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          transition={{ duration: 0.2, ease: EASE_OUT, delay: winners ? 0.5 : 0 }}
+                        />
+                      )}
+                    </AnimatePresence>
                   </motion.div>
                   {/* Bajo la carta, sin ensanchar la columna (con cartas pequeñas el texto es más ancho que ellas). */}
-                  <span
-                    className={`absolute bottom-0 left-1/2 -translate-x-1/2 text-[10px] font-black tracking-[0.14em] whitespace-nowrap uppercase ${held ? 'text-gold-light' : 'text-transparent'}`}
+                  <motion.span
+                    className="absolute bottom-0 left-1/2 -translate-x-1/2 text-[10px] font-black tracking-[0.14em] whitespace-nowrap text-gold-light uppercase"
                     aria-hidden
+                    initial={false}
+                    animate={{ opacity: held ? 1 : 0, transform: held ? 'translateY(0px)' : 'translateY(-4px)' }}
+                    transition={{ duration: 0.15, ease: EASE_OUT }}
                   >
                     Retenida
-                  </span>
-                </button>
+                  </motion.span>
+                </motion.button>
+                </AnimatePresence>
               );
             })}
           </div>
@@ -256,15 +289,18 @@ function Paytable({ width, bet, current, final, short, dense }: { width: number;
         {PAYTABLE.map((row) => {
           const active = row.hand === current;
           return (
-            <li
+            <motion.li
               key={row.hand}
+              // La jugada final late una vez al aparecer el premio.
+              animate={active && final ? { scale: [1, 1.05, 1] } : { scale: 1 }}
+              transition={{ duration: 0.45, ease: EASE_OUT, delay: 0.55 }}
               className={`flex items-center justify-between gap-2 rounded-md px-2 leading-tight transition-colors duration-200 ${dense ? 'py-0 text-[10.5px]' : 'py-[3px] text-[11px]'} ${
                 active ? (final ? 'bg-gold text-on-gold' : 'bg-gold/20 text-gold-light') : 'text-ivory-dim'
               }`}
             >
               <span className={`truncate ${row.hand === 'royalFlush' ? 'font-display font-bold' : 'font-semibold'}`}>{(short && SHORT[row.hand]) || row.name}</span>
               <span className="tabular font-bold">{grouped(row.multiplier * bet)}</span>
-            </li>
+            </motion.li>
           );
         })}
       </ol>

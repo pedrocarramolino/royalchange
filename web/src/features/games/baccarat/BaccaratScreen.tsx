@@ -9,7 +9,7 @@ import { play, resultSound, BIG_WIN_MULTIPLIER } from '@/audio/sound';
 import { Button } from '@/ui/Button';
 import { ChipStack } from '@/ui/Chip';
 import { IconRepeat, IconTrash, IconUndo } from '@/ui/icons';
-import { CHIP_DROP, SPRING } from '@/ui/motion';
+import { CHIP_DROP, EASE_OUT, SPRING } from '@/ui/motion';
 import { Celebration } from '../shared/Celebration';
 import { ChipRack } from '../shared/ChipRack';
 import { useDealFrom } from '../shared/deal';
@@ -300,18 +300,37 @@ function HandArea({
   const won = result === side;
   const tie = result === 'tie';
   return (
-    <section className="flex flex-col items-center gap-1.5" aria-label={`${name}${total !== null ? `: ${total}` : ''}${won ? ', gana' : tie ? ', empate' : ''}`}>
+    <section
+      className="flex flex-col items-center gap-1.5 transition-opacity duration-300 ease-out"
+      // La mano que pierde se atenúa para que la ganadora destaque.
+      style={{ opacity: result && !won && !tie ? 0.55 : 1 }}
+      aria-label={`${name}${total !== null ? `: ${total}` : ''}${won ? ', gana' : tie ? ', empate' : ''}`}
+    >
       <div className="flex items-center gap-2">
         <span className="font-display text-[13px] font-bold tracking-[0.16em] uppercase" style={{ color }}>
           {name}
         </span>
-        <span
-          className="tabular grid h-6 min-w-6 place-items-center rounded-full px-1.5 text-xs font-bold text-white ring-1 ring-white/20 transition-colors"
+        {/* La puntuación rebota un poco cada vez que cambia (al destaparse cartas). */}
+        <motion.span
+          key={total ?? 'nada'}
+          className="tabular grid h-6 min-w-6 place-items-center rounded-full px-1.5 text-xs font-bold text-white ring-1 ring-white/20"
           style={{ background: total === null ? 'rgb(0 0 0 / 0.4)' : color }}
+          initial={total === null ? false : { scale: 0.75, opacity: 0.4 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={SPRING}
         >
           {total ?? '–'}
-        </span>
-        {(won || tie) && <span className="rounded-full bg-gold-light px-2 py-0.5 text-[10px] font-black tracking-wider text-on-gold uppercase">{won ? 'Gana' : 'Empate'}</span>}
+        </motion.span>
+        {(won || tie) && (
+          <motion.span
+            className="rounded-full bg-gold-light px-2 py-0.5 text-[10px] font-black tracking-wider text-on-gold uppercase"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={SPRING}
+          >
+            {won ? 'Gana' : 'Empate'}
+          </motion.span>
+        )}
       </div>
       <div
         className={`flex items-center rounded-xl border-2 border-dashed p-1.5 transition-shadow duration-300 ${won ? 'shadow-[0_0_22px_rgb(243_223_162/0.45)]' : ''}`}
@@ -357,14 +376,18 @@ function BeadRoad({ road, detailed }: { road: CoupWinner[]; detailed: boolean })
       <div className="grid grid-cols-6 gap-1 rounded-lg bg-black/35 p-1.5 ring-1 ring-gold/20" aria-hidden>
         {Array.from({ length: 12 }, (_, i) => {
           const w = recent[i];
+          const newest = w !== undefined && i === recent.length - 1;
           return (
-            <span
-              key={i}
+            <motion.span
+              key={newest ? `nuevo-${road.length}` : i}
               className="grid size-4 place-items-center rounded-full text-[8px] font-black text-white"
               style={{ background: w ? SIDE[w].color : 'rgb(255 255 255 / 0.06)' }}
+              initial={newest ? { opacity: 0, scale: 0.5 } : false}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={SPRING}
             >
               {w === 'player' ? 'J' : w === 'banker' ? 'B' : w === 'tie' ? 'E' : ''}
-            </span>
+            </motion.span>
           );
         })}
       </div>
@@ -410,6 +433,15 @@ function BetBox({
         {title}
       </span>
       <span className="tabular mt-0.5 truncate text-[10px] font-semibold text-gold-light/70">{pays}</span>
+      {/* La casilla ganadora se enciende al pagar. */}
+      {winningBox && (
+        <motion.span
+          className="pointer-events-none absolute inset-0 rounded-[10px] bg-gold-light/25"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: [0, 1, 0.35] }}
+          transition={{ duration: 0.7, ease: EASE_OUT }}
+        />
+      )}
       {stake ? (
         <motion.span className="absolute -top-2 -right-2 flex items-center gap-0.5" initial={CHIP_DROP.initial} animate={{ ...CHIP_DROP.animate, opacity: lost ? 0.3 : 1 }} transition={CHIP_DROP.transition}>
           <ChipStack amount={won ? payout! : stake} size={24} max={3} />
