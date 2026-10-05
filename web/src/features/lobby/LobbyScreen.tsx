@@ -109,14 +109,15 @@ export function LobbyScreen() {
             animate={{ opacity: 1, transform: 'translateY(0px)' }}
             transition={{ duration: 0.25, ease: EASE_OUT, delay: 0.04 * i }}
             whileTap={{ scale: 0.97 }}
-            className={`group relative isolate overflow-hidden rounded-3xl text-left shadow-[0_14px_30px_-14px_rgb(0_0_0/0.9)] ring-1 ring-gold/25 transition-shadow duration-200 ease-out [@media(hover:hover)_and_(pointer:fine)]:hover:shadow-[0_18px_34px_-12px_rgb(0_0_0/0.9),0_0_0_1px_rgb(212_175_106/0.5)] ${(i === GAMES.length - 1 && GAMES.length % 2 === 1) ? 'col-span-2' : ''}`}
+            className={`group relative isolate flex flex-col overflow-hidden rounded-3xl text-left shadow-[0_14px_30px_-14px_rgb(0_0_0/0.9)] ring-1 ring-gold/25 transition-shadow duration-200 ease-out [@media(hover:hover)_and_(pointer:fine)]:hover:shadow-[0_18px_34px_-12px_rgb(0_0_0/0.9),0_0_0_1px_rgb(212_175_106/0.5)] ${(i === GAMES.length - 1 && GAMES.length % 2 === 1) ? 'col-span-2' : ''}`}
             aria-label={`${name}. ${description}`}
           >
             {/* «isolate» y el recorte propio: Safari no siempre recorta las esquinas con contenido girado o animado. */}
-            <div className={`felt relative overflow-hidden ${(i === GAMES.length - 1 && GAMES.length % 2 === 1) ? 'h-32' : 'h-36'}`}>
+            <div className={`felt relative shrink-0 overflow-hidden ${(i === GAMES.length - 1 && GAMES.length % 2 === 1) ? 'h-32' : 'h-36'}`}>
               <Art />
             </div>
-            <div className="bg-gradient-to-b from-ink-2 to-ink-1 px-4 pt-3 pb-4">
+            {/* Rellena lo que sobra: si la tarjeta de al lado tiene una línea más de texto, no queda hueco arriba (un botón centra su contenido). */}
+            <div className="w-full flex-1 bg-gradient-to-b from-ink-2 to-ink-1 px-4 pt-3 pb-4">
               <p className="font-display text-lg font-semibold text-gold-light">{name}</p>
               <p className="mt-0.5 line-clamp-2 text-[13px] leading-snug text-ivory-dim">{description}</p>
             </div>
