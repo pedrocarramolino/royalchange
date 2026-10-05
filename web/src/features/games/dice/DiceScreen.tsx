@@ -164,14 +164,23 @@ export default function DiceScreen() {
             ))}
           </div>
         </div>
-        <div className="relative flex min-w-0 flex-1 flex-col gap-2" style={{ maxWidth: 620, height: Math.min(tableHeight - 20, 300) }}>
-          <div className="grid flex-[1.25] grid-cols-4 gap-2">
+        <div className="relative flex min-w-0 flex-1 flex-col gap-2" style={{ maxWidth: 620, height: Math.min(tableHeight - 20, 322) }}>
+          {/* Lo apostado en esta tirada, siempre a la vista (en la barra de abajo no cabe en el móvil). */}
+          <p className="tabular h-[18px] shrink-0 text-right text-[13px] leading-[18px] font-semibold text-ivory-dim" aria-live="polite">
+            Apostado: <span className="font-bold text-gold-light">{chips(showResult && result ? result.totalStake : total)}</span>
+            {showResult && result && result.totalPayout > 0 && (
+              <>
+                {' · '}Cobrado: <span className="font-bold text-gold-light">{chips(result.totalPayout)}</span>
+              </>
+            )}
+          </p>
+          <div className="grid min-h-0 flex-[1.25] grid-cols-4 gap-2">
             {TOP.map(({ bet, title, subtitle }) => (
               <BetBox key={bet} bet={bet} title={title} subtitle={subtitle} stake={shownBets.get(bet)} payout={payouts?.get(bet)} result={showResult && result ? result : null} disabled={!canBet} onPlace={place} />
             ))}
           </div>
           {SUMS.map((row, i) => (
-            <div key={i} className="grid flex-1 grid-cols-5 gap-2">
+            <div key={i} className="grid min-h-0 flex-1 grid-cols-5 gap-2">
               {row.map((bet) => (
                 <BetBox key={bet} bet={bet} title={bet.slice(4)} stake={shownBets.get(bet)} payout={payouts?.get(bet)} result={showResult && result ? result : null} disabled={!canBet} onPlace={place} />
               ))}
