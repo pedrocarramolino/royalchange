@@ -198,7 +198,7 @@ export default function BaccaratScreen() {
   const boxHeight = Math.round(Math.max(54, Math.min(84, table.height * 0.26)));
   // En el centro, el zapato del crupier, el marcador y el resultado; a los lados, las dos manos.
   const centerWidth = table.width >= 560 ? 144 : 112;
-  const cardWidth = Math.round(Math.max(34, Math.min(70, ((table.height - boxHeight - 64) / 1.4) * 0.92, (table.width * 0.92 - centerWidth - 72) / 6.8)));
+  const cardWidth = Math.round(Math.max(34, Math.min(70, ((table.height - boxHeight - 86) / 1.4) * 0.92, (table.width * 0.92 - centerWidth - 72) / 6.8)));
   const compact = table.width < 720;
   const showTotal = table.width >= (compact ? 600 : 800);
   const coup = round?.data.coup ?? null;
@@ -256,6 +256,15 @@ export default function BaccaratScreen() {
           <HandArea side="banker" cards={coup?.banker ?? []} timing={round?.timeline.banker ?? []} roundId={round?.id ?? 0} shown={revealed.banker} cardWidth={cardWidth} result={showResult && coup ? coup.winner : null} />
         </div>
 
+        {/* Lo apostado en esta mano, siempre a la vista (en la barra de abajo no cabe en el móvil). */}
+        <p className="tabular h-[18px] shrink-0 text-right text-[13px] leading-[18px] font-semibold text-ivory-dim" aria-live="polite">
+          Apostado: <span className="font-bold text-gold-light">{chips(round && phase !== 'betting' ? round.data.totalStake : total)}</span>
+          {showResult && round && round.data.totalPayout > 0 && (
+            <>
+              {' · '}Cobrado: <span className="font-bold text-gold-light">{chips(round.data.totalPayout)}</span>
+            </>
+          )}
+        </p>
         <div className="grid shrink-0 gap-2" style={{ height: boxHeight, gridTemplateColumns: '1fr 1.5fr 1.15fr 1.5fr 1fr' }}>
           {BACCARAT_BETS.map((bet) => (
             <BetBox key={bet} bet={bet} stake={shownBets.get(bet)} payout={payouts?.get(bet)} coup={showResult ? coup : null} disabled={!canBet} onPlace={place} />
