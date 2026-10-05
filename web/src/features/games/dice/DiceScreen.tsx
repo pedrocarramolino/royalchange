@@ -12,7 +12,7 @@ import { Celebration, ResultBanner } from '../shared/Celebration';
 import { ChipRack } from '../shared/ChipRack';
 import { TableAction } from '../shared/TableAction';
 import { IconRepeat, IconTrash, IconUndo } from '@/ui/icons';
-import { CHIP_DROP, EASE_OUT } from '@/ui/motion';
+import { CHIP_DROP, EASE_OUT, SPRING } from '@/ui/motion';
 import { GameShell, TableNotice, useTableSize } from '../shared/GameShell';
 import { economyNotice, useHoldProgressEvents } from '../shared/session';
 
@@ -158,9 +158,15 @@ export default function DiceScreen() {
           {/* Últimas sumas, debajo de la bandeja (las que quepan a lo ancho de ella). */}
           <div className="flex h-6 gap-1" aria-label={recent.length ? `Últimas sumas: ${recent.join(', ')}` : undefined}>
             {recent.slice(0, Math.min(7, Math.floor(traySize / 28))).map((n, i) => (
-              <span key={i} className={`grid size-6 place-items-center rounded-full bg-black/60 text-[11px] font-bold text-ivory ring-1 ring-gold/40 ${i === 0 ? 'scale-110 text-gold-light' : 'opacity-75'}`}>
+              <motion.span
+                key={i === 0 ? `ultima-${recent.length}` : i}
+                className={`grid size-6 place-items-center rounded-full bg-black/60 text-[11px] font-bold ring-1 ring-gold/40 ${i === 0 ? 'text-gold-light' : 'text-ivory opacity-75'}`}
+                initial={i === 0 ? { opacity: 0, scale: 0.5 } : false}
+                animate={{ opacity: i === 0 ? 1 : 0.75, scale: i === 0 ? 1.1 : 1 }}
+                transition={SPRING}
+              >
                 {n}
-              </span>
+              </motion.span>
             ))}
           </div>
         </div>
@@ -234,12 +240,29 @@ function BetBox({
       <span className="felt-print text-[13px] leading-tight font-bold text-gold-light/90">{title}</span>
       {subtitle && <span className="felt-print text-[10px] text-gold-light/70">{subtitle}</span>}
       <span className="tabular mt-0.5 text-[10px] font-semibold text-gold-light/60">{multiplierText(multiplierTenths(bet))}</span>
+      {/* La casilla ganadora se enciende al salir el resultado. */}
+      {winningBox && (
+        <motion.span
+          className="pointer-events-none absolute inset-0 rounded-[10px] bg-gold-light/25"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: [0, 1, 0.3] }}
+          transition={{ duration: 0.7, ease: EASE_OUT }}
+        />
+      )}
       {stake ? (
         <motion.span
+          // Al cobrar, las fichas saltan y pasan a valer el premio; si se pierden, se hunden y se apagan.
+          key={won ? 'cobrada' : 'apuesta'}
           className="absolute -top-2 -right-2 flex items-center gap-0.5"
-          initial={CHIP_DROP.initial}
-          animate={{ ...CHIP_DROP.animate, opacity: result && !won ? 0.3 : 1 }}
-          transition={CHIP_DROP.transition}
+          initial={won ? { opacity: 0.6, transform: 'translateY(0px) scale(0.8)' } : CHIP_DROP.initial}
+          animate={
+            won
+              ? { opacity: 1, transform: ['translateY(0px) scale(0.8)', 'translateY(-6px) scale(1.15)', 'translateY(0px) scale(1)'] }
+              : result
+                ? { opacity: 0.3, transform: 'translateY(3px) scale(0.92)' }
+                : CHIP_DROP.animate
+          }
+          transition={won ? { duration: 0.45, ease: EASE_OUT } : result ? { duration: 0.35, ease: EASE_OUT } : CHIP_DROP.transition}
         >
           <ChipStack amount={won ? payout! : stake} size={24} max={3} />
           <span className="tabular rounded bg-black/60 px-1 text-[10px] font-bold text-gold-light">{grouped(won ? payout! : stake)}</span>

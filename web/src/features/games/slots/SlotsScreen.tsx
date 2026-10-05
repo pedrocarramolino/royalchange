@@ -8,6 +8,7 @@ import { play, resultSound, BIG_WIN_MULTIPLIER } from '@/audio/sound';
 import { Button } from '@/ui/Button';
 import { Dialog } from '@/ui/Dialog';
 import { useCountUp } from '@/ui/ChipBalance';
+import { EASE_OUT, SPRING } from '@/ui/motion';
 import { Celebration } from '../shared/Celebration';
 import { GameShell, TableNotice, useTableSize } from '../shared/GameShell';
 import { economyNotice, useHoldProgressEvents } from '../shared/session';
@@ -131,6 +132,16 @@ export default function SlotsScreen() {
       <div className="flex h-full items-center justify-center gap-3 px-2">
         {table.width >= 640 && <LineIndicators wins={showResult ? wins : []} shown={visibleWins} height={ROWS * (cell + 4) + 18} />}
         <div className="relative shrink-0 rounded-[28px] bg-[linear-gradient(180deg,#2a1810,#140b07)] p-3 shadow-[0_24px_50px_-16px_rgb(0_0_0/0.9),inset_0_0_0_2px_rgb(212_175_106/0.8),inset_0_0_0_7px_#1b100a,inset_0_0_0_8px_rgb(212_175_106/0.35)]">
+          {/* Con premio, el marco de la máquina se enciende. */}
+          {showResult && wins.length > 0 && (
+            <motion.span
+              key={spin?.id}
+              className="pointer-events-none absolute inset-0 rounded-[28px] shadow-[0_0_0_2px_#f3dfa2,0_0_28px_rgb(243_223_162/0.6)]"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: [0, 1, 0.55] }}
+              transition={{ duration: 0.8, ease: EASE_OUT }}
+            />
+          )}
           <div className="relative overflow-hidden rounded-2xl bg-[#08090c] p-1.5 shadow-[inset_0_0_24px_rgb(0_0_0/1)]">
             <div className="flex gap-1.5">
               {Array.from({ length: REELS }, (_, reel) => (
@@ -190,14 +201,17 @@ function LineIndicators({ wins, shown, height }: { wins: SlotSpin['wins']; shown
       {LINES.map((_, line) => {
         const on = paying.has(line);
         return (
-          <li
+          <motion.li
             key={line}
-            className={`grid h-6 w-8 place-items-center rounded-md text-[11px] font-black transition-all ${on ? 'text-obsidian' : 'bg-white/5 text-mute'} ${current.has(line) ? 'scale-110' : ''}`}
+            className={`grid h-6 w-8 place-items-center rounded-md text-[11px] font-black transition-colors duration-200 ${on ? 'text-obsidian' : 'bg-white/5 text-mute'}`}
             style={on ? { background: LINE_COLORS[line], boxShadow: `0 0 12px ${LINE_COLORS[line]}` } : undefined}
             aria-label={`Línea ${line + 1}${on ? ', con premio' : ''}`}
+            initial={false}
+            animate={{ scale: current.has(line) ? 1.12 : 1 }}
+            transition={SPRING}
           >
             {line + 1}
-          </li>
+          </motion.li>
         );
       })}
     </ol>
@@ -313,7 +327,22 @@ function PayLines({ wins, cell }: { wins: SlotSpin['wins']; cell: number }) {
     <svg className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden>
       {visible.map((w) => {
         const points = LINES[w.line]!.map((row, reel) => `${6 + reel * step + cell / 2},${6 + row * (cell + 4) + cell / 2}`).join(' ');
-        return <polyline key={w.line} points={points} fill="none" stroke={LINE_COLORS[w.line]} strokeWidth="4" strokeLinejoin="round" strokeLinecap="round" opacity="0.9" />;
+        // La línea se dibuja de izquierda a derecha, como recorriendo los símbolos que paga.
+        return (
+          <motion.polyline
+            key={w.line}
+            points={points}
+            fill="none"
+            stroke={LINE_COLORS[w.line]}
+            strokeWidth="4"
+            strokeLinejoin="round"
+            strokeLinecap="round"
+            opacity="0.9"
+            initial={{ pathLength: 0 }}
+            animate={{ pathLength: 1 }}
+            transition={{ duration: 0.4, ease: EASE_OUT }}
+          />
+        );
       })}
     </svg>
   );
