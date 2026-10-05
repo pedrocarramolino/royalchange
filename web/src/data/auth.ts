@@ -155,13 +155,15 @@ export const useAuth = create<AuthStore>((set, get) => {
   let unsubscribeProfile: Unsubscribe | null = null;
   let lastProfile: PlayerProfile | null = null;
 
-  onAuthStateChanged(auth, (user) => {
-    unsubscribeProfile?.();
-    unsubscribeProfile = null;
-    if (!user) {
-      publish({ status: 'signedOut' });
-      return;
-    }
+  let retryTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /**
+   * Escucha el perfil del jugador. Un error corta la escucha para siempre en Firestore; justo al
+   * crear la cuenta, la primera lectura puede fallar porque la sesión nueva aún no ha llegado a la
+   * base de datos. Por eso se vuelve a intentar unas veces: si no, el perfil recién guardado no se
+   * vería hasta recargar la app.
+   */
+  const watchProfile = (user: User, attemptNumber: number) => {
     unsubscribeProfile = onSnapshot(
       doc(db, `players/${user.uid}`),
       { includeMetadataChanges: true },
@@ -171,9 +173,27 @@ export const useAuth = create<AuthStore>((set, get) => {
         lastProfile = profileFromData(snapshot.data());
         publish({ status: 'signedIn', user: toUser(user, lastProfile) });
       },
-      // Sin acceso al perfil (sesión revocada, etc.): se muestra la cuenta sin él, nunca se bloquea.
-      () => publish({ status: 'signedIn', user: toUser(user, null) }),
+      // Sin acceso al perfil: se muestra la cuenta sin él (nunca se bloquea) y se reintenta.
+      () => {
+        publish({ status: 'signedIn', user: toUser(user, null) });
+        if (attemptNumber >= 5) return;
+        retryTimer = setTimeout(() => {
+          if (auth.currentUser?.uid === user.uid) watchProfile(user, attemptNumber + 1);
+        }, 600 * (attemptNumber + 1));
+      },
     );
+  };
+
+  onAuthStateChanged(auth, (user) => {
+    unsubscribeProfile?.();
+    unsubscribeProfile = null;
+    if (retryTimer) clearTimeout(retryTimer);
+    retryTimer = null;
+    if (!user) {
+      publish({ status: 'signedOut' });
+      return;
+    }
+    watchProfile(user, 0);
   });
 
   const saveProfile = async (profile: PlayerProfile): Promise<AuthResult> => {

@@ -1,6 +1,7 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
-import { motion } from 'motion/react';
+import { AnimatePresence, motion } from 'motion/react';
+import { EASE_OUT } from '@/ui/motion';
 import { useAuth } from '@/data/auth';
 import { useWallet, useReadyWallet } from '@/data/wallet';
 import { EconomyRules, rescueStatus } from '@/domain/economy';
@@ -75,22 +76,24 @@ export function LobbyScreen() {
       <BalanceHero state={walletState.status} balance={heldBalance ?? wallet?.balance ?? 0} xp={wallet?.xp ?? 0} onProgress={() => navigate('/progreso')} />
 
       <div className="mt-4 flex flex-col gap-3">
-        {user && !user.emailVerified && <VerificationCard />}
+        <AnimatePresence initial={false}>
+        {user && !user.emailVerified && <VerificationCard key="verificar" />}
         {wallet && wallet.seq === 1 && !welcomeDismissed && (
-          <Notice tone="felt" icon={<Chip value={1000} size={28} label="" />} onDismiss={() => setWelcomeDismissed(true)} dismissLabel="Entendido">
+          <Notice key="bienvenida" tone="felt" icon={<Chip value={1000} size={28} label="" />} onDismiss={() => setWelcomeDismissed(true)} dismissLabel="Entendido">
             ¡Bienvenido a la mesa! Te regalamos {chips(EconomyRules.WELCOME_GRANT)} para empezar. Son virtuales: no se compran, no se canjean y no tienen valor
             monetario.
           </Notice>
         )}
-        {wallet && <RescueCard now={now} />}
-        {wallet && <DailyBonusCard now={now} />}
-        {wallet && <DailyBonusDialog now={now} />}
-        {wallet && <DailyWheel now={now} onHoldBalance={setHeldBalance} />}
+        {wallet && <RescueCard key="recarga" now={now} />}
+        {wallet && <DailyBonusCard key="bono" now={now} />}
+        {wallet && <DailyBonusDialog key="bono-dialogo" now={now} />}
+        {wallet && <DailyWheel key="ruleta" now={now} onHoldBalance={setHeldBalance} />}
         {wallet && claimable(wallet).length > 0 && (
-          <Notice tone="gold" icon={<IconGift className="size-6 text-gold" />} action={{ label: 'Ver', onClick: () => navigate('/progreso') }}>
+          <Notice key="logros" tone="gold" icon={<IconGift className="size-6 text-gold" />} action={{ label: 'Ver', onClick: () => navigate('/progreso') }}>
             {claimable(wallet).length === 1 ? 'Tienes un logro con recompensa por recoger.' : `Tienes ${claimable(wallet).length} logros con recompensa por recoger.`}
           </Notice>
         )}
+        </AnimatePresence>
       </div>
 
       <h2 className="mt-8 mb-3 text-xs font-bold tracking-[0.2em] text-gold uppercase">Mesas</h2>
@@ -100,10 +103,12 @@ export function LobbyScreen() {
             key={path}
             type="button"
             onClick={() => navigate(path)}
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.05 * i }}
-            className={`group relative overflow-hidden rounded-3xl text-left shadow-[0_14px_30px_-14px_rgb(0_0_0/0.9)] ring-1 ring-gold/25 active:scale-[0.985] ${(i === GAMES.length - 1 && GAMES.length % 2 === 1) ? 'col-span-2' : ''}`}
+            // Se abre a menudo: entrada corta y sutil, con un escalonado breve.
+            initial={{ opacity: 0, transform: 'translateY(8px)' }}
+            animate={{ opacity: 1, transform: 'translateY(0px)' }}
+            transition={{ duration: 0.25, ease: EASE_OUT, delay: 0.04 * i }}
+            whileTap={{ scale: 0.97 }}
+            className={`group relative overflow-hidden rounded-3xl text-left shadow-[0_14px_30px_-14px_rgb(0_0_0/0.9)] ring-1 ring-gold/25 transition-shadow duration-200 ease-out [@media(hover:hover)_and_(pointer:fine)]:hover:shadow-[0_18px_34px_-12px_rgb(0_0_0/0.9),0_0_0_1px_rgb(212_175_106/0.5)] ${(i === GAMES.length - 1 && GAMES.length % 2 === 1) ? 'col-span-2' : ''}`}
             aria-label={`${name}. ${description}`}
           >
             <div className={`felt relative ${(i === GAMES.length - 1 && GAMES.length % 2 === 1) ? 'h-32' : 'h-36'}`}>
@@ -123,14 +128,37 @@ export function LobbyScreen() {
 function BalanceHero({ state, balance, xp, onProgress }: { state: string; balance: number; xp: number; onProgress: () => void }) {
   const shown = useCountUp(balance);
   const level = levelProgress(xp);
+  // Cuando el saldo sube (bono, ruleta diaria, logros), «+N» sube desde la cifra y se desvanece.
+  const previous = useRef<number | null>(null);
+  const [gain, setGain] = useState<{ id: number; amount: number } | null>(null);
+  useEffect(() => {
+    if (state !== 'ready') return;
+    if (previous.current !== null && balance > previous.current) setGain({ id: Date.now(), amount: balance - previous.current });
+    previous.current = balance;
+  }, [balance, state]);
   return (
     <section className="relative mt-5 overflow-hidden rounded-3xl ring-1 ring-gold/30" aria-label="Tu saldo y tu nivel">
       <div className="felt px-5 pt-5 pb-4">
         <p className="text-xs font-bold tracking-[0.2em] text-gold-light/80 uppercase">Tu saldo</p>
         {state === 'ready' ? (
           <p className="mt-1 flex items-baseline gap-2">
-            <span className="tabular font-display text-[40px] leading-none font-bold text-gold-gradient" aria-label={chips(balance)}>
+            <span className="tabular relative font-display text-[40px] leading-none font-bold text-gold-gradient" aria-label={chips(balance)}>
               {grouped(shown)}
+              <AnimatePresence>
+                {gain && (
+                  <motion.span
+                    key={gain.id}
+                    className="pointer-events-none absolute -top-1 left-full ml-2 font-sans text-base font-bold whitespace-nowrap text-gold-light drop-shadow-[0_2px_4px_rgb(0_0_0/0.6)]"
+                    aria-hidden
+                    initial={{ opacity: 0, transform: 'translateY(6px)' }}
+                    animate={{ opacity: [0, 1, 1, 0], transform: ['translateY(6px)', 'translateY(0px)', 'translateY(-10px)', 'translateY(-16px)'] }}
+                    transition={{ duration: 1.4, times: [0, 0.15, 0.7, 1], ease: EASE_OUT }}
+                    onAnimationComplete={() => setGain(null)}
+                  >
+                    +{grouped(gain.amount)}
+                  </motion.span>
+                )}
+              </AnimatePresence>
             </span>
             <span className="text-sm font-semibold text-gold-light/80">fichas</span>
           </p>
@@ -155,7 +183,13 @@ function BalanceHero({ state, balance, xp, onProgress }: { state: string; balanc
           </span>
         </div>
         <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-ink-4">
-          <motion.div className="h-full rounded-full metal-gold" initial={false} animate={{ width: `${Math.round(level.fraction * 100)}%` }} transition={{ duration: 0.6 }} />
+          {/* Escala horizontal (va por la GPU) en vez de animar el ancho. */}
+          <motion.div
+            className="h-full w-full origin-left rounded-full metal-gold"
+            initial={false}
+            animate={{ transform: `scaleX(${level.fraction})` }}
+            transition={{ duration: 0.6, ease: EASE_OUT }}
+          />
         </div>
       </button>
     </section>
@@ -184,7 +218,14 @@ function Notice({
     ruby: 'bg-ruby/15 ring-ruby/40',
   };
   return (
-    <div className={`flex items-center gap-3 rounded-2xl px-4 py-3 ring-1 ${tones[tone]}`} role="status">
+    <motion.div
+      className={`flex items-center gap-3 rounded-2xl px-4 py-3 ring-1 ${tones[tone]}`}
+      role="status"
+      initial={{ opacity: 0, transform: 'translateY(-6px)' }}
+      animate={{ opacity: 1, transform: 'translateY(0px)' }}
+      exit={{ opacity: 0, transform: 'scale(0.98)', transition: { duration: 0.15, ease: EASE_OUT } }}
+      transition={{ duration: 0.25, ease: EASE_OUT }}
+    >
       <span className="shrink-0">{icon}</span>
       <p className="min-w-0 flex-1 text-sm leading-snug text-ivory">{children}</p>
       {action && (
@@ -197,7 +238,7 @@ function Notice({
           <IconClose className="size-5" />
         </button>
       )}
-    </div>
+    </motion.div>
   );
 }
 
@@ -349,6 +390,16 @@ function DailyBonusDialog({ now }: { now: number }) {
   const today = localEpochDay(new Date(now));
   const status = dailyBonusStatus(wallet, today, Date.now());
   const [open, setOpen] = useState(false);
+  // Se apunta como visto al cerrarlo (no al abrirlo): si la tarjeta se vuelve a montar mientras
+  // carga la cuenta, el diálogo vuelve a salir en vez de perderse.
+  const close = () => {
+    try {
+      localStorage.setItem(promptKey(uid), String(today));
+    } catch {
+      // Sin almacenamiento: puede volver a salir al recargar.
+    }
+    setOpen(false);
+  };
   const [busy, setBusy] = useState(false);
   const [claimed, setClaimed] = useState<number | null>(null);
   const [failed, setFailed] = useState(false);
@@ -357,7 +408,6 @@ function DailyBonusDialog({ now }: { now: number }) {
     if (status.type !== 'available') return;
     try {
       if (localStorage.getItem(promptKey(uid)) === String(today)) return;
-      localStorage.setItem(promptKey(uid), String(today));
     } catch {
       // Sin almacenamiento: se ofrece igualmente.
     }
@@ -376,7 +426,7 @@ function DailyBonusDialog({ now }: { now: number }) {
       setClaimed(reward);
       play('win');
     } else if (result.error.type === 'dailyBonusAlreadyClaimed') {
-      setOpen(false);
+      close();
     } else {
       setFailed(true);
     }
@@ -386,11 +436,11 @@ function DailyBonusDialog({ now }: { now: number }) {
   return (
     <Dialog
       open={open}
-      onClose={() => setOpen(false)}
+      onClose={() => close()}
       title={claimed !== null ? '¡Bono recogido!' : `Bono diario · Día ${streakDay}`}
       actions={
         claimed !== null || status.type !== 'available' ? (
-          <Button block size="lg" onClick={() => setOpen(false)}>
+          <Button block size="lg" onClick={() => close()}>
             A jugar
           </Button>
         ) : (
@@ -398,7 +448,7 @@ function DailyBonusDialog({ now }: { now: number }) {
             <Button block size="lg" loading={busy} onClick={() => void claim()}>
               Recoger {chips(status.reward)}
             </Button>
-            <Button block variant="ghost" onClick={() => setOpen(false)}>
+            <Button block variant="ghost" onClick={() => close()}>
               Ahora no
             </Button>
           </>
