@@ -141,3 +141,25 @@ export function VideoPokerArt() {
     </div>
   );
 }
+
+export function PlinkoArt() {
+  const rows = 5;
+  return (
+    <svg viewBox="0 0 160 120" className="h-full w-full" aria-hidden>
+      {Array.from({ length: rows }, (_, r) =>
+        Array.from({ length: r + 3 }, (_, i) => <circle key={`${r}-${i}`} cx={80 + (i - (r + 2) / 2) * 18} cy={18 + r * 16} r="2.6" fill="#e9d29a" />),
+      )}
+      {['#b3263b', '#d4602e', '#d4af6a', '#9c7a3c', '#d4af6a', '#d4602e', '#b3263b'].map((c, i) => (
+        <rect key={i} x={80 + (i - 3) * 18 - 8} y="100" width="16" height="12" rx="3" fill={c} />
+      ))}
+      <circle cx="89" cy="58" r="6" fill="url(#plinko-ball)" />
+      <defs>
+        <radialGradient id="plinko-ball" cx="35%" cy="30%" r="70%">
+          <stop offset="0" stopColor="#ffffff" />
+          <stop offset="0.45" stopColor="#f3dfa2" />
+          <stop offset="1" stopColor="#b8862f" />
+        </radialGradient>
+      </defs>
+    </svg>
+  );
+}

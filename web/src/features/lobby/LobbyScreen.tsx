@@ -15,7 +15,7 @@ import { Chip } from '@/ui/Chip';
 import { useCountUp } from '@/ui/ChipBalance';
 import { IconClose, IconFlame, IconGift, IconMail } from '@/ui/icons';
 import { DailyWheel } from './DailyWheel';
-import { BaccaratArt, BlackjackArt, DiceArt, PokerArt, RouletteArt, SlotsArt, VideoPokerArt } from './GameArt';
+import { BaccaratArt, BlackjackArt, DiceArt, PokerArt, RouletteArt, SlotsArt, PlinkoArt, VideoPokerArt } from './GameArt';
 
 const GAMES = [
   { path: '/mesa/blackjack', name: 'Blackjack', description: 'Llega a 21 sin pasarte y gana al crupier.', Art: BlackjackArt },
@@ -24,6 +24,7 @@ const GAMES = [
   { path: '/mesa/dados', name: 'Dados', description: 'Mayor, menor y combinaciones.', Art: DiceArt },
   { path: '/mesa/poker', name: 'Póker', description: 'Texas Hold’em contra bots.', Art: PokerArt },
   { path: '/mesa/baccarat', name: 'Baccarat', description: 'Jugador o banca: gana el que más se acerque a 9.', Art: BaccaratArt },
+  { path: '/mesa/plinko', name: 'Plinko', description: 'Suelta la bola y mira dónde cae: hasta ×170.', Art: PlinkoArt },
   { path: '/mesa/video-poker', name: 'Video póker', description: 'Jacks or Better: guarda cartas, cambia el resto y busca la escalera real.', Art: VideoPokerArt },
 ];
 
@@ -102,10 +103,10 @@ export function LobbyScreen() {
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.05 * i }}
-            className={`group relative overflow-hidden rounded-3xl text-left shadow-[0_14px_30px_-14px_rgb(0_0_0/0.9)] ring-1 ring-gold/25 active:scale-[0.985] ${i === GAMES.length - 1 ? 'col-span-2' : ''}`}
+            className={`group relative overflow-hidden rounded-3xl text-left shadow-[0_14px_30px_-14px_rgb(0_0_0/0.9)] ring-1 ring-gold/25 active:scale-[0.985] ${(i === GAMES.length - 1 && GAMES.length % 2 === 1) ? 'col-span-2' : ''}`}
             aria-label={`${name}. ${description}`}
           >
-            <div className={`felt relative ${i === GAMES.length - 1 ? 'h-32' : 'h-36'}`}>
+            <div className={`felt relative ${(i === GAMES.length - 1 && GAMES.length % 2 === 1) ? 'h-32' : 'h-36'}`}>
               <Art />
             </div>
             <div className="bg-gradient-to-b from-ink-2 to-ink-1 px-4 pt-3 pb-4">

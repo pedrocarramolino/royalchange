@@ -89,6 +89,7 @@ describe.skipIf(!emulator)('reglas de Firestore', () => {
       { type: 'instantRound', game: 'Roulette', stake: 5_000, payout: 10_000 },
       { type: 'instantRound', game: 'Slots', stake: 10_000, payout: 60_000 },
       { type: 'instantRound', game: 'Baccarat', stake: 300, payout: 350 },
+      { type: 'instantRound', game: 'Plinko', stake: 100, payout: 1_100 },
     ];
     for (const operation of rounds) await run(db, uid, operation);
 
@@ -109,7 +110,7 @@ describe.skipIf(!emulator)('reglas de Firestore', () => {
 
     // Ya hay 10 rondas o más: logros desbloqueados por el camino que se cobran ahora.
     const wallet = await read(db, uid);
-    expect(wallet.rounds).toBe(12);
+    expect(wallet.rounds).toBe(13);
     expect(wallet.unlocked).toEqual(expect.arrayContaining(['FirstWin', 'Rounds10', 'Balance50k']));
     for (const id of wallet.unlocked) await run(db, uid, { type: 'claimAchievement', id });
 

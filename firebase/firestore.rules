@@ -79,7 +79,7 @@ service cloud.firestore {
     function rescueCooldownMillis() { return 4 * 60 * 60 * 1000; }
     // Margen para relojes de dispositivo algo adelantados respecto al servidor.
     function clockSkewMillis() { return 5 * 60 * 1000; }
-    function games() { return ['Blackjack', 'Roulette', 'Slots', 'Poker', 'Dice', 'Baccarat', 'VideoPoker']; }
+    function games() { return ['Blackjack', 'Roulette', 'Slots', 'Poker', 'Dice', 'Baccarat', 'VideoPoker', 'Plinko']; }
     // Casillas de la ruleta diaria (DAILY_WHEEL en domain/progression.ts).
     function dailyWheelPrizes() { return [250, 500, 1000, 1500, 2500, 5000, 10000]; }
     function entryKinds() {

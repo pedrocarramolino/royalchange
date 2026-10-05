@@ -28,6 +28,7 @@ const DiceScreen = lazy(() => import('@/features/games/dice/DiceScreen'));
 const PokerScreen = lazy(() => import('@/features/games/poker/PokerScreen'));
 const BaccaratScreen = lazy(() => import('@/features/games/baccarat/BaccaratScreen'));
 const VideoPokerScreen = lazy(() => import('@/features/games/videopoker/VideoPokerScreen'));
+const PlinkoScreen = lazy(() => import('@/features/games/plinko/PlinkoScreen'));
 
 export function App() {
   const auth = useAuth((s) => s.state);
@@ -75,6 +76,7 @@ export function App() {
           <Route path="/mesa/poker" element={<PokerScreen />} />
           <Route path="/mesa/baccarat" element={<BaccaratScreen />} />
           <Route path="/mesa/video-poker" element={<VideoPokerScreen />} />
+          <Route path="/mesa/plinko" element={<PlinkoScreen />} />
           <Route path="/legal/:document" element={<LegalScreen />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
