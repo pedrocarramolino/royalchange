@@ -6,7 +6,7 @@ import { dropPlinko, PLINKO_BETS, PLINKO_RISK_NAME, PLINKO_ROWS, PLINKO_TENTHS, 
 import { chips, grouped } from '@/lib/format';
 import { play, resultSound, BIG_WIN_MULTIPLIER } from '@/audio/sound';
 import { Button } from '@/ui/Button';
-import { EASE_OUT } from '@/ui/motion';
+import { EASE_OUT, EASE_OUT_CSS } from '@/ui/motion';
 import { Celebration } from '../shared/Celebration';
 import { GameShell, TableNotice, useTableSize } from '../shared/GameShell';
 import { economyNotice, useHoldProgressEvents } from '../shared/session';
@@ -39,6 +39,7 @@ export default function PlinkoScreen() {
   const [balls, setBalls] = useState<Ball[]>([]);
   const [recent, setRecent] = useState<PlinkoDrop[]>([]);
   const [hits, setHits] = useState<Record<number, number>>({});
+  const [popups, setPopups] = useState<{ id: number; slot: number; text: string; win: boolean }[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
   const [celebrate, setCelebrate] = useState<number | null>(null);
   const pending = useRef(0);
@@ -66,6 +67,10 @@ export default function PlinkoScreen() {
     setBalls((b) => b.filter((x) => x.id !== ball.id));
     setRecent((r) => [ball.drop, ...r].slice(0, 12));
     setHits((h) => ({ ...h, [ball.drop.slot]: (h[ball.drop.slot] ?? 0) + 1 }));
+    const win = ball.drop.payout > ball.drop.stake;
+    const popup = { id: ball.id, slot: ball.drop.slot, text: win ? `+${grouped(ball.drop.payout - ball.drop.stake)}` : plinkoMultiplierText(ball.drop.tenths), win };
+    setPopups((list) => [...list, popup]);
+    setTimeout(() => setPopups((list) => list.filter((x) => x.id !== popup.id)), 900);
     const net = ball.drop.payout - ball.drop.stake;
     const big = ball.drop.payout >= BIG_WIN_MULTIPLIER * ball.drop.stake;
     const sound = resultSound(net, big) ?? 'reelStop';
@@ -127,7 +132,16 @@ export default function PlinkoScreen() {
           <svg className="absolute inset-0" width={boardWidth} height={boardHeight} aria-hidden>
             {Array.from({ length: PLINKO_ROWS }, (_, r) =>
               Array.from({ length: r + 3 }, (_, i) => (
-                <circle key={`${r}-${i}`} cx={boardWidth / 2 + (i - (r + 2) / 2) * gap} cy={gap * (r + 0.9)} r={Math.max(1.6, gap * 0.12)} fill="#e9d29a" opacity={0.9} />
+                <circle
+                  key={`${r}-${i}`}
+                  data-peg={`${r}-${i}`}
+                  cx={boardWidth / 2 + (i - (r + 2) / 2) * gap}
+                  cy={gap * (r + 0.9)}
+                  r={Math.max(1.6, gap * 0.12)}
+                  fill="#e9d29a"
+                  opacity={0.9}
+                  style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
+                />
               )),
             )}
           </svg>
@@ -155,6 +169,19 @@ export default function PlinkoScreen() {
               </motion.div>
             );
           })}
+          {/* Lo que ha dado cada bola: sube desde su casilla y se desvanece. */}
+          {popups.map((p) => (
+            <motion.span
+              key={p.id}
+              className={`pointer-events-none absolute z-10 -translate-x-1/2 font-display font-bold whitespace-nowrap drop-shadow-[0_2px_3px_rgb(0_0_0/0.8)] ${p.win ? 'text-gold-light' : 'text-ivory-dim'}`}
+              style={{ left: boardWidth / 2 + (p.slot - PLINKO_ROWS / 2) * gap, top: gap * (PLINKO_ROWS + 0.2), fontSize: Math.max(11, gap * 0.5) }}
+              initial={{ opacity: 0, transform: 'translateY(4px) scale(0.9)' }}
+              animate={{ opacity: [0, 1, 1, 0], transform: ['translateY(4px) scale(0.9)', 'translateY(-8px) scale(1)', `translateY(${-gap * 0.9}px) scale(1)`, `translateY(${-gap * 1.3}px) scale(1)`] }}
+              transition={{ duration: reducedMotion ? 0.4 : 0.85, times: [0, 0.2, 0.75, 1], ease: EASE_OUT }}
+            >
+              {p.text}
+            </motion.span>
+          ))}
           {balls.map((ball) => (
             <BallView key={ball.id} ball={ball} gap={gap} boardWidth={boardWidth} reduced={reducedMotion} onLanded={landed} />
           ))}
@@ -195,17 +222,41 @@ function BallView({ ball, gap, boardWidth, reduced, onLanded }: { ball: Ball; ga
     const element = ref.current;
     if (!element) return;
     const cx = boardWidth / 2;
-    const points: [number, number][] = [[cx, size / 2]];
+    const at = (x: number, y: number) => `translate(${x - size / 2}px, ${y - size / 2}px)`;
+    // Caer acelera (gravedad); subir tras el rebote frena. Curvas en cada tramo.
+    const FALL = 'cubic-bezier(0.55, 0, 1, 0.45)';
+    const RISE = 'cubic-bezier(0, 0.55, 0.45, 1)';
+    const frames: Keyframe[] = [{ transform: at(cx, size / 2), opacity: 0, easing: FALL }];
+    const pegs: { row: number; index: number; frame: number }[] = [];
     let rights = 0;
     ball.drop.path.forEach((right, r) => {
-      points.push([cx + (rights - r / 2) * gap, gap * (r + 0.9) - gap * 0.42]);
+      const x = cx + (rights - r / 2) * gap;
+      const y = gap * (r + 0.9) - gap * 0.42;
+      frames.push({ transform: at(x, y), opacity: 1, easing: RISE });
+      pegs.push({ row: r, index: rights + 1, frame: frames.length - 1 });
       if (right) rights++;
+      // Pequeño bote hacia el lado que le toca antes de caer al siguiente clavo.
+      if (r < PLINKO_ROWS - 1) frames.push({ transform: at(x + (right ? 0.5 : -0.5) * gap * 0.55, y - gap * 0.2), opacity: 1, easing: FALL });
     });
-    points.push([cx + (rights - PLINKO_ROWS / 2) * gap, gap * (PLINKO_ROWS + 1.1)]);
-    const keyframes = points.map(([x, y]) => ({ transform: `translate(${x - size / 2}px, ${y - size / 2}px)`, easing: 'cubic-bezier(0.5, 0, 0.75, 1)' }));
-    const animation = element.animate(keyframes, { duration: reduced ? 500 : 130 * points.length, fill: 'forwards' });
+    frames.push({ transform: at(cx + (rights - PLINKO_ROWS / 2) * gap, gap * (PLINKO_ROWS + 1.1)), opacity: 1 });
+    const step = reduced ? 30 : 95;
+    const duration = step * (frames.length - 1);
+    const animation = element.animate(frames, { duration, fill: 'forwards' });
+    // Cada clavo golpeado se ilumina un instante.
+    const board = element.parentElement;
+    const flashes = reduced
+      ? []
+      : pegs.flatMap(({ row, index, frame }) => {
+          const peg = board?.querySelector(`[data-peg="${row}-${index}"]`);
+          return peg
+            ? [peg.animate([{ transform: 'scale(1)', fill: '#e9d29a' }, { transform: 'scale(1.9)', fill: '#fffbea' }, { transform: 'scale(1)', fill: '#e9d29a' }], { duration: 240, delay: (frame / (frames.length - 1)) * duration, easing: EASE_OUT_CSS })]
+            : [];
+        });
     animation.finished.then(() => done.current(ball), () => undefined);
-    return () => animation.cancel();
+    return () => {
+      animation.cancel();
+      flashes.forEach((f) => f.cancel());
+    };
     // Solo al soltar la bola.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
