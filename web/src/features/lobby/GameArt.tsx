@@ -163,3 +163,26 @@ export function PlinkoArt() {
     </svg>
   );
 }
+
+export function ScratchArt() {
+  // Boleto a medio rascar: tres sietes ya a la vista y el resto aún con la lámina dorada.
+  const shown = new Set([0, 4, 8]);
+  return (
+    <div className="grid h-full w-full place-items-center">
+      <div className="-rotate-6 rounded-xl bg-[linear-gradient(160deg,#7c1529,#3f0915)] p-2 shadow-[0_10px_22px_-8px_rgb(0_0_0/0.9)] ring-1 ring-gold/60">
+        <p className="mb-1 text-center font-display text-[9px] font-bold tracking-[0.18em] text-gold-light uppercase">Rasca y gana</p>
+        <div className="grid grid-cols-3 gap-1">
+          {Array.from({ length: 9 }, (_, i) =>
+            shown.has(i) ? (
+              <div key={i} className="grid size-7 place-items-center rounded-md bg-[#fbf3df] ring-1 ring-gold-light">
+                <span className="font-display text-base font-bold text-ruby">7</span>
+              </div>
+            ) : (
+              <div key={i} className="size-7 rounded-md bg-[linear-gradient(135deg,#f6e7b8,#c9a35a_40%,#f3dfa2_60%,#9c7a3c)]" />
+            ),
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

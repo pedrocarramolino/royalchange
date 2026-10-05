@@ -63,6 +63,8 @@ interface GameShellProps {
   notice?: ReactNode;
   /** Fondo: tapete (por defecto) o sala oscura. */
   surface?: 'felt' | 'dark';
+  /** Saldo que se muestra en lugar del real mientras se desvela un resultado ya contabilizado. */
+  heldBalance?: number | null;
 }
 
 /**
@@ -72,7 +74,7 @@ interface GameShellProps {
  * Si el móvil está en vertical (Safari en iOS no deja fijar la orientación, o el giro automático
  * está bloqueado), la mesa se pinta girada 90°: basta con poner el móvil de lado, sin avisos.
  */
-export function GameShell({ title, children, controls, actions, notice, surface = 'felt' }: GameShellProps) {
+export function GameShell({ title, children, controls, actions, notice, surface = 'felt', heldBalance = null }: GameShellProps) {
   useRequireLandscape();
   const navigate = useNavigate();
   const wallet = useReadyWallet();
@@ -145,7 +147,7 @@ export function GameShell({ title, children, controls, actions, notice, surface 
             {actions}
             {wallet && (
               <div className="rounded-full bg-black/35 px-3 py-1.5 ring-1 ring-gold/30">
-                <ChipBalance balance={wallet.balance} size="sm" />
+                <ChipBalance balance={heldBalance ?? wallet.balance} size="sm" />
               </div>
             )}
           </header>

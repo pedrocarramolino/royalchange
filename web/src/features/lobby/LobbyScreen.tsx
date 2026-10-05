@@ -16,7 +16,7 @@ import { Chip } from '@/ui/Chip';
 import { useCountUp } from '@/ui/ChipBalance';
 import { IconClose, IconFlame, IconGift, IconMail } from '@/ui/icons';
 import { DailyWheel } from './DailyWheel';
-import { BaccaratArt, BlackjackArt, DiceArt, PokerArt, RouletteArt, SlotsArt, PlinkoArt, VideoPokerArt } from './GameArt';
+import { BaccaratArt, BlackjackArt, DiceArt, PokerArt, RouletteArt, SlotsArt, PlinkoArt, ScratchArt, VideoPokerArt } from './GameArt';
 
 const GAMES = [
   { path: '/mesa/blackjack', name: 'Blackjack', description: 'Llega a 21 sin pasarte y gana al crupier.', Art: BlackjackArt },
@@ -26,6 +26,7 @@ const GAMES = [
   { path: '/mesa/poker', name: 'Póker', description: 'Texas Hold’em contra bots.', Art: PokerArt },
   { path: '/mesa/baccarat', name: 'Baccarat', description: 'Jugador o banca: gana el que más se acerque a 9.', Art: BaccaratArt },
   { path: '/mesa/plinko', name: 'Plinko', description: 'Suelta la bola y mira dónde cae: hasta ×29.', Art: PlinkoArt },
+  { path: '/mesa/rasca', name: 'Rasca y gana', description: 'Rasca el boleto con el dedo: tres iguales ganan hasta ×100.', Art: ScratchArt },
   { path: '/mesa/video-poker', name: 'Video póker', description: 'Jacks or Better: guarda cartas, cambia el resto y busca la escalera real.', Art: VideoPokerArt },
 ];
 

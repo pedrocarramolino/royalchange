@@ -9,7 +9,7 @@ import { achievement } from '@/domain/progression';
 import { chips, formatDateTime, grouped, signed } from '@/lib/format';
 import { Button } from '@/ui/Button';
 
-const GAME_NAME: Record<GameType, string> = { Blackjack: 'Blackjack', Roulette: 'Ruleta', Slots: 'Slots', Poker: 'Póker', Dice: 'Dados', Baccarat: 'Baccarat', VideoPoker: 'Video póker', Plinko: 'Plinko' };
+const GAME_NAME: Record<GameType, string> = { Blackjack: 'Blackjack', Roulette: 'Ruleta', Slots: 'Slots', Poker: 'Póker', Dice: 'Dados', Baccarat: 'Baccarat', VideoPoker: 'Video póker', Plinko: 'Plinko', Scratch: 'Rasca y gana' };
 
 export function HistoryScreen() {
   const auth = useAuth((s) => s.state);

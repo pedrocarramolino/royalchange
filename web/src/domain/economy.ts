@@ -20,7 +20,7 @@ export const EconomyRules = {
 } as const;
 
 /** Juegos del casino. Los ids son estables: se guardan en la base de datos. */
-export const GAMES = ['Blackjack', 'Roulette', 'Slots', 'Poker', 'Dice', 'Baccarat', 'VideoPoker', 'Plinko'] as const;
+export const GAMES = ['Blackjack', 'Roulette', 'Slots', 'Poker', 'Dice', 'Baccarat', 'VideoPoker', 'Plinko', 'Scratch'] as const;
 export type GameType = (typeof GAMES)[number];
 
 /** Tipos de asiento contable. Los nombres son estables: las reglas los validan. */
