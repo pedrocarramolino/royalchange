@@ -7,11 +7,15 @@ import { SYMBOL_NAME, type SlotSymbol } from '@/engine/slots';
 import { chips, grouped } from '@/lib/format';
 import { play, resultSound, BIG_WIN_MULTIPLIER } from '@/audio/sound';
 import { Button } from '@/ui/Button';
+import { useCountUp } from '@/ui/ChipBalance';
 import { EASE_IN_OUT, EASE_OUT, SPRING } from '@/ui/motion';
 import { Celebration } from '../shared/Celebration';
 import { GameShell, TableNotice, useTableSize } from '../shared/GameShell';
 import { economyNotice, useHoldProgressEvents } from '../shared/session';
 import { SlotSvgDefs, SlotSymbolArt } from '../slots/SlotSymbolArt';
+
+/** Margen del lienzo de virutas alrededor de las casillas (el relleno del boleto). */
+const DUST_MARGIN = 12;
 
 const NONE = (): boolean[] => Array.from({ length: SCRATCH_CELLS }, () => false);
 /** Nombre de cada símbolo (en el boleto la corona no es comodín: es el premio gordo). */
@@ -185,12 +189,17 @@ export default function ScratchScreen() {
                 key={ticket.id}
                 role="status"
                 className={`tabular pointer-events-none absolute inset-x-0 -bottom-1 z-20 mx-auto w-fit rounded-full bg-black/80 px-4 py-1 font-display text-lg font-bold whitespace-nowrap ring-1 ring-gold/50 ${net > 0 ? 'text-gold-gradient' : 'text-ivory'}`}
+                aria-label={net > 0 ? `Ganas ${chips(net)}` : undefined}
                 initial={{ opacity: 0, scale: 0.85 }}
-                animate={{ opacity: 1, scale: 1 }}
+                animate={
+                  net > 0
+                    ? { opacity: 1, scale: 1, boxShadow: ['0 0 0px rgb(243 223 162 / 0)', '0 0 26px rgb(243 223 162 / 0.65)', '0 0 12px rgb(243 223 162 / 0.3)'] }
+                    : { opacity: 1, scale: 1 }
+                }
                 exit={{ opacity: 0, transition: { duration: 0.15 } }}
                 transition={{ ...SPRING, delay: 0.35 }}
               >
-                {net > 0 ? `+${grouped(net)}` : net === 0 ? 'Recuperas tu boleto' : 'Sin premio'}
+                {net > 0 ? <CountUpWin amount={net} /> : net === 0 ? 'Recuperas tu boleto' : 'Sin premio'}
               </motion.p>
             )}
           </AnimatePresence>
@@ -323,6 +332,25 @@ function Ticket({
           })}
         </div>
         {children}
+        {/* Trío ganador: una línea dorada se dibuja uniendo sus tres casillas. */}
+        {finished && ticket && ticket.winning.length === 3 && (
+          <svg className="pointer-events-none absolute inset-0 overflow-visible" width={cell * 3 + gap * 2} height={cell * 3 + gap * 2} aria-hidden>
+            <motion.polyline
+              points={shortestPath(ticket.winning)
+                .map((i) => `${(i % 3) * (cell + gap) + cell / 2},${Math.floor(i / 3) * (cell + gap) + cell / 2}`)
+                .join(' ')}
+              fill="none"
+              stroke="#f3dfa2"
+              strokeWidth={Math.max(3, cell * 0.04)}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{ filter: 'drop-shadow(0 0 6px rgb(243 223 162 / 0.85))' }}
+              initial={{ pathLength: reduced ? 1 : 0, opacity: 0.9 }}
+              animate={{ pathLength: 1, opacity: 0.9 }}
+              transition={{ duration: 0.6, ease: EASE_IN_OUT, delay: 0.2 }}
+            />
+          </svg>
+        )}
         {/* Boleto recién comprado: un brillo recorre la lámina dorada. */}
         {ticket && !reduced && (
           <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-[10px]" aria-hidden>
@@ -424,9 +452,9 @@ function ScratchFoil({
     }
     const dustElement = dust.current;
     if (dustElement) {
-      dustElement.width = Math.round(size * dpr);
-      dustElement.height = Math.round(size * dpr);
-      dustElement.getContext('2d')?.setTransform(dpr, 0, 0, dpr, 0, 0);
+      dustElement.width = Math.round((size + DUST_MARGIN * 2) * dpr);
+      dustElement.height = Math.round((size + DUST_MARGIN * 2) * dpr);
+      dustElement.getContext('2d')?.setTransform(dpr, 0, 0, dpr, DUST_MARGIN * dpr, DUST_MARGIN * dpr);
     }
     // Solo al montar o cambiar de tamaño: lo rascado vive en el propio canvas.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -436,10 +464,11 @@ function ScratchFoil({
     if (frame.current !== null) cancelAnimationFrame(frame.current);
   }, []);
 
+  const FLAKE_COLORS = ['#f3dfa2', '#d4af6a', '#fbefc8', '#a8813f'];
+
   /** Virutas doradas que saltan del trazo y caen con gravedad. */
   const spawnDust = (x: number, y: number) => {
     if (reduced) return;
-    const colors = ['#f3dfa2', '#d4af6a', '#fbefc8', '#a8813f'];
     for (let k = 0; k < 3; k++) {
       flakes.current.push({
         x,
@@ -449,10 +478,37 @@ function ScratchFoil({
         age: 0,
         life: 0.45 + Math.random() * 0.35,
         size: 1.2 + Math.random() * 2,
-        color: colors[k % colors.length]!,
+        color: FLAKE_COLORS[k % FLAKE_COLORS.length]!,
       });
     }
-    if (flakes.current.length > 160) flakes.current.splice(0, flakes.current.length - 160);
+    runDust();
+  };
+
+  /** Al destaparse una casilla, lo que queda de lámina salta en pedazos desde su centro. */
+  const burstCell = (i: number) => {
+    if (reduced) return;
+    const { x, y } = origin(i);
+    const cx = x + cell / 2;
+    const cy = y + cell / 2;
+    for (let k = 0; k < 18; k++) {
+      const px = x + Math.random() * cell;
+      const py = y + Math.random() * cell;
+      flakes.current.push({
+        x: px,
+        y: py,
+        vx: (px - cx) * 3 + (Math.random() - 0.5) * 60,
+        vy: (py - cy) * 2 - 70 - Math.random() * 80,
+        age: 0,
+        life: 0.5 + Math.random() * 0.4,
+        size: 2 + Math.random() * 3.5,
+        color: FLAKE_COLORS[k % FLAKE_COLORS.length]!,
+      });
+    }
+    runDust();
+  };
+
+  const runDust = () => {
+    if (flakes.current.length > 260) flakes.current.splice(0, flakes.current.length - 260);
     if (frame.current !== null) return;
     let last = performance.now();
     const tick = (now: number) => {
@@ -463,7 +519,7 @@ function ScratchFoil({
         frame.current = null;
         return;
       }
-      ctx.clearRect(0, 0, size, size);
+      ctx.clearRect(-DUST_MARGIN, -DUST_MARGIN, size + DUST_MARGIN * 2, size + DUST_MARGIN * 2);
       flakes.current = flakes.current.filter((f) => (f.age += dt) < f.life);
       for (const f of flakes.current) {
         f.vy += 520 * dt;
@@ -506,6 +562,7 @@ function ScratchFoil({
       ctx.clearRect(x - 1, y - 1, cell + 2, cell + 2);
       return;
     }
+    burstCell(i);
     let frame = 0;
     const step = () => {
       ctx.save();
@@ -519,11 +576,12 @@ function ScratchFoil({
     requestAnimationFrame(step);
   };
 
-  // «Rascar todo»: se desvelan las que faltan, una tras otra.
+  // «Rascar todo»: se desvelan las que faltan en una ola diagonal, desde arriba a la izquierda.
   useEffect(() => {
     if (!revealAll || !enabled) return;
     const pending = state.current.done.flatMap((d, i) => (d ? [] : [i]));
-    const timers = pending.map((i, k) => setTimeout(() => finishCell(i), reduced ? 0 : k * 70));
+    const wave = (i: number) => (i % 3) + Math.floor(i / 3);
+    const timers = pending.map((i) => setTimeout(() => finishCell(i), reduced ? 0 : wave(i) * 110));
     return () => timers.forEach(clearTimeout);
     // Solo cuando se pulsa el botón.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -603,7 +661,13 @@ function ScratchFoil({
         onPointerCancel={end}
         aria-hidden
       />
-      <canvas ref={dust} className="pointer-events-none absolute inset-0" style={{ width: size, height: size }} aria-hidden />
+      {/* Las virutas pueden salirse un poco de las casillas (hasta el borde del boleto). */}
+      <canvas
+        ref={dust}
+        className="pointer-events-none absolute"
+        style={{ left: -DUST_MARGIN, top: -DUST_MARGIN, width: size + DUST_MARGIN * 2, height: size + DUST_MARGIN * 2 }}
+        aria-hidden
+      />
     </>
   );
 }
@@ -620,4 +684,24 @@ function StepButton({ children, label, disabled, onClick }: { children: string; 
       {children}
     </button>
   );
+}
+
+/** Premio del boleto: cuenta desde cero al aparecer. */
+function CountUpWin({ amount }: { amount: number }) {
+  return <>+{grouped(useCountUp(amount, 700, 0))}</>;
+}
+
+/**
+ * Orden de las tres casillas para unirlas con el trazo más corto: se deja fuera el lado más largo
+ * del triángulo (la casilla del medio es la opuesta a ese lado).
+ */
+function shortestPath(cells: number[]): number[] {
+  const [a, b, c] = cells as [number, number, number];
+  const d = (p: number, q: number) => Math.hypot((p % 3) - (q % 3), Math.floor(p / 3) - Math.floor(q / 3));
+  const ab = d(a, b);
+  const bc = d(b, c);
+  const ac = d(a, c);
+  if (ab >= bc && ab >= ac) return [a, c, b];
+  if (bc >= ab && bc >= ac) return [b, a, c];
+  return [a, b, c];
 }
