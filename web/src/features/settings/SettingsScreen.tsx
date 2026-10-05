@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import { useNavigate } from 'react-router';
 import { useAuth } from '@/data/auth';
 import { useSettings } from '@/data/settings';
@@ -7,6 +8,7 @@ import { Avatar, avatarName } from '@/ui/Avatar';
 import { Button } from '@/ui/Button';
 import { Dialog } from '@/ui/Dialog';
 import { PasswordField, Toggle } from '@/ui/Field';
+import { EASE_OUT, SPRING } from '@/ui/motion';
 
 export const APP_VERSION = '2.0.0';
 
@@ -56,10 +58,18 @@ export function SettingsScreen() {
     <div className="safe-top safe-px-4 mx-auto max-w-lg pb-10">
       <h1 className="px-1 pt-6 font-display text-2xl font-semibold text-gold-gradient">Ajustes</h1>
 
-      <Section title="Cuenta">
+      <Section title="Cuenta" index={0}>
         <div className="flex items-center gap-4 py-2">
-          <button type="button" onClick={() => setAvatarOpen(true)} aria-label="Cambiar avatar" className="rounded-full">
-            <Avatar id={profile.avatar} size={56} />
+          <button type="button" onClick={() => setAvatarOpen(true)} aria-label="Cambiar avatar" className="rounded-full transition-transform duration-150 ease-out active:scale-[0.94]">
+            <motion.span
+              key={profile.avatar}
+              className="block"
+              initial={{ opacity: 0.4, transform: 'scale(0.7) rotate(-20deg)' }}
+              animate={{ opacity: 1, transform: 'scale(1) rotate(0deg)' }}
+              transition={SPRING}
+            >
+              <Avatar id={profile.avatar} size={56} />
+            </motion.span>
           </button>
           <div className="min-w-0 flex-1">
             <p className="truncate font-display text-lg font-semibold text-ivory">{profile.alias}</p>
@@ -67,17 +77,29 @@ export function SettingsScreen() {
             <p className={`mt-0.5 text-xs font-semibold ${user.emailVerified ? 'text-emerald' : 'text-gold'}`}>{user.emailVerified ? 'Email verificado' : 'Email sin verificar'}</p>
           </div>
         </div>
-        {!user.emailVerified &&
-          (verificationSent ? (
-            <p className="py-2 text-sm text-ivory-dim">Te hemos enviado un enlace de confirmación. Ábrelo y vuelve a la app.</p>
-          ) : (
-            <Button variant="secondary" size="sm" className="my-2" onClick={async () => (await sendVerification()).ok && setVerificationSent(true)}>
-              Verificar email
-            </Button>
-          ))}
+        <AnimatePresence mode="wait" initial={false}>
+          {!user.emailVerified &&
+            (verificationSent ? (
+              <motion.p
+                key="enviado"
+                className="py-2 text-sm text-ivory-dim"
+                initial={{ opacity: 0, transform: 'translateY(4px)' }}
+                animate={{ opacity: 1, transform: 'translateY(0px)' }}
+                transition={{ duration: 0.25, ease: EASE_OUT }}
+              >
+                Te hemos enviado un enlace de confirmación. Ábrelo y vuelve a la app.
+              </motion.p>
+            ) : (
+              <motion.div key="verificar" exit={{ opacity: 0, transition: { duration: 0.15 } }}>
+                <Button variant="secondary" size="sm" className="my-2" onClick={async () => (await sendVerification()).ok && setVerificationSent(true)}>
+                  Verificar email
+                </Button>
+              </motion.div>
+            ))}
+        </AnimatePresence>
       </Section>
 
-      <Section title="Juego">
+      <Section title="Juego" index={1}>
         <Toggle checked={soundEnabled} onChange={setSoundEnabled} label="Sonido" description="Efectos de cartas, fichas, ruleta y premios." />
         <div className="h-px bg-white/5" />
         <Toggle
@@ -88,20 +110,25 @@ export function SettingsScreen() {
         />
       </Section>
 
-      <Section title="Información">
+      <Section title="Información" index={2}>
         <RowButton onClick={() => navigate('/legal/terminos')}>Términos y condiciones</RowButton>
         <RowButton onClick={() => navigate('/legal/privacidad')}>Política de privacidad</RowButton>
         <p className="py-3 text-sm text-mute">Versión {APP_VERSION}</p>
       </Section>
 
-      <div className="mt-6 flex flex-col gap-2">
+      <motion.div
+        className="mt-6 flex flex-col gap-2"
+        initial={{ opacity: 0, transform: 'translateY(8px)' }}
+        animate={{ opacity: 1, transform: 'translateY(0px)' }}
+        transition={{ duration: 0.3, ease: EASE_OUT, delay: 0.18 }}
+      >
         <Button variant="secondary" block onClick={() => setConfirmSignOut(true)}>
           Cerrar sesión
         </Button>
         <Button variant="ghost" block className="text-ruby-bright" onClick={() => setConfirmDelete(true)}>
           Eliminar cuenta
         </Button>
-      </div>
+      </motion.div>
 
       <Dialog
         open={confirmSignOut}
@@ -152,10 +179,21 @@ export function SettingsScreen() {
 
       <Dialog open={avatarOpen} onClose={() => setAvatarOpen(false)} title="Elige tu avatar" sheet>
         <div className="grid grid-cols-4 gap-3 py-2">
-          {AVATARS.map((id) => (
-            <button key={id} type="button" onClick={() => void chooseAvatar(id)} aria-label={avatarName(id)} aria-pressed={profile.avatar === id} className="grid place-items-center rounded-full py-1">
+          {AVATARS.map((id, i) => (
+            <motion.button
+              key={id}
+              type="button"
+              onClick={() => void chooseAvatar(id)}
+              aria-label={avatarName(id)}
+              aria-pressed={profile.avatar === id}
+              className="grid place-items-center rounded-full py-1"
+              initial={{ opacity: 0, transform: 'scale(0.85)' }}
+              animate={{ opacity: 1, transform: 'scale(1)' }}
+              transition={{ duration: 0.25, ease: EASE_OUT, delay: 0.05 + i * 0.03 }}
+              whileTap={{ scale: 0.9 }}
+            >
               <Avatar id={id} size={58} selected={profile.avatar === id} />
-            </button>
+            </motion.button>
           ))}
         </div>
       </Dialog>
@@ -163,20 +201,36 @@ export function SettingsScreen() {
   );
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+function Section({ title, index, children }: { title: string; index: number; children: ReactNode }) {
   return (
-    <section className="mt-6">
+    <motion.section
+      className="mt-6"
+      initial={{ opacity: 0, transform: 'translateY(8px)' }}
+      animate={{ opacity: 1, transform: 'translateY(0px)' }}
+      transition={{ duration: 0.3, ease: EASE_OUT, delay: index * 0.06 }}
+    >
       <h2 className="mb-2 px-1 text-xs font-bold tracking-[0.2em] text-gold uppercase">{title}</h2>
       <div className="panel rounded-3xl px-4 py-1">{children}</div>
-    </section>
+    </motion.section>
   );
 }
 
 function RowButton({ children, onClick }: { children: ReactNode; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} className="flex w-full items-center justify-between border-b border-white/5 py-3.5 text-left text-[15px] text-ivory">
+    <button
+      type="button"
+      onClick={onClick}
+      className="group -mx-4 flex w-[calc(100%+2rem)] items-center justify-between border-b border-white/5 px-4 py-3.5 text-left text-[15px] text-ivory transition-colors duration-150 ease-out active:bg-white/[0.04] [@media(hover:hover)_and_(pointer:fine)]:hover:bg-white/[0.03]"
+    >
       {children}
-      <svg viewBox="0 0 24 24" className="size-4 text-mute" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      <svg
+        viewBox="0 0 24 24"
+        className="size-4 text-mute transition-transform duration-200 ease-out group-active:translate-x-0.5 [@media(hover:hover)_and_(pointer:fine)]:group-hover:translate-x-0.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        aria-hidden
+      >
         <path d="M9 6l6 6-6 6" />
       </svg>
     </button>

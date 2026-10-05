@@ -148,17 +148,21 @@ export function Checkbox({ checked, onChange, children, error }: CheckProps) {
 export function Toggle({ checked, onChange, label, description }: { checked: boolean; onChange: (v: boolean) => void; label: string; description?: string }) {
   const id = useId();
   return (
-    <label htmlFor={id} className="flex cursor-pointer items-center gap-4 py-3">
+    <label htmlFor={id} className="group flex cursor-pointer items-center gap-4 py-3">
       <span className="min-w-0 flex-1">
         <span className="block text-[15px] font-semibold text-ivory">{label}</span>
         {description && <span className="mt-0.5 block text-sm text-ivory-dim">{description}</span>}
       </span>
       <input id={id} type="checkbox" role="switch" checked={checked} onChange={(e) => onChange(e.target.checked)} className="peer sr-only" />
       <span
-        className={`relative h-7 w-12 shrink-0 rounded-full transition-colors peer-focus-visible:outline-2 peer-focus-visible:outline-gold-light ${checked ? 'bg-gold' : 'bg-ink-4'}`}
+        className={`relative h-7 w-12 shrink-0 rounded-full transition-colors duration-200 ease-out peer-focus-visible:outline-2 peer-focus-visible:outline-gold-light ${checked ? 'bg-gold' : 'bg-ink-4'}`}
         aria-hidden
       >
-        <span className={`absolute top-1 size-5 rounded-full bg-ivory shadow transition-transform ${checked ? 'translate-x-6' : 'translate-x-1'}`} />
+        <span
+          className={`absolute top-1 h-5 w-5 rounded-full bg-ivory shadow transition-[translate,width] duration-200 ease-[var(--ease-out)] group-active:w-6 ${
+            checked ? 'translate-x-6 group-active:translate-x-5' : 'translate-x-1'
+          }`}
+        />
       </span>
     </label>
   );
