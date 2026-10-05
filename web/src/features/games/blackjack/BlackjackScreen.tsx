@@ -253,6 +253,15 @@ export default function BlackjackScreen() {
       }
     >
       <div className="relative h-full">
+        {/* Lo apostado en esta mano (dobles y separaciones incluidas), siempre a la vista. */}
+        <p className="tabular pointer-events-none absolute top-1 left-3 z-10 text-[13px] leading-[18px] font-semibold text-ivory-dim" aria-live="polite">
+          Apostado: <span className="font-bold text-gold-light">{chips(state.hands.length ? totalStake(state) : betting ? bet : 0)}</span>
+          {showResults && totalPayout(state) > 0 && (
+            <>
+              {' · '}Cobrado: <span className="font-bold text-gold-light">{chips(totalPayout(state))}</span>
+            </>
+          )}
+        </p>
         <BlackjackTable state={state} delays={delays} animating={animating} showResults={showResults} pendingBet={betting && state.phase !== 'roundOver' ? bet : null} />
         {showResults && state.results.length > 0 && (
           <div

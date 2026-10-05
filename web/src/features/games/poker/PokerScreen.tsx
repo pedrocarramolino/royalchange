@@ -151,6 +151,18 @@ function PokerTable({ table }: { table: PokerState }) {
 
   return (
     <div className="relative mx-auto h-full w-full max-w-5xl" data-table>
+      {/* Lo que llevas puesto en el bote en esta mano, siempre a la vista. */}
+      <p className="tabular pointer-events-none absolute top-1 left-2 z-10 text-[13px] leading-[18px] font-semibold text-ivory-dim" aria-live="polite">
+        Apostado: <span className="font-bold text-gold-light">{chips(table.seats[HERO]!.committed)}</span>
+        {handOver && heroWon && (
+          <>
+            {' · '}Cobrado:{' '}
+            <span className="font-bold text-gold-light">
+              {chips(Math.floor(table.awards.filter((a) => a.winners.includes(HERO)).reduce((s, a) => s + a.amount / a.winners.length, 0)))}
+            </span>
+          </>
+        )}
+      </p>
       {/* Óvalo: paño con borde acolchado y filete dorado. */}
       <div className="rail felt absolute inset-x-[9%] inset-y-[10%]" />
       <div className="pointer-events-none absolute inset-x-[16%] inset-y-[20%] rounded-[50%] border border-gold-light/20" />
