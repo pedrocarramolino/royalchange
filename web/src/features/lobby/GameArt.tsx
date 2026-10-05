@@ -22,9 +22,14 @@ export function BlackjackArt() {
 export function PokerArt() {
   return (
     <div className="relative h-full w-full">
+      {/* Abanico de mano: las tres cartas giran sobre un mismo punto, centradas y con su esquina a la vista. */}
       {(['Q', 'K', 'A'] as const).map((rank, i) => (
-        <div key={rank} className="absolute top-1/2 left-1/2" style={{ transform: `translate(${-75 + i * 26}%, -50%) rotate(${(i - 1) * 12}deg)` }}>
-          <PlayingCard rank={rank} suit={i === 1 ? 'diamonds' : 'clubs'} width={52} />
+        <div
+          key={rank}
+          className="absolute top-1/2 left-1/2 origin-[50%_110%]"
+          style={{ transform: `translate(-50%, -54%) translateX(${(i - 1) * 22}px) rotate(${(i - 1) * 14}deg)` }}
+        >
+          <PlayingCard rank={rank} suit={i === 1 ? 'diamonds' : 'clubs'} width={50} />
         </div>
       ))}
       <div className="absolute bottom-2 left-3">
