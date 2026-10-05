@@ -87,6 +87,13 @@ export default function ScratchScreen() {
   const gap = Math.round(grid * 0.035);
   const cell = (grid - gap * 2) / 3;
   const prize = finished && ticket ? ticket.data.prize : null;
+  // Símbolos con dos casillas ya destapadas: falta uno para el trío (suspense).
+  const teasing = new Set<SlotSymbol>();
+  if (ticket && !finished) {
+    const counts = new Map<SlotSymbol, number>();
+    ticket.data.cells.forEach((s, i) => revealed[i] && counts.set(s, (counts.get(s) ?? 0) + 1));
+    counts.forEach((n, s) => n >= 2 && teasing.add(s));
+  }
   const net = ticket ? ticket.data.payout - ticket.data.stake : 0;
 
   return (
@@ -144,6 +151,8 @@ export default function ScratchScreen() {
                 pad={pad}
                 cell={cell}
                 gap={gap}
+                teasing={teasing}
+                reduced={reducedMotion}
               >
                 <ScratchFoil
                   key={`${ticket?.id ?? 0}-${Math.round(cell)}`}
@@ -185,10 +194,11 @@ export default function ScratchScreen() {
           <p className="felt-print mb-0.5 text-center text-[10px] font-bold">Tres iguales</p>
           {SCRATCH_PRIZES.map((p) => {
             const hit = prize?.symbol === p.symbol;
+            const close = teasing.has(p.symbol);
             return (
               <motion.div
                 key={p.symbol}
-                className={`flex items-center gap-1.5 rounded-lg px-2 py-0.5 ring-1 transition-colors duration-200 ${hit ? 'bg-gold/25 ring-gold-light' : 'bg-white/[0.04] ring-white/10'}`}
+                className={`relative flex items-center gap-1.5 rounded-lg px-2 py-0.5 ring-1 transition-colors duration-200 ${hit ? 'bg-gold/25 ring-gold-light' : close ? 'bg-gold/15 ring-gold/60' : 'bg-white/[0.04] ring-white/10'}`}
                 aria-label={`Tres ${symbolName(p.symbol).toLowerCase()}: ×${p.multiplier}`}
                 initial={false}
                 animate={{ scale: hit ? [1, 1.08, 1] : 1 }}
@@ -199,6 +209,8 @@ export default function ScratchScreen() {
                 </span>
                 <span className="flex-1 text-[10px] font-semibold text-ivory-dim">× 3</span>
                 <span className={`tabular text-[12px] font-bold ${hit ? 'text-gold-light' : 'text-ivory'}`}>×{p.multiplier}</span>
+                {/* A uno del trío: late el aro de su premio. */}
+                {close && <span className="pointer-events-none absolute inset-0 animate-pulse rounded-lg ring-2 ring-gold-light" aria-hidden />}
               </motion.div>
             );
           })}
@@ -219,6 +231,8 @@ function Ticket({
   pad,
   cell,
   gap,
+  teasing,
+  reduced,
   children,
 }: {
   ticket: ScratchTicket | null;
@@ -229,6 +243,8 @@ function Ticket({
   pad: number;
   cell: number;
   gap: number;
+  teasing: Set<SlotSymbol>;
+  reduced: boolean;
   children: ReactNode;
 }) {
   // Muescas a los lados, como un boleto troquelado.
@@ -257,23 +273,57 @@ function Ticket({
             const symbol = ticket?.cells[i];
             const winning = finished && ticket?.winning.includes(i);
             const dim = finished && ticket?.prize && !winning;
+            const close = symbol !== undefined && revealed[i] && teasing.has(symbol);
             return (
               <motion.div
                 key={i}
                 role="listitem"
                 aria-label={symbol && revealed[i] ? symbolName(symbol) : 'Sin rascar'}
-                className={`grid place-items-center rounded-[10px] bg-[radial-gradient(circle_at_50%_40%,#fffaf0,#efe3c4)] shadow-[inset_0_1px_3px_rgb(0_0_0/0.25)] ${winning ? 'ring-2 ring-gold-light' : ''}`}
+                className={`relative grid place-items-center overflow-hidden rounded-[10px] bg-[radial-gradient(circle_at_50%_40%,#fffaf0,#efe3c4)] shadow-[inset_0_1px_3px_rgb(0_0_0/0.25)] ${winning ? 'ring-2 ring-gold-light' : ''}`}
                 style={{ boxShadow: winning ? '0 0 16px rgb(243 223 162 / 0.75), inset 0 1px 3px rgb(0 0 0 / 0.25)' : undefined }}
                 initial={false}
                 animate={{ opacity: dim ? 0.4 : 1, scale: winning ? [1, 1.1, 1] : 1 }}
                 transition={{ duration: 0.5, ease: EASE_OUT, delay: winning ? 0.1 + ticket!.winning.indexOf(i) * 0.1 : 0 }}
               >
-                {symbol && <SlotSymbolArt symbol={symbol} size={cell * 0.72} />}
+                {symbol && (
+                  // Al destaparse del todo, el símbolo da un pequeño salto.
+                  <motion.div
+                    key={revealed[i] ? 'visto' : 'tapado'}
+                    initial={revealed[i] && !reduced ? { transform: 'scale(0.75) rotate(-8deg)' } : false}
+                    animate={{ transform: 'scale(1) rotate(0deg)' }}
+                    transition={SPRING}
+                  >
+                    <SlotSymbolArt symbol={symbol} size={cell * 0.72} />
+                  </motion.div>
+                )}
+                {/* A uno del trío: las dos casillas iguales laten. */}
+                {close && <span className="pointer-events-none absolute inset-0 animate-pulse rounded-[10px] ring-2 ring-gold ring-inset" aria-hidden />}
+                {/* Trío ganador: un destello recorre cada casilla. */}
+                {winning && !reduced && (
+                  <motion.span
+                    className="pointer-events-none absolute inset-y-0 w-1/2 bg-[linear-gradient(100deg,transparent,rgb(255_255_255/0.75),transparent)]"
+                    initial={{ transform: 'translateX(-150%)' }}
+                    animate={{ transform: 'translateX(250%)' }}
+                    transition={{ duration: 0.7, ease: EASE_IN_OUT, delay: 0.25 + ticket!.winning.indexOf(i) * 0.12 }}
+                    aria-hidden
+                  />
+                )}
               </motion.div>
             );
           })}
         </div>
         {children}
+        {/* Boleto recién comprado: un brillo recorre la lámina dorada. */}
+        {ticket && !reduced && (
+          <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-[10px]" aria-hidden>
+            <motion.div
+              className="absolute inset-y-0 w-2/5 bg-[linear-gradient(105deg,transparent,rgb(255_255_255/0.55),transparent)]"
+              initial={{ transform: 'translateX(-120%) skewX(-12deg)' }}
+              animate={{ transform: 'translateX(320%) skewX(-12deg)' }}
+              transition={{ duration: 0.9, ease: EASE_IN_OUT, delay: 0.35 }}
+            />
+          </div>
+        )}
       </div>
     </div>
   );
@@ -302,6 +352,9 @@ function ScratchFoil({
   onReveal: (index: number) => void;
 }) {
   const canvas = useRef<HTMLCanvasElement>(null);
+  const dust = useRef<HTMLCanvasElement>(null);
+  const flakes = useRef<{ x: number; y: number; vx: number; vy: number; age: number; life: number; size: number; color: string }[]>([]);
+  const frame = useRef<number | null>(null);
   const size = cell * 3 + gap * 2;
   const brush = Math.max(16, cell * 0.3);
   const SAMPLES = 7;
@@ -359,9 +412,70 @@ function ScratchFoil({
       ctx.fillText('RASCA', x + cell / 2, y + cell / 2);
       ctx.restore();
     }
+    const dustElement = dust.current;
+    if (dustElement) {
+      dustElement.width = Math.round(size * dpr);
+      dustElement.height = Math.round(size * dpr);
+      dustElement.getContext('2d')?.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
     // Solo al montar o cambiar de tamaño: lo rascado vive en el propio canvas.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cell, gap]);
+
+  useEffect(() => () => {
+    if (frame.current !== null) cancelAnimationFrame(frame.current);
+  }, []);
+
+  /** Virutas doradas que saltan del trazo y caen con gravedad. */
+  const spawnDust = (x: number, y: number) => {
+    if (reduced) return;
+    const colors = ['#f3dfa2', '#d4af6a', '#fbefc8', '#a8813f'];
+    for (let k = 0; k < 3; k++) {
+      flakes.current.push({
+        x,
+        y,
+        vx: (Math.random() - 0.5) * 140,
+        vy: -40 - Math.random() * 90,
+        age: 0,
+        life: 0.45 + Math.random() * 0.35,
+        size: 1.2 + Math.random() * 2,
+        color: colors[k % colors.length]!,
+      });
+    }
+    if (flakes.current.length > 160) flakes.current.splice(0, flakes.current.length - 160);
+    if (frame.current !== null) return;
+    let last = performance.now();
+    const tick = (now: number) => {
+      const dt = Math.min(0.05, (now - last) / 1000);
+      last = now;
+      const ctx = dust.current?.getContext('2d');
+      if (!ctx) {
+        frame.current = null;
+        return;
+      }
+      ctx.clearRect(0, 0, size, size);
+      flakes.current = flakes.current.filter((f) => (f.age += dt) < f.life);
+      for (const f of flakes.current) {
+        f.vy += 520 * dt;
+        f.x += f.vx * dt;
+        f.y += f.vy * dt;
+        ctx.globalAlpha = 1 - f.age / f.life;
+        ctx.fillStyle = f.color;
+        ctx.fillRect(f.x, f.y, f.size, f.size);
+      }
+      ctx.globalAlpha = 1;
+      frame.current = flakes.current.length ? requestAnimationFrame(tick) : null;
+    };
+    frame.current = requestAnimationFrame(tick);
+  };
+
+  /** Casilla bajo un punto de la lámina (o `null` si cae entre casillas). */
+  const cellAt = (x: number, y: number) => {
+    const col = Math.floor(x / (cell + gap));
+    const row = Math.floor(y / (cell + gap));
+    if (col < 0 || col > 2 || row < 0 || row > 2 || x - col * (cell + gap) > cell || y - row * (cell + gap) > cell) return null;
+    return row * 3 + col;
+  };
 
   /** Borra lo que queda de una casilla (con un fundido corto) y la da por desvelada. */
   const finishCell = (i: number) => {
@@ -369,6 +483,12 @@ function ScratchFoil({
     state.current.done[i] = true;
     latestReveal.current(i);
     play('card');
+    // Un toque corto en los móviles que vibran (Android).
+    try {
+      navigator.vibrate?.(8);
+    } catch {
+      // Sin vibración: no pasa nada.
+    }
     const ctx = context();
     if (!ctx) return;
     const { x, y } = origin(i);
@@ -415,6 +535,8 @@ function ScratchFoil({
     ctx.arc(to.x, to.y, brush / 2, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
+    const under = cellAt(to.x, to.y);
+    if (under !== null && !state.current.done[under]) spawnDust(to.x, to.y);
     // Puntos de muestreo tocados por el trazo (distancia al segmento).
     const dx = to.x - from.x;
     const dy = to.y - from.y;
@@ -460,16 +582,19 @@ function ScratchFoil({
   };
 
   return (
-    <canvas
-      ref={canvas}
-      className={`absolute inset-0 touch-none ${enabled ? 'cursor-pointer' : 'pointer-events-none'}`}
-      style={{ width: size, height: size }}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={end}
-      onPointerCancel={end}
-      aria-hidden
-    />
+    <>
+      <canvas
+        ref={canvas}
+        className={`absolute inset-0 touch-none ${enabled ? 'cursor-pointer' : 'pointer-events-none'}`}
+        style={{ width: size, height: size }}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={end}
+        onPointerCancel={end}
+        aria-hidden
+      />
+      <canvas ref={dust} className="pointer-events-none absolute inset-0" style={{ width: size, height: size }} aria-hidden />
+    </>
   );
 }
 
