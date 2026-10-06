@@ -583,6 +583,69 @@ describe('misiones diarias', () => {
   });
 });
 
+// ── Clasificación semanal ──────────────────────────────────────────────────────────────────
+/** Semana del servidor (lunes a domingo en UTC), como serverWeek() en las reglas. */
+const thisWeek = () => String(Math.floor((Date.now() / DAY + 3) / 7));
+
+/** Primera entrada de la semana: saldo de entrada privado y fila pública en el mismo lote. */
+function joinLeaderboard(db, uid, { week = thisWeek(), base, score = 0, alias = 'AsDePicas', avatar = 'SpadeGold' }) {
+  const batch = writeBatch(db);
+  batch.set(doc(db, `wallets/${uid}/weeks/${week}`), { balance: base });
+  batch.set(doc(db, `leaderboard/${week}/players/${uid}`), { alias, avatar, score, updatedAtMillis: Date.now() });
+  return batch.commit();
+}
+
+function updateScore(db, uid, { week = thisWeek(), score, alias = 'AsDePicas', avatar = 'SpadeGold' }) {
+  return setDoc(doc(db, `leaderboard/${week}/players/${uid}`), { alias, avatar, score, updatedAtMillis: Date.now() });
+}
+
+describe('clasificación semanal', () => {
+  beforeEach(async () => {
+    await register(as('ana'), 'ana', 'AsDePicas');
+    await seedWallet('ana', { balance: 12000 });
+  });
+
+  test('se entra con el saldo real y ganancias cero', async () => {
+    const db = as('ana');
+    await assertFails(joinLeaderboard(db, 'ana', { base: 5000 }));
+    await assertFails(joinLeaderboard(db, 'ana', { base: 12000, score: 7000 }));
+    await assertFails(joinLeaderboard(db, 'ana', { base: 12000, week: String(Number(thisWeek()) + 1) }));
+    await assertSucceeds(joinLeaderboard(db, 'ana', { base: 12000 }));
+  });
+
+  test('las ganancias son el saldo real menos el de entrada, y el alias y el avatar los del perfil', async () => {
+    const db = as('ana');
+    await assertSucceeds(joinLeaderboard(db, 'ana', { base: 12000 }));
+    await seedWallet('ana', { balance: 15000 });
+    await assertFails(updateScore(db, 'ana', { score: 50000 }));
+    await assertFails(updateScore(db, 'ana', { score: 3000, alias: 'OtraPersona' }));
+    await assertFails(updateScore(db, 'ana', { score: 3000, avatar: 'HeartRuby' }));
+    await assertSucceeds(updateScore(db, 'ana', { score: 3000 }));
+    await seedWallet('ana', { balance: 9000 });
+    await assertSucceeds(updateScore(db, 'ana', { score: -3000 }));
+  });
+
+  test('el saldo de entrada no se puede cambiar ni borrar; salir y volver no reinicia las pérdidas', async () => {
+    const db = as('ana');
+    await assertSucceeds(joinLeaderboard(db, 'ana', { base: 12000 }));
+    await seedWallet('ana', { balance: 2000 });
+    await assertFails(setDoc(doc(db, `wallets/ana/weeks/${thisWeek()}`), { balance: 2000 }));
+    await assertFails(deleteDoc(doc(db, `wallets/ana/weeks/${thisWeek()}`)));
+    await assertSucceeds(deleteDoc(doc(db, `leaderboard/${thisWeek()}/players/ana`)));
+    await assertFails(updateScore(db, 'ana', { score: 0 }));
+    await assertSucceeds(updateScore(db, 'ana', { score: -10000 }));
+  });
+
+  test('todos los jugadores la ven, pero nadie escribe la fila de otro', async () => {
+    await assertSucceeds(joinLeaderboard(as('ana'), 'ana', { base: 12000 }));
+    await assertSucceeds(getDocs(collection(as('luis'), `leaderboard/${thisWeek()}/players`)));
+    await assertFails(getDocs(collection(anonymous(), `leaderboard/${thisWeek()}/players`)));
+    await assertFails(getDoc(doc(as('luis'), `wallets/ana/weeks/${thisWeek()}`)));
+    await assertFails(updateScore(as('luis'), 'ana', { score: 0 }));
+    await assertFails(deleteDoc(doc(as('luis'), `leaderboard/${thisWeek()}/players/ana`)));
+  });
+});
+
 describe('resto de la base de datos', () => {
   test('cualquier otra colección está cerrada', async () => {
     await assertFails(setDoc(doc(as('ana'), 'leaderboard/ana'), { balance: 1 }));

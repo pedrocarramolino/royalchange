@@ -23,6 +23,7 @@ const ForgotPasswordScreen = lazy(() => import('@/features/auth/ForgotPasswordSc
 const LegalScreen = lazy(() => import('@/features/auth/LegalScreen').then((m) => ({ default: m.LegalScreen })));
 
 // Las mesas se cargan al abrirlas: la primera pantalla llega antes.
+const LeaderboardScreen = lazy(() => import('@/features/leaderboard/LeaderboardScreen').then((m) => ({ default: m.LeaderboardScreen })));
 const BlackjackScreen = lazy(() => import('@/features/games/blackjack/BlackjackScreen'));
 const RouletteScreen = lazy(() => import('@/features/games/roulette/RouletteScreen'));
 const SlotsScreen = lazy(() => import('@/features/games/slots/SlotsScreen'));
@@ -79,6 +80,7 @@ export function App() {
           <Route element={<CasinoLayout />}>
             <Route path="/" element={<LobbyScreen />} />
             <Route path="/progreso" element={<ProgressScreen />} />
+            <Route path="/clasificacion" element={<LeaderboardScreen />} />
             <Route path="/historial" element={<HistoryScreen />} />
             <Route path="/ajustes" element={<SettingsScreen />} />
           </Route>

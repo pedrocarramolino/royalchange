@@ -594,6 +594,19 @@ service cloud.firestore {
       // Solo al eliminar la cuenta: junto con el perfil, para no poder reiniciar el saldo.
       allow delete: if isOwner(uid) && !existsAfter(playerPath(uid));
 
+      // Saldo con el que el jugador entró en la clasificación de la semana [week]: privado, se
+      // escribe una sola vez (igual al saldo real en ese momento) y no se puede cambiar ni borrar
+      // (salvo al eliminar la cuenta), para no poder «reiniciar» las pérdidas de la semana.
+      match /weeks/{week} {
+        allow read: if isOwner(uid);
+        allow create: if isOwner(uid)
+          && int(week) == serverWeek()
+          && request.resource.data.keys().hasOnly(['balance'])
+          && request.resource.data.balance == get(walletPath(uid)).data.balance;
+        allow update: if false;
+        allow delete: if isOwner(uid) && !existsAfter(walletPath(uid));
+      }
+
       match /ledger/{entryId} {
         allow read: if isOwner(uid);
 
@@ -608,6 +621,35 @@ service cloud.firestore {
         // Solo al eliminar la cuenta, cuando el monedero ya no existe.
         allow delete: if isOwner(uid) && !existsAfter(walletPath(uid));
       }
+    }
+
+    // ── Clasificación semanal ───────────────────────────────────────────────────────────────
+    // leaderboard/{week}/players/{uid}: alias, avatar y ganancias de la semana, visibles para los
+    // jugadores con sesión. Las ganancias son el saldo real menos el de entrada en la semana
+    // (wallets/{uid}/weeks/{week}): se calculan aquí, así que no se pueden inventar. Cada uno puede
+    // quitarse de la clasificación; al volver, cuenta desde el mismo saldo de entrada.
+    match /leaderboard/{week}/players/{uid} {
+      allow read: if signedIn();
+      allow create, update: if isOwner(uid)
+        && int(week) == serverWeek()
+        && validLeaderboardEntry(request.resource.data, uid, week);
+      allow delete: if isOwner(uid);
+    }
+
+    // Semana del servidor: número de semanas (de lunes a domingo, en UTC) desde 1970.
+    function serverWeek() {
+      return math.floor((request.time.toMillis() / 86400000 + 3) / 7);
+    }
+
+    function validLeaderboardEntry(data, uid, week) {
+      let player = get(playerPath(uid)).data;
+      return data.keys().hasOnly(['alias', 'avatar', 'score', 'updatedAtMillis'])
+        && data.alias == player.alias
+        && data.avatar == player.avatar
+        && data.updatedAtMillis is int
+        && data.updatedAtMillis <= request.time.toMillis() + clockSkewMillis()
+        && data.score == get(walletPath(uid)).data.balance
+          - getAfter(/databases/$(database)/documents/wallets/$(uid)/weeks/$(week)).data.balance;
     }
 
     // ── Perfil y alias ──────────────────────────────────────────────────────────────────────

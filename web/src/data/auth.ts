@@ -294,7 +294,12 @@ export const useAuth = create<AuthStore>((set, get) => {
         const current = get().state;
         const key = current.status === 'signedIn' && current.user.profile ? aliasKey(current.user.profile.alias) : null;
         const ledger = await getDocsFromServer(collection(db, `wallets/${user.uid}/ledger`));
-        const entries = ledger.docs.map((d) => d.ref);
+        // Clasificación: saldos de entrada de cada semana (privados) y sus filas públicas.
+        const weeks = await getDocsFromServer(collection(db, `wallets/${user.uid}/weeks`));
+        const entries = [
+          ...ledger.docs.map((d) => d.ref),
+          ...weeks.docs.flatMap((d) => [d.ref, doc(db, `leaderboard/${d.id}/players/${user.uid}`)]),
+        ];
         // Primer lote: perfil, alias y monedero (y los asientos que quepan). Los asientos restantes
         // después: las reglas solo los dejan borrar cuando el monedero ya no existe.
         const first = writeBatch(db);

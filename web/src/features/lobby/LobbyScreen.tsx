@@ -17,6 +17,7 @@ import { useCountUp } from '@/ui/ChipBalance';
 import { IconClose, IconFlame, IconGift, IconMail } from '@/ui/icons';
 import { DailyWheel } from './DailyWheel';
 import { DailyMissions } from './DailyMissions';
+import { LeaderboardTeaser } from './LeaderboardTeaser';
 import { BaccaratArt, BlackjackArt, DiceArt, PokerArt, RouletteArt, SlotsArt, PlinkoArt, ScratchArt, VideoPokerArt } from './GameArt';
 
 const GAMES = [
@@ -91,6 +92,7 @@ export function LobbyScreen() {
         {wallet && <DailyBonusDialog key="bono-dialogo" now={now} />}
         {wallet && <DailyWheel key="ruleta" now={now} onHoldBalance={setHeldBalance} />}
         {wallet && <DailyMissions key="misiones" now={now} />}
+        {wallet && <LeaderboardTeaser key="clasificacion" />}
         {wallet && claimable(wallet).length > 0 && (
           <Notice key="logros" tone="gold" icon={<IconGift className="size-6 text-gold" />} action={{ label: 'Ver', onClick: () => navigate('/progreso') }}>
             {claimable(wallet).length === 1 ? 'Tienes un logro con recompensa por recoger.' : `Tienes ${claimable(wallet).length} logros con recompensa por recoger.`}

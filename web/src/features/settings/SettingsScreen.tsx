@@ -3,6 +3,7 @@ import { AnimatePresence, m as motion } from 'motion/react';
 import { useNavigate } from 'react-router';
 import { useAuth } from '@/data/auth';
 import { useSettings } from '@/data/settings';
+import { leaveLeaderboard } from '@/data/leaderboard';
 import { AVATARS, type AvatarId } from '@/domain/validation';
 import { Avatar, avatarName } from '@/ui/Avatar';
 import { Button } from '@/ui/Button';
@@ -15,7 +16,7 @@ export const APP_VERSION = '2.0.0';
 export function SettingsScreen() {
   const auth = useAuth((s) => s.state);
   const { sendVerification, signOut, deleteAccount, updateProfile } = useAuth();
-  const { soundEnabled, reducedMotion, setSoundEnabled, setReducedMotion } = useSettings();
+  const { soundEnabled, reducedMotion, leaderboardEnabled, setSoundEnabled, setReducedMotion, setLeaderboardEnabled } = useSettings();
   const navigate = useNavigate();
   const [confirmSignOut, setConfirmSignOut] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -107,6 +108,17 @@ export function SettingsScreen() {
           onChange={setReducedMotion}
           label="Animaciones reducidas"
           description="Sin celebraciones ni movimientos decorativos. Las mesas siguen mostrando cada resultado."
+        />
+        <div className="h-px bg-white/5" />
+        <Toggle
+          checked={leaderboardEnabled}
+          onChange={(value) => {
+            setLeaderboardEnabled(value);
+            // Al desactivarlo, la fila de esta semana desaparece de la clasificación.
+            if (!value) void leaveLeaderboard(user.uid);
+          }}
+          label="Aparecer en la clasificación semanal"
+          description="Los demás jugadores ven tu alias, tu avatar y tus ganancias de la semana. Nunca tu email ni tu saldo."
         />
       </Section>
 

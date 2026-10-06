@@ -22,6 +22,7 @@ export const LEGAL_BODY: Record<LegalDocument, [string, string][]> = {
     ['Responsable', '[Nombre y datos de contacto del responsable del tratamiento]'],
     ['Datos que tratamos', 'Email, alias, avatar, país, año de nacimiento, preferencias, consentimientos y tu progreso en el juego (fichas, nivel, logros, historial y estadísticas).'],
     ['Para qué', 'Para crear y mantener tu cuenta, guardar tu progreso, verificar que eres mayor de edad y, solo si lo aceptas, enviarte novedades.'],
+    ['Clasificación semanal', 'Tu alias, tu avatar y tus ganancias de la semana aparecen en la clasificación, visible para los demás jugadores. Puedes dejar de aparecer cuando quieras desde Ajustes. Nunca se muestran tu email ni tu saldo.'],
     ['Base legal', 'La ejecución del servicio que solicitas y, para las comunicaciones, tu consentimiento, que puedes retirar cuando quieras.'],
     ['Dónde se guardan', 'En servicios de Google Firebase, con los datos alojados en la Unión Europea. No vendemos tus datos ni usamos publicidad o analítica de terceros.'],
     ['Cuánto tiempo', 'Mientras tu cuenta exista. Al eliminarla, borramos tus datos salvo que la ley obligue a conservar alguno.'],
