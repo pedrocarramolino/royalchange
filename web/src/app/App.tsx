@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes } from 'react-router';
-import { MotionConfig } from 'motion/react';
+import { LazyMotion, MotionConfig } from 'motion/react';
 import { useAuth } from '@/data/auth';
 import { useSettings } from '@/data/settings';
 import { CardSvgDefs } from '@/ui/PlayingCard';
@@ -30,6 +30,12 @@ const BaccaratScreen = lazy(() => import('@/features/games/baccarat/BaccaratScre
 const VideoPokerScreen = lazy(() => import('@/features/games/videopoker/VideoPokerScreen'));
 const PlinkoScreen = lazy(() => import('@/features/games/plinko/PlinkoScreen'));
 const ScratchScreen = lazy(() => import('@/features/games/scratch/ScratchScreen'));
+
+/**
+ * Animaciones por partes: las pantallas usan la versión ligera de los componentes de Motion
+ * (`m`, importada como `motion`) y el motor completo se descarga aparte, sin retrasar el arranque.
+ */
+const loadMotionFeatures = () => import('@/ui/motionFeatures').then((module) => module.default);
 
 export function App() {
   const auth = useAuth((s) => s.state);
@@ -87,13 +93,15 @@ export function App() {
   }
 
   return (
-    <MotionConfig reducedMotion={reducedMotion ? 'always' : 'never'}>
-      <CardSvgDefs />
-      <ChipSvgDefs />
-      <OrientationGate>
-        {content}
-        {auth.status === 'signedIn' && auth.user.profile && !atTable && <ProgressToasts />}
-      </OrientationGate>
-    </MotionConfig>
+    <LazyMotion features={loadMotionFeatures} strict>
+      <MotionConfig reducedMotion={reducedMotion ? 'always' : 'never'}>
+        <CardSvgDefs />
+        <ChipSvgDefs />
+        <OrientationGate>
+          {content}
+          {auth.status === 'signedIn' && auth.user.profile && !atTable && <ProgressToasts />}
+        </OrientationGate>
+      </MotionConfig>
+    </LazyMotion>
   );
 }

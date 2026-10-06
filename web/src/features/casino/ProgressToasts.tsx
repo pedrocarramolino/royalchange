@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
+import { AnimatePresence, m as motion } from 'motion/react';
 import { useWallet } from '@/data/wallet';
 import { achievement } from '@/domain/progression';
 import { chips } from '@/lib/format';

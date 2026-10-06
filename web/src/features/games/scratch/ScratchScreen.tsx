@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
+import { AnimatePresence, m as motion } from 'motion/react';
 import { useWallet, useReadyWallet } from '@/data/wallet';
 import { useSettings } from '@/data/settings';
 import { buyScratchTicket, SCRATCH_BETS, SCRATCH_CELLS, SCRATCH_PRIZES, type ScratchTicket } from '@/engine/scratch';

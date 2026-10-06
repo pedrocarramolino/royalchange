@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
-import { AnimatePresence, motion } from 'motion/react';
+import { AnimatePresence, m as motion } from 'motion/react';
 import { useReadyWallet } from '@/data/wallet';
 import { isLandscape, isPhone, useRequireLandscape, useScreenAngle, useViewport, type Viewport } from '@/ui/orientation';
 import { ISLAND_CLEARANCE, rotatedSafeArea, useSafeArea } from '@/ui/safeArea';

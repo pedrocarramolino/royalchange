@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { motion } from 'motion/react';
+import { m as motion } from 'motion/react';
 import { useWallet, useReadyWallet } from '@/data/wallet';
 import { useSettings } from '@/data/settings';
 import { DICE_RULES, diceBetName, isDouble, multiplierTenths, multiplierText, rollSum, throwDice, type DiceBet, type DiceThrow } from '@/engine/dice';

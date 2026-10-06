@@ -1,4 +1,4 @@
-import { motion } from 'motion/react';
+import { m as motion } from 'motion/react';
 import { Chip } from '@/ui/Chip';
 import { chips } from '@/lib/format';
 import { play } from '@/audio/sound';

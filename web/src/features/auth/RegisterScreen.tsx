@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from 'react';
-import { motion } from 'motion/react';
+import { m as motion } from 'motion/react';
 import { SPRING } from '@/ui/motion';
 import { AUTH_ERROR_TEXT, useAuth } from '@/data/auth';
 import { countries, suggestedCountry } from '@/domain/countries';

@@ -1,5 +1,5 @@
 import { memo, useEffect, useRef } from 'react';
-import { animate, motion, useMotionValue, useTransform } from 'motion/react';
+import { animate, m as motion, useMotionValue, useTransform } from 'motion/react';
 import { colorOf, WHEEL_ORDER } from './wheel';
 
 const POCKET_ANGLE = 360 / 37;

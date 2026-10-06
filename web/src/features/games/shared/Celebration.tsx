@@ -1,5 +1,5 @@
 import { useLayoutEffect, useMemo, useRef } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
+import { AnimatePresence, m as motion } from 'motion/react';
 import { useSettings } from '@/data/settings';
 import { Chip } from '@/ui/Chip';
 import { SPRING } from '@/ui/motion';

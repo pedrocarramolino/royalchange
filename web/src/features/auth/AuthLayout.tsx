@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router';
-import { motion } from 'motion/react';
+import { m as motion } from 'motion/react';
 import { EASE_OUT } from '@/ui/motion';
 import { TopBar } from '@/ui/TopBar';
 

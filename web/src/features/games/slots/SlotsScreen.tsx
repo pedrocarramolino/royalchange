@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { motion } from 'motion/react';
+import { m as motion } from 'motion/react';
 import { useWallet, useReadyWallet } from '@/data/wallet';
 import { useSettings } from '@/data/settings';
 import { LINE_BETS, LINES, PAYTABLE, REELS, ROWS, slotWindow, spinSlots, STRIPS, SYMBOL_NAME, SYMBOLS, type SlotSpin, type SlotSymbol } from '@/engine/slots';

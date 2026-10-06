@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
+import { AnimatePresence, m as motion } from 'motion/react';
 import { useWallet, useReadyWallet } from '@/data/wallet';
 import { useSettings } from '@/data/settings';
 import { dropPlinko, PLINKO_BETS, PLINKO_RISK_NAME, PLINKO_ROWS, PLINKO_TENTHS, plinkoMultiplierText, type PlinkoDrop, type PlinkoRisk } from '@/engine/plinko';

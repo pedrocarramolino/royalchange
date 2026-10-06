@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router';
-import { AnimatePresence, motion } from 'motion/react';
+import { AnimatePresence, m as motion } from 'motion/react';
 import { EASE_OUT } from '@/ui/motion';
 import { AUTH_ERROR_TEXT, useAuth } from '@/data/auth';
 import { FIELD_ERROR_TEXT, validateEmail } from '@/domain/validation';

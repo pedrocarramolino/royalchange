@@ -1,5 +1,5 @@
 import { memo, useRef, type PointerEvent } from 'react';
-import { motion } from 'motion/react';
+import { m as motion } from 'motion/react';
 import { colorOf } from './wheel';
 import { betName, betNumbers, type RouletteBet } from '@/engine/roulette';
 import { Chip } from '@/ui/Chip';

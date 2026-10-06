@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { motion } from 'motion/react';
+import { m as motion } from 'motion/react';
 import { useAuth } from '@/data/auth';
 import { useReadyWallet } from '@/data/wallet';
 import { HISTORY_PAGE_SIZE, ledgerBefore, loadStatistics } from '@/data/history';

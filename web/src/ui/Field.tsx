@@ -1,5 +1,5 @@
 import { useId, useState, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
+import { AnimatePresence, m as motion } from 'motion/react';
 import { EASE_OUT } from './motion';
 
 interface FieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'size'> {

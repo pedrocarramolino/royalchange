@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
+import { AnimatePresence, m as motion } from 'motion/react';
 import { useNavigate } from 'react-router';
 import { useAuth } from '@/data/auth';
 import { useSettings } from '@/data/settings';

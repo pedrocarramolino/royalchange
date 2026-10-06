@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
-import { AnimatePresence, motion } from 'motion/react';
+import { AnimatePresence, m as motion } from 'motion/react';
 import { EASE_OUT, SPRING } from '@/ui/motion';
 import { useAuth } from '@/data/auth';
 import { useWallet, useReadyWallet } from '@/data/wallet';

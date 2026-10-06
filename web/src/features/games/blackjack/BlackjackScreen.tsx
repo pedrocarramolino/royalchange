@@ -24,7 +24,7 @@ import { ChipStack } from '@/ui/Chip';
 import { Celebration, ResultBanner } from '../shared/Celebration';
 import { useDealFrom } from '../shared/deal';
 import { FlipCard } from '../shared/FlipCard';
-import { motion } from 'motion/react';
+import { m as motion } from 'motion/react';
 import { EASE_OUT, SPRING } from '@/ui/motion';
 import { ChipRack, TABLE_CHIPS } from '../shared/ChipRack';
 import { TableAction } from '../shared/TableAction';

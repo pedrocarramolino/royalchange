@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router';
-import { motion } from 'motion/react';
+import { m as motion } from 'motion/react';
 import { Button } from '@/ui/Button';
 import { EASE_OUT } from '@/ui/motion';
 import { PlayingCard, type Rank } from '@/ui/PlayingCard';

@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useId, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { AnimatePresence, motion } from 'motion/react';
+import { AnimatePresence, m as motion } from 'motion/react';
 
 /** Dónde se pintan los diálogos: el documento o, en una mesa girada, la propia mesa (para que giren con ella). */
 export const PortalTarget = createContext<HTMLElement | null>(null);

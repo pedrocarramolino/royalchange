@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { motion } from 'motion/react';
+import { m as motion } from 'motion/react';
 import { PlayingCard, type Rank } from '@/ui/PlayingCard';
 import type { SuitName } from '@/ui/Suit';
 import { EASE_IN_OUT } from '@/ui/motion';

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
+import { AnimatePresence, m as motion } from 'motion/react';
 import { useWallet, useReadyWallet } from '@/data/wallet';
 import { useSettings } from '@/data/settings';
 import { BACCARAT_BET_NAME, BACCARAT_BETS, BACCARAT_RULES, dealBaccarat, handTotal, type BaccaratBet, type BaccaratRound, type Coup, type CoupWinner } from '@/engine/baccarat';

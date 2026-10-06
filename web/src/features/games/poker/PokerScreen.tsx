@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
+import { AnimatePresence, m as motion } from 'motion/react';
 import { useReadyWallet } from '@/data/wallet';
 import { ACTION_LABEL, allBotsOut, CATEGORY_NAME, inHand, legalActions, POKER_TABLES, pot, type PokerState, type Seat } from '@/engine/poker';
 import { chips, grouped } from '@/lib/format';

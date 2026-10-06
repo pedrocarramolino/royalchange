@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
+import { AnimatePresence, m as motion } from 'motion/react';
 import { useWallet, useReadyWallet } from '@/data/wallet';
 import { ACHIEVEMENTS, levelProgress, TITLE_NAMES } from '@/domain/progression';
 import type { AchievementId } from '@/domain/economy';

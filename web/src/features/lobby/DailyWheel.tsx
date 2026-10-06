@@ -1,5 +1,5 @@
 import { memo, useRef, useState } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
+import { AnimatePresence, m as motion } from 'motion/react';
 import { useSettings } from '@/data/settings';
 import { useReadyWallet, useWallet } from '@/data/wallet';
 import { DAILY_WHEEL, dailySpinStatus } from '@/domain/progression';

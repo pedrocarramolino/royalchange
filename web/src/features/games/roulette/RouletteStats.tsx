@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { motion } from 'motion/react';
+import { m as motion } from 'motion/react';
 import { IconFlame, IconSnowflake } from '@/ui/icons';
 import { EASE_OUT } from '@/ui/motion';
 import { usePlayerId } from '../shared/session';
