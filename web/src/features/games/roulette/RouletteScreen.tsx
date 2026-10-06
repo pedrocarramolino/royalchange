@@ -149,7 +149,7 @@ export default function RouletteScreen() {
   const showTotal = table.width >= (compact ? 600 : 800);
 
   return (
-    <GameShell
+    <GameShell rules="Roulette"
       title="Ruleta"
       notice={notice && <TableNotice onDismiss={() => setNotice(null)}>{notice}</TableNotice>}
       controls={

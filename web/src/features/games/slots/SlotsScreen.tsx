@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { m as motion } from 'motion/react';
 import { useWallet, useReadyWallet } from '@/data/wallet';
 import { useSettings } from '@/data/settings';
@@ -14,6 +14,8 @@ import { GameShell, TableNotice, useTableSize } from '../shared/GameShell';
 import { economyNotice, useHoldProgressEvents } from '../shared/session';
 import { SlotSvgDefs, SlotSymbolArt } from './SlotSymbolArt';
 
+/** Tiradas del juego automático. */
+const AUTO_SPINS = 10;
 const LINE_COLORS = ['#f3dfa2', '#5cc79e', '#e0485e', '#7cc0ff', '#c79cff', '#ffb35c', '#ff7ab8', '#9be15d', '#5ce1e6', '#ffd84d'];
 
 export default function SlotsScreen() {
@@ -31,6 +33,17 @@ export default function SlotsScreen() {
   const [paytable, setPaytable] = useState(false);
   const [celebrate, setCelebrate] = useState<number | null>(null);
   const [lineShown, setLineShown] = useState(0);
+  // Juego automático: tiradas que quedan (0 = apagado).
+  const [auto, setAuto] = useState(0);
+  const autoLeft = useRef(0);
+  autoLeft.current = auto;
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   useHoldProgressEvents(spinning);
 
   const lineBet = LINE_BETS[betIndex]!;
@@ -45,6 +58,7 @@ export default function SlotsScreen() {
     if (busy || spinning) return;
     setNotice(null);
     if (totalBet > balance) {
+      setAuto(0);
       setNotice('No tienes fichas suficientes para esa apuesta.');
       return;
     }
@@ -55,6 +69,7 @@ export default function SlotsScreen() {
     const booked = await playInstantRound('Slots', result.totalBet, result.totalPayout);
     setBusy(false);
     if (!booked.ok) {
+      setAuto(0);
       setNotice(economyNotice(booked.error));
       return;
     }
@@ -75,7 +90,20 @@ export default function SlotsScreen() {
       const sound = result.totalPayout > 0 ? resultSound(Math.max(1, net), big) : null;
       if (sound) play(sound);
       if (big) setCelebrate(Date.now());
+      // Juego automático: la siguiente tras una pausa (más larga si hubo premio, para verlo).
+      if (autoLeft.current > 0) {
+        const left = autoLeft.current - 1;
+        setAuto(left);
+        if (left > 0) setTimeout(() => mounted.current && autoLeft.current > 0 && void goRef.current(), result.totalPayout > 0 ? 1500 : 450);
+      }
     }, total + 150);
+  };
+  const goRef = useRef(go);
+  goRef.current = go;
+  const startAuto = () => {
+    setAuto(AUTO_SPINS);
+    autoLeft.current = AUTO_SPINS;
+    void go();
   };
 
   // Recorre las líneas premiadas una a una.
@@ -96,7 +124,7 @@ export default function SlotsScreen() {
   const result = spin?.result;
 
   return (
-    <GameShell
+    <GameShell rules="Slots"
       title="Slots"
       surface="dark"
       notice={notice && <TableNotice onDismiss={() => setNotice(null)}>{notice}</TableNotice>}
@@ -122,7 +150,16 @@ export default function SlotsScreen() {
             </StepButton>
           </div>
           <div className="min-w-0 flex-1" />
-          <Button size="lg" className="min-w-36" loading={busy || spinning} disabled={totalBet > balance} onClick={() => void go()}>
+          {auto > 0 ? (
+            <Button variant="secondary" className="min-w-28" onClick={() => setAuto(0)}>
+              Parar ({auto})
+            </Button>
+          ) : (
+            <Button variant="ghost" className="min-w-24" disabled={busy || spinning || totalBet > balance} onClick={startAuto}>
+              Auto ×{AUTO_SPINS}
+            </Button>
+          )}
+          <Button size="lg" className="min-w-36" loading={busy || spinning} disabled={totalBet > balance || auto > 0} onClick={() => void go()}>
             {totalBet > balance ? 'Sin saldo' : 'Girar'}
           </Button>
         </div>

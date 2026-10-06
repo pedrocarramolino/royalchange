@@ -22,7 +22,7 @@ export default function PokerScreen() {
   useHoldProgressEvents(Boolean(inPlay));
 
   return (
-    <GameShell
+    <GameShell rules="Poker"
       title="Póker · Texas Hold’em"
       surface="dark"
       notice={poker.notice && <TableNotice onDismiss={poker.dismissNotice}>{poker.notice}</TableNotice>}

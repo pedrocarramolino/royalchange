@@ -214,7 +214,7 @@ export default function BlackjackScreen() {
   }, [state, net]);
 
   return (
-    <GameShell
+    <GameShell rules="Blackjack"
       title="Blackjack"
       notice={notice && <TableNotice onDismiss={() => setNotice(null)}>{notice}</TableNotice>}
       controls={

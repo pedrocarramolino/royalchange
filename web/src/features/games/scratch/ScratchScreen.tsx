@@ -106,7 +106,7 @@ export default function ScratchScreen() {
   const net = ticket ? ticket.data.payout - ticket.data.stake : 0;
 
   return (
-    <GameShell
+    <GameShell rules="Scratch"
       title="Rasca y gana"
       surface="dark"
       portrait
@@ -393,6 +393,7 @@ function ScratchFoil({
   const dust = useRef<HTMLCanvasElement>(null);
   const flakes = useRef<{ x: number; y: number; vx: number; vy: number; age: number; life: number; size: number; color: string }[]>([]);
   const frame = useRef<number | null>(null);
+  const lastScratchSound = useRef(0);
   const size = cell * 3 + gap * 2;
   const brush = Math.max(16, cell * 0.3);
   const SAMPLES = 7;
@@ -549,12 +550,6 @@ function ScratchFoil({
     state.current.done[i] = true;
     latestReveal.current(i);
     play('card');
-    // Un toque corto en los móviles que vibran (Android).
-    try {
-      navigator.vibrate?.(8);
-    } catch {
-      // Sin vibración: no pasa nada.
-    }
     const ctx = context();
     if (!ctx) return;
     const { x, y } = origin(i);
@@ -604,7 +599,15 @@ function ScratchFoil({
     ctx.fill();
     ctx.restore();
     const under = cellAt(to.x, to.y);
-    if (under !== null && !state.current.done[under]) spawnDust(to.x, to.y);
+    if (under !== null && !state.current.done[under]) {
+      spawnDust(to.x, to.y);
+      // Sonido de rascar mientras se mueve el dedo sobre la lámina (no más de uno cada 90 ms).
+      const now = performance.now();
+      if (now - lastScratchSound.current > 90) {
+        lastScratchSound.current = now;
+        play('scratch');
+      }
+    }
     // Puntos de muestreo tocados por el trazo (distancia al segmento).
     const dx = to.x - from.x;
     const dy = to.y - from.y;

@@ -16,7 +16,7 @@ export const APP_VERSION = '2.0.0';
 export function SettingsScreen() {
   const auth = useAuth((s) => s.state);
   const { sendVerification, signOut, deleteAccount, updateProfile } = useAuth();
-  const { soundEnabled, reducedMotion, leaderboardEnabled, setSoundEnabled, setReducedMotion, setLeaderboardEnabled } = useSettings();
+  const { soundEnabled, reducedMotion, vibrationEnabled, leaderboardEnabled, setSoundEnabled, setReducedMotion, setVibrationEnabled, setLeaderboardEnabled } = useSettings();
   const navigate = useNavigate();
   const [confirmSignOut, setConfirmSignOut] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -102,6 +102,8 @@ export function SettingsScreen() {
 
       <Section title="Juego" index={1}>
         <Toggle checked={soundEnabled} onChange={setSoundEnabled} label="Sonido" description="Efectos de cartas, fichas, ruleta y premios." />
+        <div className="h-px bg-white/5" />
+        <Toggle checked={vibrationEnabled} onChange={setVibrationEnabled} label="Vibración" description="Un toque al repartir, apostar, ganar o perder (en los móviles que lo permiten)." />
         <div className="h-px bg-white/5" />
         <Toggle
           checked={reducedMotion}

@@ -8,6 +8,10 @@ import { ChipBalance } from '@/ui/ChipBalance';
 import { PortalTarget } from '@/ui/Dialog';
 import { BackIcon } from '@/ui/TopBar';
 import { ProgressToasts } from '@/features/casino/ProgressToasts';
+import type { GameType } from '@/domain/economy';
+import { Button } from '@/ui/Button';
+import { Dialog } from '@/ui/Dialog';
+import { GAME_RULES } from './rules';
 
 /** Tamaño de la mesa, siempre en horizontal: con el móvil en vertical, alto y ancho intercambiados. */
 export function useGameViewport(): Viewport {
@@ -67,6 +71,8 @@ interface GameShellProps {
   heldBalance?: number | null;
   /** Juego en vertical (rasca y gana): no pide horizontal ni se gira; va como el resto de la app. */
   portrait?: boolean;
+  /** Juego de la mesa: añade el botón «?» con sus reglas. */
+  rules?: GameType;
 }
 
 /**
@@ -76,7 +82,8 @@ interface GameShellProps {
  * Si el móvil está en vertical (Safari en iOS no deja fijar la orientación, o el giro automático
  * está bloqueado), la mesa se pinta girada 90°: basta con poner el móvil de lado, sin avisos.
  */
-export function GameShell({ title, children, controls, actions, notice, surface = 'felt', heldBalance = null, portrait = false }: GameShellProps) {
+export function GameShell({ title, children, controls, actions, notice, surface = 'felt', heldBalance = null, portrait = false, rules }: GameShellProps) {
+  const [rulesOpen, setRulesOpen] = useState(false);
   useRequireLandscape(!portrait);
   const navigate = useNavigate();
   const wallet = useReadyWallet();
@@ -146,6 +153,16 @@ export function GameShell({ title, children, controls, actions, notice, surface 
             </button>
             <h1 className="felt-print min-w-0 truncate text-[15px] font-semibold">{title}</h1>
             <div className="flex-1" />
+            {rules && (
+              <button
+                type="button"
+                onClick={() => setRulesOpen(true)}
+                aria-label="Cómo se juega"
+                className="grid size-9 shrink-0 place-items-center rounded-full bg-black/30 font-display text-base font-bold text-gold-light ring-1 ring-gold/30 transition-transform duration-150 ease-out active:scale-[0.94]"
+              >
+                ?
+              </button>
+            )}
             {actions}
             {wallet && (
               <div className="rounded-full bg-black/35 px-3 py-1.5 ring-1 ring-gold/30">
@@ -168,6 +185,7 @@ export function GameShell({ title, children, controls, actions, notice, surface 
               )}
             </AnimatePresence>
           </div>
+          {rules && <RulesDialog game={rules} open={rulesOpen} onClose={() => setRulesOpen(false)} />}
           {/* Avisos de nivel y logros dentro de la mesa: giran con ella (en vertical los pinta la app). */}
           {!portrait && <ProgressToasts />}
         </div>
@@ -184,5 +202,26 @@ export function TableNotice({ children, onDismiss }: { children: ReactNode; onDi
         Entendido
       </button>
     </div>
+  );
+}
+
+/** Reglas de la mesa: objetivo, cómo se juega y pagos. */
+function RulesDialog({ game, open, onClose }: { game: GameType; open: boolean; onClose: () => void }) {
+  const { title, sections } = GAME_RULES[game];
+  return (
+    <Dialog open={open} onClose={onClose} title={title} actions={<Button onClick={onClose}>Entendido</Button>}>
+      <div className="flex flex-col gap-3">
+        {sections.map(([heading, paragraphs]) => (
+          <section key={heading}>
+            <h3 className="text-xs font-bold tracking-[0.14em] text-gold uppercase">{heading}</h3>
+            {paragraphs.map((text) => (
+              <p key={text} className="mt-1 text-[14px] leading-snug text-ivory-dim">
+                {text}
+              </p>
+            ))}
+          </section>
+        ))}
+      </div>
+    </Dialog>
   );
 }

@@ -1,7 +1,7 @@
 import { useSettings } from '@/data/settings';
 
 /** Efectos de sonido, sintetizados (sin archivos de audio que descargar). */
-export type Sound = 'chip' | 'card' | 'spin' | 'reelStop' | 'dice' | 'win' | 'bigWin' | 'lose';
+export type Sound = 'chip' | 'card' | 'spin' | 'reelStop' | 'dice' | 'win' | 'bigWin' | 'lose' | 'scratch';
 
 const SAMPLE_RATE = 44_100;
 
@@ -117,6 +117,11 @@ function synth(sound: Sound): Float32Array {
       m.tone(392, 0, 0.18, 12, 0.4, 0.01);
       m.tone(329.6, 0.16, 0.28, 9, 0.4, 0.01);
       return m.render(0.25);
+    case 'scratch':
+      // Raspado corto de la lámina: ruido áspero y algo agudo.
+      m.noise(0, 0.07, 28, 0.9, 41, 0.004, 0.85);
+      m.noise(0.02, 0.05, 40, 0.5, 42, 0.003, 0.6);
+      return m.render(0.18);
   }
 }
 
@@ -139,8 +144,37 @@ const unlock = () => {
 window.addEventListener('pointerdown', unlock, { capture: true, passive: true });
 window.addEventListener('keydown', unlock, { capture: true });
 
-/** Reproduce un efecto si el sonido está activado en Ajustes. */
+/**
+ * Vibración de cada efecto (milisegundos, o vibrar-pausa-vibrar…). Solo en los móviles que vibran:
+ * Android (web y APK); el iPhone no deja vibrar desde una web.
+ */
+const VIBRATION: Partial<Record<Sound, number | number[]>> = {
+  chip: 6,
+  card: 5,
+  reelStop: 10,
+  dice: [8, 40, 8],
+  win: [15, 50, 25],
+  bigWin: [25, 60, 25, 60, 80],
+  lose: 35,
+};
+
+function vibrate(sound: Sound, delayMs: number) {
+  const pattern = VIBRATION[sound];
+  if (pattern === undefined || !useSettings.getState().vibrationEnabled || typeof navigator.vibrate !== 'function') return;
+  const go = () => {
+    try {
+      navigator.vibrate(pattern);
+    } catch {
+      // Sin vibración: no pasa nada.
+    }
+  };
+  if (delayMs > 0) setTimeout(go, delayMs);
+  else go();
+}
+
+/** Reproduce un efecto (y su vibración) según lo activado en Ajustes. */
 export function play(sound: Sound, delayMs = 0): void {
+  vibrate(sound, delayMs);
   if (!useSettings.getState().soundEnabled) return;
   const ctx = audioContext();
   if (!ctx) return;

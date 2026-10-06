@@ -5,6 +5,9 @@ interface SettingsStore {
   soundEnabled: boolean;
   /** Sin celebraciones ni movimientos decorativos; las mesas siguen mostrando cada resultado. */
   reducedMotion: boolean;
+  /** Vibración al jugar (cartas, fichas, premios…) en los móviles que vibran. */
+  vibrationEnabled: boolean;
+  setVibrationEnabled: (value: boolean) => void;
   /** Aparecer en la clasificación semanal (alias, avatar y ganancias, visibles para los demás). */
   leaderboardEnabled: boolean;
   setLeaderboardEnabled: (value: boolean) => void;
@@ -18,6 +21,8 @@ export const useSettings = create<SettingsStore>()(
     (set) => ({
       soundEnabled: true,
       reducedMotion: typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches,
+      vibrationEnabled: true,
+      setVibrationEnabled: (vibrationEnabled) => set({ vibrationEnabled }),
       leaderboardEnabled: true,
       setLeaderboardEnabled: (leaderboardEnabled) => set({ leaderboardEnabled }),
       setSoundEnabled: (soundEnabled) => set({ soundEnabled }),

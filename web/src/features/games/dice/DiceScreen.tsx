@@ -129,7 +129,7 @@ export default function DiceScreen() {
   };
 
   return (
-    <GameShell
+    <GameShell rules="Dice"
       title="Dados"
       notice={notice && <TableNotice onDismiss={() => setNotice(null)}>{notice}</TableNotice>}
       controls={

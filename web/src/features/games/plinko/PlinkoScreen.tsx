@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { AnimatePresence, m as motion } from 'motion/react';
 import { useWallet, useReadyWallet } from '@/data/wallet';
 import { useSettings } from '@/data/settings';
@@ -14,6 +14,8 @@ import { economyNotice, useHoldProgressEvents } from '../shared/session';
 /** Bolas cayendo a la vez, como mucho. */
 const MAX_BALLS = 6;
 const RISKS: PlinkoRisk[] = ['low', 'medium', 'high'];
+/** Bolas del juego automático. */
+const AUTO_BALLS = 10;
 
 /** Color de cada casilla según lo que paga: rojo los extremos, dorado el centro. */
 function slotColor(tenths: number): { bg: string; text: string } {
@@ -50,20 +52,48 @@ export default function PlinkoScreen() {
   const balance = wallet?.balance ?? 0;
   const tenths = PLINKO_TENTHS[risk];
 
-  const drop = async () => {
-    if (balls.length + pending.current >= MAX_BALLS) return;
+  /** Suelta una bola: 'ok', 'full' (ya hay demasiadas cayendo) o 'fail' (sin saldo, error). */
+  const drop = async (): Promise<'ok' | 'full' | 'fail'> => {
+    if (balls.length + pending.current >= MAX_BALLS) return 'full';
     setNotice(null);
-    if (bet > balance) return setNotice('No tienes fichas suficientes para esa apuesta.');
+    if (bet > balance) {
+      setNotice('No tienes fichas suficientes para esa apuesta.');
+      return 'fail';
+    }
     const result = dropPlinko(bet, risk);
     pending.current++;
     // El resultado se contabiliza antes de soltar la bola.
     const booked = await playInstantRound('Plinko', result.stake, result.payout);
     pending.current--;
-    if (!booked.ok) return setNotice(economyNotice(booked.error));
+    if (!booked.ok) {
+      setNotice(economyNotice(booked.error));
+      return 'fail';
+    }
     setBalls((b) => [...b, { id: Date.now() + Math.random(), drop: result }]);
     setDrops((n) => n + 1);
     play('chip');
+    return 'ok';
   };
+  const dropRef = useRef(drop);
+  dropRef.current = drop;
+
+  // Juego automático: una bola cada medio segundo hasta soltar AUTO_BALLS (espera si hay muchas cayendo).
+  const [auto, setAuto] = useState(0);
+  const autoOn = auto > 0;
+  useEffect(() => {
+    if (!autoOn) return;
+    let busy = false;
+    const timer = setInterval(() => {
+      if (busy) return;
+      busy = true;
+      void dropRef.current().then((outcome) => {
+        busy = false;
+        if (outcome === 'ok') setAuto((n) => Math.max(0, n - 1));
+        else if (outcome === 'fail') setAuto(0);
+      });
+    }, 500);
+    return () => clearInterval(timer);
+  }, [autoOn]);
 
   const landed = (ball: Ball) => {
     setBalls((b) => b.filter((x) => x.id !== ball.id));
@@ -88,7 +118,7 @@ export default function PlinkoScreen() {
   const last = recent[0];
 
   return (
-    <GameShell
+    <GameShell rules="Plinko"
       title="Plinko"
       surface="dark"
       notice={notice && <TableNotice onDismiss={() => setNotice(null)}>{notice}</TableNotice>}
@@ -122,7 +152,16 @@ export default function PlinkoScreen() {
             </StepButton>
           </div>
           <div className="min-w-0 flex-1" />
-          <Button className="min-w-24" disabled={bet > balance || balls.length >= MAX_BALLS} onClick={() => void drop()}>
+          {autoOn ? (
+            <Button variant="secondary" className="min-w-24" onClick={() => setAuto(0)}>
+              Parar ({auto})
+            </Button>
+          ) : (
+            <Button variant="ghost" className="min-w-20" disabled={bet > balance} onClick={() => setAuto(AUTO_BALLS)}>
+              Auto ×{AUTO_BALLS}
+            </Button>
+          )}
+          <Button className="min-w-24" disabled={bet > balance || balls.length >= MAX_BALLS || autoOn} onClick={() => void drop()}>
             {bet > balance ? 'Sin saldo' : 'Soltar'}
           </Button>
         </div>

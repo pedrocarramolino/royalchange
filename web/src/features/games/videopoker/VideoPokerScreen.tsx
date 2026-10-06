@@ -171,7 +171,7 @@ export default function VideoPokerScreen() {
   const heldCount = open?.held.filter(Boolean).length ?? 0;
 
   return (
-    <GameShell
+    <GameShell rules="VideoPoker"
       title="Video póker"
       surface="dark"
       notice={notice && <TableNotice onDismiss={() => setNotice(null)}>{notice}</TableNotice>}

@@ -211,7 +211,7 @@ export default function BaccaratScreen() {
   const net = round ? round.data.totalPayout - round.data.totalStake : 0;
 
   return (
-    <GameShell
+    <GameShell rules="Baccarat"
       title="Baccarat"
       notice={notice && <TableNotice onDismiss={() => setNotice(null)}>{notice}</TableNotice>}
       controls={
