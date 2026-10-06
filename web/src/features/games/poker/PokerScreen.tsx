@@ -237,7 +237,7 @@ function PokerTable({ table }: { table: PokerState }) {
       <AnimatePresence>
         {handOver && table.awards.length > 0 && (
           <motion.div className="pointer-events-none absolute inset-x-0 top-[63%] z-30 flex justify-center" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-            <div className="rounded-2xl bg-black/80 px-4 py-1.5 text-center ring-1 ring-gold/50 backdrop-blur-sm" role="status">
+            <div className="rounded-2xl bg-black/85 px-4 py-1.5 text-center ring-1 ring-gold/50" role="status">
               {table.awards.map((award, i) => (
                 <p key={i} className={`font-display text-[15px] font-semibold ${award.winners.includes(HERO) ? 'text-gold-gradient' : 'text-ivory'}`}>
                   {award.winners.map((w) => (w === HERO ? 'Tú' : table.seats[w]!.name)).join(' y ')} {award.winners.length > 1 ? 'se reparten' : award.winners.includes(HERO) ? 'ganas' : 'gana'} {chips(award.amount)}

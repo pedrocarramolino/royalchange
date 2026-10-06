@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { connectAuthEmulator, getAuth, indexedDBLocalPersistence, initializeAuth, browserLocalPersistence } from 'firebase/auth';
+import { browserLocalPersistence, browserSessionPersistence, connectAuthEmulator, indexedDBLocalPersistence, initializeAuth } from 'firebase/auth';
 import {
   connectFirestoreEmulator,
   initializeFirestore,
@@ -24,9 +24,11 @@ const app = initializeApp({
 /** Capacitor (APK): la app se sirve desde el propio dispositivo. */
 export const isNativeApp = typeof window !== 'undefined' && 'Capacitor' in window && Boolean((window as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.());
 
+// Las mismas persistencias que getAuth, pero sin el código de ventanas emergentes y redirecciones
+// (solo se entra con email y contraseña): menos JavaScript que descargar y arrancar.
 export const auth = isNativeApp
   ? initializeAuth(app, { persistence: [indexedDBLocalPersistence, browserLocalPersistence] })
-  : getAuth(app);
+  : initializeAuth(app, { persistence: [indexedDBLocalPersistence, browserLocalPersistence, browserSessionPersistence] });
 auth.languageCode = 'es';
 
 function hasIndexedDb(): boolean {

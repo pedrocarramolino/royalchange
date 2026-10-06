@@ -155,7 +155,7 @@ export function GameShell({ title, children, controls, actions, notice, surface 
           </header>
           <main ref={main} className={`safe-x relative min-h-0 flex-1 ${controls ? '' : 'safe-bottom'}`}>{children}</main>
           {controls && (
-            <footer className="safe-bottom safe-x relative z-20 shrink-0 border-t border-gold/20 bg-[linear-gradient(180deg,rgb(10_12_14/0.82),rgb(6_7_9/0.95))] backdrop-blur">
+            <footer className="safe-bottom safe-x relative z-20 shrink-0 border-t border-gold/20 bg-[linear-gradient(180deg,rgb(12_14_16),rgb(6_7_9))]">
               {controls}
             </footer>
           )}

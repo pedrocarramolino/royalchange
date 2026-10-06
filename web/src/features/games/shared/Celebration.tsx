@@ -64,7 +64,7 @@ export function ResultBanner({ net, label, big }: { net: number | null; label: s
       initial={{ scale: 0.9, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
       transition={big ? { type: 'spring', duration: 0.5, bounce: 0.3 } : SPRING}
-      className="rounded-2xl bg-black/55 px-5 py-2 text-center ring-1 ring-gold/40 backdrop-blur-sm"
+      className="rounded-2xl bg-black/75 px-5 py-2 text-center ring-1 ring-gold/40"
       role="status"
     >
       <p className={`font-display font-bold ${big ? 'text-2xl' : 'text-lg'} ${tone}`}>{label}</p>

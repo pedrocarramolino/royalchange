@@ -72,7 +72,12 @@ export const useWallet = create<WalletStore>((set, get) => {
       (snapshot) => {
         if (snapshot.exists()) {
           seen = true;
-          set({ state: { status: 'ready', wallet: walletFromData(snapshot.data()) } });
+          const wallet = walletFromData(snapshot.data());
+          // Cada jugada genera varios avisos con los mismos datos (escritura local, confirmación del
+          // servidor…): si no ha cambiado nada, no se repinta.
+          const current = get().state;
+          if (current.status === 'ready' && sameWallet(current.wallet, wallet)) return;
+          set({ state: { status: 'ready', wallet } });
         } else if (!snapshot.metadata.fromCache) {
           // Desaparece uno que existía: la cuenta se está borrando. Nunca se recrea.
           if (seen) set({ state: { status: 'unavailable' } });
@@ -94,6 +99,10 @@ export const useWallet = create<WalletStore>((set, get) => {
   };
 
   const readLocal = async (playerId: string) => {
+    // El último estado local ya está en memoria (se publica al escribir y con cada aviso de Firestore):
+    // no hace falta leerlo de IndexedDB en cada jugada.
+    const state = get().state;
+    if (state.status === 'ready' && state.wallet.uid === playerId) return state.wallet;
     try {
       const snapshot = await getDocFromCache(doc(db, `wallets/${playerId}`));
       return snapshot.exists() ? walletFromData(snapshot.data()) : null;
@@ -167,3 +176,8 @@ export const ECONOMY_ERROR_TEXT: Record<EconomyError['type'], string> = {
   achievementLocked: 'Ese logro aún no está desbloqueado.',
   achievementAlreadyClaimed: 'Ya has recogido esa recompensa.',
 };
+
+/** Mismo monedero: las escrituras siempre avanzan el número de asiento y cambian el último asiento. */
+function sameWallet(a: Wallet, b: Wallet): boolean {
+  return a.seq === b.seq && a.lastEntryId === b.lastEntryId && a.balance === b.balance && JSON.stringify(a) === JSON.stringify(b);
+}

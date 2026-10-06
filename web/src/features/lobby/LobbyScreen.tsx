@@ -376,8 +376,9 @@ function BonusWeek({ filled, todayIndex }: { filled: number; todayIndex: number 
             <li key={day} className="flex flex-col items-center gap-1">
               <motion.span
                 className={`grid place-items-center rounded-full ${today ? 'ring-2 ring-gold-light' : ''}`}
-                animate={today ? { scale: [1, 1.08, 1] } : { scale: 1 }}
-                transition={today ? { repeat: Infinity, duration: 1.6 } : undefined}
+                // «transform» (no «scale»): lo anima el navegador fuera del hilo principal.
+                animate={today ? { transform: ['scale(1)', 'scale(1.08)', 'scale(1)'] } : { transform: 'scale(1)' }}
+                transition={today ? { repeat: Infinity, duration: 1.6, ease: 'easeInOut' } : undefined}
                 style={{ opacity: done || today ? 1 : 0.32 }}
               >
                 <Chip value={dailyReward(visualDay) >= 1000 ? 1000 : 500} size={34} label={dailyReward(visualDay) >= 1000 ? `${(dailyReward(visualDay) / 1000).toFixed(1).replace('.0', '')}K` : String(dailyReward(visualDay))} />

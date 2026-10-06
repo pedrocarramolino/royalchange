@@ -65,7 +65,9 @@ export const PlayingCard = memo(function PlayingCard({ rank, suit, faceDown, wid
       aria-label={label}
       className={className}
       style={{
-        filter: `drop-shadow(0 ${Math.max(1, width / 40)}px ${Math.max(2, width / 14)}px rgb(0 0 0 / 0.45))`,
+        // Sombra normal con las esquinas de la carta: un filtro drop-shadow por carta cuesta más al animar.
+        borderRadius: (width * 20) / W,
+        boxShadow: `0 ${Math.max(1, width / 40)}px ${Math.max(2, width / 14)}px rgb(0 0 0 / 0.45)`,
         opacity: dimmed ? 0.45 : 1,
         transition: 'opacity 200ms',
       }}

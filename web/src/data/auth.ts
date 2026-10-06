@@ -121,6 +121,8 @@ let observed: AuthStatus = { status: 'loading' };
 
 export const useAuth = create<AuthStore>((set, get) => {
   const publish = (state: AuthStatus) => {
+    // El mismo usuario otra vez (avisos de Firestore sin cambios): no se repinta toda la app.
+    if (JSON.stringify(state) === JSON.stringify(observed)) return;
     observed = state;
     if (!get().changing) set({ state });
   };

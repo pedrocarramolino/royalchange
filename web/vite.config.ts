@@ -6,7 +6,11 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   resolve: {
-    alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+      // Ver src/lib/re2js-shim.ts.
+      re2js: fileURLToPath(new URL('./src/lib/re2js-shim.ts', import.meta.url)),
+    },
   },
   plugins: [
     react(),
@@ -17,7 +21,7 @@ export default defineConfig({
       // En Capacitor (APK) la app ya va empaquetada: el registro se omite en src/pwa.ts.
       injectRegister: false,
       filename: 'sw.js',
-      includeAssets: ['icons/*.png', 'icons/icon.svg', 'fonts/*.woff2'],
+      includeAssets: ['icons/*.png', 'icons/icon.svg', 'fonts/*.woff2', 'felt-noise.png'],
       manifest: {
         id: './',
         name: 'Royal Chance',

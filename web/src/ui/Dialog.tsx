@@ -54,7 +54,7 @@ export function Dialog({ open, onClose, title, children, actions, sheet }: Dialo
     <AnimatePresence>
       {open && (
         <motion.div
-          className={`fixed inset-0 z-50 flex ${sheet ? 'items-end' : 'items-center'} justify-center bg-black/70 p-0 backdrop-blur-[2px] ${sheet ? '' : 'px-5'}`}
+          className={`fixed inset-0 z-50 flex ${sheet ? 'items-end' : 'items-center'} justify-center bg-black/75 p-0 ${sheet ? '' : 'px-5'}`}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}

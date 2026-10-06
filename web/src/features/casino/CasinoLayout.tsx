@@ -20,7 +20,7 @@ export function CasinoLayout() {
       <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <Outlet />
       </main>
-      <nav className="safe-bottom safe-x shrink-0 border-t border-gold/15 bg-ink-1/95 backdrop-blur" aria-label="Secciones">
+      <nav className="safe-bottom safe-x shrink-0 border-t border-gold/15 bg-ink-1" aria-label="Secciones">
         <ul className="mx-auto flex max-w-lg">
           {TABS.map(({ to, label, Icon }) => (
             <li key={to} className="flex-1">
