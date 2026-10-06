@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { AnimatePresence, m as motion } from 'motion/react';
 import { useWallet, useReadyWallet } from '@/data/wallet';
 import type { Card } from '@/engine/cards';
@@ -17,10 +17,12 @@ import { chips, grouped } from '@/lib/format';
 import { play, resultSound, BIG_WIN_MULTIPLIER } from '@/audio/sound';
 import { Button } from '@/ui/Button';
 import { cardName, PlayingCard } from '@/ui/PlayingCard';
-import { EASE_OUT } from '@/ui/motion';
+import { EASE_IN_OUT, EASE_OUT, SPRING } from '@/ui/motion';
+import { useCountUp } from '@/ui/ChipBalance';
+import { useDealFrom } from '../shared/deal';
 
-/** Carta que se va al cambiarla (o el dorso al repartir): cae un poco y se desvanece. */
-const DISCARD = { opacity: 0, transform: 'translateY(14px) scale(0.96)', transition: { duration: 0.16, ease: EASE_OUT } };
+/** Carta que se va al cambiarla (o el dorso al repartir): sale despedida hacia el mazo y se desvanece. */
+const DISCARD = { opacity: 0, transform: 'translate(18px, -22px) rotate(8deg) scale(0.92)', transition: { duration: 0.18, ease: EASE_IN_OUT } };
 import { Celebration } from '../shared/Celebration';
 import { FlipCard } from '../shared/FlipCard';
 import { GameShell, TableNotice, useTableSize } from '../shared/GameShell';
@@ -144,13 +146,14 @@ export default function VideoPokerScreen() {
 
   // Medidas: la tabla de pagos a la izquierda y las cinco cartas a la derecha.
   const payWidth = table.width >= 640 ? 196 : 158;
-  const cardWidth = Math.round(Math.max(40, Math.min(96, (table.width - payWidth - 24 - 16 - 40) / 5, ((table.height - 70) / 1.4) * 0.92)));
+  const cardWidth = Math.round(Math.max(40, Math.min(96, (table.width - payWidth - 24 - 16 - 40 - 56) / 5, ((table.height - 70) / 1.4) * 0.92)));
+  const deckWidth = Math.round(Math.max(30, cardWidth * 0.55));
 
   const shown = phase === 'result' && final ? final.cards : open?.deal.hand ?? null;
   const currentHand = phase === 'dealt' && open ? classifyVideoPoker(open.deal.hand) : phase === 'result' && final ? final.hand : null;
   // Con premio se atenúan las cartas que no forman la jugada; sin premio, ninguna.
   const winners = phase === 'result' && final?.hand ? winningCards(final.cards, final.hand) : null;
-  const status =
+  const status: ReactNode =
     phase === 'betting'
       ? 'Elige tu apuesta y pulsa Repartir.'
       : phase === 'dealt'
@@ -158,8 +161,13 @@ export default function VideoPokerScreen() {
           ? `Ya tienes ${NAME.get(currentHand)!.toLowerCase()}. Guarda las cartas que quieras y cambia el resto.`
           : 'Toca las cartas que quieras guardar y pulsa Cambiar.'
         : final?.hand
-          ? `${NAME.get(final.hand)} · ganas ${grouped(final.payout)}`
+          ? (
+            <>
+              {NAME.get(final.hand)} · ganas <CountUp value={final.payout} />
+            </>
+          )
           : 'Sin premio esta vez.';
+  const statusKey = phase === 'result' ? `resultado-${dealId}` : `${phase}-${currentHand ?? 'nada'}`;
   const heldCount = open?.held.filter(Boolean).length ?? 0;
 
   return (
@@ -198,7 +206,7 @@ export default function VideoPokerScreen() {
         <Paytable width={payWidth} bet={phase === 'dealt' && open ? open.bet : (final?.bet ?? bet)} current={currentHand} final={phase === 'result'} short={payWidth < 190} dense={table.height < 230} />
         <div className="flex min-w-0 flex-col items-center gap-2">
           <motion.p
-            key={status}
+            key={statusKey}
             className={`line-clamp-2 max-w-full text-center text-[13px] leading-snug font-semibold ${phase === 'result' && final?.hand ? 'font-display text-[17px] text-gold-gradient' : 'text-ivory-dim'}`}
             aria-live="polite"
             initial={{ opacity: 0, transform: 'translateY(4px)' }}
@@ -207,7 +215,7 @@ export default function VideoPokerScreen() {
           >
             {status}
           </motion.p>
-          <div className="flex gap-2.5 pt-2">
+          <div className="relative flex items-center gap-2.5 pt-2" data-table>
             {Array.from({ length: 5 }, (_, i) => {
               const card = shown?.[i];
               if (!card) {
@@ -236,9 +244,10 @@ export default function VideoPokerScreen() {
                   aria-label={phase === 'dealt' ? `${held ? 'Soltar' : 'Guardar'} ${cardName(card.rank, card.suit)}` : cardName(card.rank, card.suit)}
                   className="relative pb-5 transition-transform duration-150 ease-out enabled:active:scale-[0.97]"
                 >
+                  <DealtFromDeck delay={fresh ? order * 0.1 : undefined}>
                   <motion.div
                     className="relative"
-                    initial={fresh ? { opacity: 0, transform: 'translateY(-14px)' } : false}
+                    initial={false}
                     animate={{ opacity: winners && !winners[i] ? 0.45 : 1, transform: held ? 'translateY(-8px)' : 'translateY(0px)' }}
                     // Retener o soltar es un interruptor: muelle (se puede pulsar otra vez a mitad).
                     transition={{
@@ -246,7 +255,18 @@ export default function VideoPokerScreen() {
                       opacity: { duration: 0.25, ease: EASE_OUT, delay: fresh ? order * 0.1 : 0.45 },
                     }}
                   >
-                    <FlipCard rank={card.rank} suit={card.suit} faceDown={false} dealtFaceDown={fresh} delay={0.15 + order * 0.1} width={cardWidth} />
+                    <FlipCard rank={card.rank} suit={card.suit} faceDown={false} dealtFaceDown={fresh} delay={0.35 + order * 0.1} width={cardWidth} />
+                    {/* Jugada ganadora: un destello recorre cada carta, una tras otra. */}
+                    {winners && winners[i] && (
+                      <span className="pointer-events-none absolute inset-0 overflow-hidden rounded-[9%]" aria-hidden>
+                        <motion.span
+                          className="absolute inset-y-0 w-1/2 bg-[linear-gradient(100deg,transparent,rgb(255_255_255/0.7),transparent)]"
+                          initial={{ transform: 'translateX(-150%)' }}
+                          animate={{ transform: 'translateX(250%)' }}
+                          transition={{ duration: 0.6, ease: EASE_IN_OUT, delay: 0.7 + winners.slice(0, i).filter(Boolean).length * 0.1 }}
+                        />
+                      </span>
+                    )}
                     <AnimatePresence>
                       {(held || (winners && winners[i])) && (
                         <motion.span
@@ -259,13 +279,14 @@ export default function VideoPokerScreen() {
                       )}
                     </AnimatePresence>
                   </motion.div>
+                  </DealtFromDeck>
                   {/* Bajo la carta, sin ensanchar la columna (con cartas pequeñas el texto es más ancho que ellas). */}
                   <motion.span
                     className="absolute bottom-0 left-1/2 -translate-x-1/2 text-[10px] font-black tracking-[0.14em] whitespace-nowrap text-gold-light uppercase"
                     aria-hidden
                     initial={false}
-                    animate={{ opacity: held ? 1 : 0, transform: held ? 'translateY(0px)' : 'translateY(-4px)' }}
-                    transition={{ duration: 0.15, ease: EASE_OUT }}
+                    animate={{ opacity: held ? 1 : 0, transform: held ? 'translateY(0px) scale(1)' : 'translateY(-4px) scale(0.7)' }}
+                    transition={held ? SPRING : { duration: 0.12, ease: EASE_OUT }}
                   >
                     Retenida
                   </motion.span>
@@ -273,6 +294,15 @@ export default function VideoPokerScreen() {
                 </AnimatePresence>
               );
             })}
+            {/* Mazo: las cartas nuevas salen de aquí. */}
+            <div data-shoe className="relative ml-1 shrink-0 self-start pt-1" style={{ width: deckWidth + 4 }} aria-hidden>
+              {[2, 1, 0].map((k) => (
+                <div key={k} className="absolute" style={{ left: k * 2, top: 4 + k * 2 }}>
+                  <PlayingCard rank="A" suit="spades" faceDown width={deckWidth} />
+                </div>
+              ))}
+              <div style={{ width: deckWidth, height: (deckWidth * 350) / 250 + 8 }} />
+            </div>
           </div>
         </div>
       </div>
@@ -292,7 +322,7 @@ function Paytable({ width, bet, current, final, short, dense }: { width: number;
             <motion.li
               key={row.hand}
               // La jugada final late una vez al aparecer el premio.
-              animate={active && final ? { scale: [1, 1.05, 1] } : { scale: 1 }}
+              animate={active && final ? { transform: ['scale(1)', 'scale(1.05)', 'scale(1)'] } : { transform: 'scale(1)' }}
               transition={{ duration: 0.45, ease: EASE_OUT, delay: 0.55 }}
               className={`flex items-center justify-between gap-2 rounded-md px-2 leading-tight transition-colors duration-200 ${dense ? 'py-0 text-[10.5px]' : 'py-[3px] text-[11px]'} ${
                 active ? (final ? 'bg-gold text-on-gold' : 'bg-gold/20 text-gold-light') : 'text-ivory-dim'
@@ -320,4 +350,16 @@ function StepButton({ children, label, disabled, onClick }: { children: string; 
       {children}
     </button>
   );
+}
+
+/** Envoltorio que hace llegar la carta volando desde el mazo ([data-shoe]) tras [delay] segundos. */
+function DealtFromDeck({ delay, children }: { delay: number | undefined; children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useDealFrom(ref, '[data-shoe]', delay, 0);
+  return <div ref={ref}>{children}</div>;
+}
+
+/** Premio que cuenta desde cero al aparecer. */
+function CountUp({ value }: { value: number }) {
+  return <>{grouped(useCountUp(value, 700, 0))}</>;
 }
