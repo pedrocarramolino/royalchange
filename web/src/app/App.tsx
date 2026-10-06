@@ -8,17 +8,19 @@ import { ChipSvgDefs } from '@/ui/Chip';
 import { OrientationGate } from '@/ui/OrientationGate';
 import { useOrientationStore } from '@/ui/orientation';
 import { Splash } from '@/ui/Brand';
-import { WelcomeScreen } from '@/features/auth/WelcomeScreen';
-import { LoginScreen } from '@/features/auth/LoginScreen';
-import { RegisterScreen } from '@/features/auth/RegisterScreen';
-import { ForgotPasswordScreen } from '@/features/auth/ForgotPasswordScreen';
-import { LegalScreen } from '@/features/auth/LegalScreen';
 import { CasinoLayout } from '@/features/casino/CasinoLayout';
 import { LobbyScreen } from '@/features/lobby/LobbyScreen';
 import { ProgressScreen } from '@/features/progress/ProgressScreen';
 import { HistoryScreen } from '@/features/history/HistoryScreen';
 import { SettingsScreen } from '@/features/settings/SettingsScreen';
 import { ProgressToasts } from '@/features/casino/ProgressToasts';
+
+// Acceso (bienvenida, entrar, registro…): solo lo descarga quien no ha iniciado sesión.
+const WelcomeScreen = lazy(() => import('@/features/auth/WelcomeScreen').then((m) => ({ default: m.WelcomeScreen })));
+const LoginScreen = lazy(() => import('@/features/auth/LoginScreen').then((m) => ({ default: m.LoginScreen })));
+const RegisterScreen = lazy(() => import('@/features/auth/RegisterScreen').then((m) => ({ default: m.RegisterScreen })));
+const ForgotPasswordScreen = lazy(() => import('@/features/auth/ForgotPasswordScreen').then((m) => ({ default: m.ForgotPasswordScreen })));
+const LegalScreen = lazy(() => import('@/features/auth/LegalScreen').then((m) => ({ default: m.LegalScreen })));
 
 // Las mesas se cargan al abrirlas: la primera pantalla llega antes.
 const BlackjackScreen = lazy(() => import('@/features/games/blackjack/BlackjackScreen'));
@@ -49,6 +51,7 @@ export function App() {
     content = <Splash />;
   } else if (auth.status === 'signedOut') {
     content = (
+      <Suspense fallback={<Splash />}>
       <Routes>
         <Route path="/" element={<WelcomeScreen />} />
         <Route path="/entrar" element={<LoginScreen />} />
@@ -57,14 +60,17 @@ export function App() {
         <Route path="/legal/:document" element={<LegalScreen />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </Suspense>
     );
   } else if (!auth.user.profile) {
     // El registro se interrumpió tras crear la cuenta: falta el perfil.
     content = (
-      <Routes>
-        <Route path="/legal/:document" element={<LegalScreen />} />
-        <Route path="*" element={<RegisterScreen mode="completeProfile" />} />
-      </Routes>
+      <Suspense fallback={<Splash />}>
+        <Routes>
+          <Route path="/legal/:document" element={<LegalScreen />} />
+          <Route path="*" element={<RegisterScreen mode="completeProfile" />} />
+        </Routes>
+      </Suspense>
     );
   } else {
     content = (
