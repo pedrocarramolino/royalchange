@@ -83,7 +83,7 @@ service cloud.firestore {
     // Casillas de la ruleta diaria (DAILY_WHEEL en domain/progression.ts).
     function dailyWheelPrizes() { return [250, 500, 1000, 1500, 2500, 5000, 10000]; }
     function entryKinds() {
-      return ['Welcome', 'Bet', 'Settlement', 'InstantRound', 'Rescue', 'DailyBonus', 'DailySpin', 'AchievementReward'];
+      return ['Welcome', 'Bet', 'Settlement', 'InstantRound', 'Rescue', 'DailyBonus', 'DailySpin', 'AchievementReward', 'MissionReward'];
     }
 
     // Progresión: repite ExperienceRules, Levels, DailyBonusRules y Achievements (módulo domain).
@@ -102,8 +102,40 @@ service cloud.firestore {
         : stake >= 500 ? 6 : stake >= 100 ? 4 : stake >= 50 ? 2 : 0);
     }
 
-    function counters() {
-      return ['xp', 'rounds', 'wins', 'losses', 'pushes', 'winStreak', 'bestWinStreak', 'highestBalance', 'dailyStreak'];
+    // ── Misiones diarias: repiten domain/missions.ts ─────────────────────────────────────────
+    // Tres al día (fácil, media, difícil), elegidas por el número de día sin azar. Se busca solo
+    // la que hace falta (sin montar las listas enteras: límite de 1.000 expresiones por petición).
+    function easyMission(i) {
+      return i == 0 ? {'kind': 'rounds', 'game': '', 'target': 5, 'reward': 250}
+        : i == 1 ? {'kind': 'rounds', 'game': 'Slots', 'target': 5, 'reward': 250}
+        : i == 2 ? {'kind': 'rounds', 'game': 'Roulette', 'target': 3, 'reward': 250}
+        : i == 3 ? {'kind': 'rounds', 'game': 'Scratch', 'target': 3, 'reward': 250}
+        : i == 4 ? {'kind': 'rounds', 'game': 'Plinko', 'target': 5, 'reward': 250}
+        : i == 5 ? {'kind': 'rounds', 'game': 'Dice', 'target': 3, 'reward': 250}
+        : {'kind': 'rounds', 'game': 'VideoPoker', 'target': 3, 'reward': 250};
+    }
+    function mediumMission(i) {
+      return i == 0 ? {'kind': 'wins', 'game': '', 'target': 3, 'reward': 500}
+        : i == 1 ? {'kind': 'rounds', 'game': 'Blackjack', 'target': 5, 'reward': 500}
+        : i == 2 ? {'kind': 'wins', 'game': 'Roulette', 'target': 2, 'reward': 500}
+        : i == 3 ? {'kind': 'rounds', 'game': 'Baccarat', 'target': 5, 'reward': 500}
+        : i == 4 ? {'kind': 'wins', 'game': 'Slots', 'target': 3, 'reward': 500}
+        : {'kind': 'rounds', 'game': 'Poker', 'target': 3, 'reward': 500};
+    }
+    function hardMission(i) {
+      return i == 0 ? {'kind': 'stake', 'game': '', 'target': 5000, 'reward': 1000}
+        : i == 1 ? {'kind': 'wins', 'game': '', 'target': 8, 'reward': 1000}
+        : i == 2 ? {'kind': 'rounds', 'game': '', 'target': 25, 'reward': 1000}
+        : i == 3 ? {'kind': 'stake', 'game': '', 'target': 10000, 'reward': 1500}
+        : {'kind': 'wins', 'game': 'Blackjack', 'target': 3, 'reward': 1000};
+    }
+    /** Misión [slot] (0 fácil, 1 media, 2 difícil) del día [day]. */
+    function missionAt(slot, day) {
+      return slot == 0 ? easyMission(day % 7) : (slot == 1 ? mediumMission(day % 6) : hardMission(day % 5));
+    }
+
+    function serverDay() {
+      return math.floor(request.time.toMillis() / 86400000);
     }
 
     function playerPath(uid) {
@@ -118,60 +150,61 @@ service cloud.firestore {
       return /databases/$(database)/documents/wallets/$(uid)/ledger/$(entryId);
     }
 
-    function validOpenRound(round) {
-      return round is map
-        && round.keys().hasAll(['id', 'game', 'stake'])
-        && round.keys().hasOnly(['id', 'game', 'stake'])
-        && round.id is string
-        && round.game in games()
-        && round.stake is int && round.stake >= minimumBet() && round.stake <= maximumRoundStake();
+    function walletKeys() {
+      return [
+        'uid', 'balance', 'seq', 'lastEntryId', 'openRound', 'lastRescueAtMillis', 'xp', 'rounds',
+        'wins', 'losses', 'pushes', 'winStreak', 'bestWinStreak', 'highestBalance', 'dailyStreak',
+        'lastDailyDay', 'lastDailyAtMillis', 'lastSpinDay', 'lastSpinAtMillis', 'unlocked', 'claimed', 'missions'
+      ];
     }
 
+    // Casi ninguna jugada añade campos: si el monedero no crece, no se monta ni se recorre la lista
+    // de permitidos (comparar documentos enteros es de lo más caro). Sin crecer, solo cabría
+    // cambiar un campo por otro desconocido al liquidar (lo único que se quita es la ronda
+    // abierta), y un campo desconocido no tiene efecto: ni las reglas ni la app lo usan.
+    function validUpdatedKeys(after, before) {
+      return after.size() <= before.size() || after.keys().hasOnly(walletKeys());
+    }
+
+    // Campos del monedero. Solo campos conocidos: al crearlo se comprueban todos; al actualizarlo,
+    // solo los que se añaden (los demás ya se comprobaron al escribirse). Comparar los 22 en cada
+    // jugada era lo más caro de la validación, que va justa del límite de 1.000 expresiones.
+    // Los contadores (xp, rondas, racha, saldo máximo…) no se comprueban aquí uno a uno: cada
+    // operación los compara con valores enteros (y si faltan, la comparación falla). Tampoco se
+    // listan los obligatorios: si falta uno, su comprobación de abajo falla.
+    // Lo imprescindible de cualquier monedero. El resto de campos los fija y comprueba la operación
+    // que los cambia (y las demás exigen que no cambien): la ronda abierta, la apuesta; las fechas
+    // de recarga, bono y giro, sus operaciones; los logros cobrados, el cobro de un logro; las
+    // misiones, la ronda y su cobro. Al crear el monedero, la bienvenida exige que no estén.
     function validWallet(data, uid) {
-      return data.keys().hasAll(['uid', 'balance', 'seq', 'lastEntryId', 'unlocked', 'claimed'])
-        && data.keys().hasAll(counters())
-        && data.keys().hasOnly([
-          'uid', 'balance', 'seq', 'lastEntryId', 'openRound', 'lastRescueAtMillis', 'xp', 'rounds',
-          'wins', 'losses', 'pushes', 'winStreak', 'bestWinStreak', 'highestBalance', 'dailyStreak',
-          'lastDailyDay', 'lastDailyAtMillis', 'lastSpinDay', 'lastSpinAtMillis', 'unlocked', 'claimed'
-        ])
-        && data.uid == uid
+      return data.uid == uid
         && data.balance is int && data.balance >= 0
         && data.seq is int
         && data.lastEntryId is string
-        && (!('openRound' in data) || validOpenRound(data.openRound))
-        && (!('lastRescueAtMillis' in data) || data.lastRescueAtMillis is int)
-        && data.xp is int && data.rounds is int && data.wins is int && data.losses is int
-        && data.pushes is int && data.winStreak is int && data.bestWinStreak is int
-        && data.highestBalance is int && data.highestBalance >= data.balance
-        && data.dailyStreak is int
-        && (!('lastDailyDay' in data) || data.lastDailyDay is int)
-        && (!('lastDailyAtMillis' in data) || data.lastDailyAtMillis is int)
-        && (!('lastSpinDay' in data) || data.lastSpinDay is int)
-        && (!('lastSpinAtMillis' in data) || data.lastSpinAtMillis is int)
-        && data.unlocked is list && data.unlocked.toSet().hasOnly(achievementIds())
-        && data.claimed is list && data.claimed.toSet().hasOnly(data.unlocked);
+        && data.highestBalance >= data.balance
+        && data.unlocked is list
+        && data.claimed is list;
     }
 
     function validEntry(data, entryId) {
-      return data.keys().hasAll(['id', 'seq', 'kind', 'amount', 'balanceAfter', 'createdAtMillis'])
-        && data.keys().hasOnly([
+      // Los campos obligatorios no se listan: si falta uno, su comprobación de abajo falla.
+      return data.keys().hasOnly([
           'id', 'seq', 'kind', 'amount', 'balanceAfter', 'createdAtMillis',
-          'game', 'roundId', 'stake', 'payout', 'achievementId'
+          'game', 'roundId', 'stake', 'payout', 'achievementId', 'mission'
         ])
         && data.id == entryId
         && data.seq is int
-        && data.kind in entryKinds()
+        // El tipo y el juego los valida la operación (validOperation, ronda abierta o instantánea).
         && data.amount is int
         && data.balanceAfter is int
         // La fecha la pone el dispositivo (funciona sin conexión), pero nunca en el futuro del servidor.
         && data.createdAtMillis is int
         && data.createdAtMillis <= request.time.toMillis() + clockSkewMillis()
-        && (!('game' in data) || data.game in games())
         && (!('roundId' in data) || data.roundId is string)
         && (!('stake' in data) || data.stake is int)
         && (!('payout' in data) || data.payout is int)
-        && (!('achievementId' in data) || data.achievementId in achievementIds());
+        && (!('achievementId' in data) || data.achievementId in achievementIds())
+        && (!('mission' in data) || data.mission in [0, 1, 2]);
     }
 
     function keepsRescueTime(before, after) {
@@ -209,27 +242,80 @@ service cloud.firestore {
         && after.get('lastSpinAtMillis', null) == before.get('lastSpinAtMillis', null);
     }
 
+    // Las misiones solo cambian al cerrar una ronda o al cobrar una.
+    function keepsMissions(before, after) {
+      return after.get('missions', null) == before.get('missions', null);
+    }
+
+    // Lo que avanza cada misión con una ronda, sin montar la misión entera (límite de expresiones).
+    // Fáciles: todas cuentan rondas, en su juego. Medias: las de posición par cuentan victorias y
+    // las impares, rondas. Difíciles: 0 y 3 fichas apostadas, 1 victorias, 2 rondas y 4 victorias
+    // al blackjack. Ganar es cobrar más de lo apostado. (domain/missions.test.ts lo comprueba.)
+    function easyGame(day) {
+      return ['', 'Slots', 'Roulette', 'Scratch', 'Plinko', 'Dice', 'VideoPoker'][day % 7];
+    }
+    function mediumGame(day) {
+      return ['', 'Blackjack', 'Roulette', 'Baccarat', 'Slots', 'Poker'][day % 6];
+    }
+    function inGame(missionGame, game, amount) {
+      return missionGame == '' || missionGame == game ? amount : 0;
+    }
+    function hardGain(i, game, stake, win) {
+      return i == 0 || i == 3 ? stake : (i == 2 ? 1 : (i == 1 ? (win ? 1 : 0) : (win && game == 'Blackjack' ? 1 : 0)));
+    }
+
+    // Progreso tras una ronda: el día nunca retrocede ni pasa de mañana en el servidor; un día
+    // nuevo empieza de cero. Sin límite hacia atrás: una ronda jugada sin conexión y sincronizada
+    // días después sigue siendo válida (cobrar sí exige el día actual). Cada dato se calcula una
+    // vez y se pasa como argumento: la validación de una ronda va justa de expresiones.
+    function validMissionStep(base, claimedBefore, m, game, stake, win) {
+      return m.claimed == claimedBefore
+        && m.progress == [
+          base[0] + inGame(easyGame(m.day), game, 1),
+          base[1] + inGame(mediumGame(m.day), game, m.day % 2 == 0 ? (win ? 1 : 0) : 1),
+          base[2] + hardGain(m.day % 5, game, stake, win)
+        ];
+    }
+    function validMissionRoundFrom(prev, m, game, stake, win) {
+      return m.day is int
+        && m.day <= serverDay() + 1
+        && (prev == null
+          ? validMissionStep([0, 0, 0], [false, false, false], m, game, stake, win)
+          : m.day >= prev.day && (prev.day == m.day
+            ? validMissionStep(prev.progress, prev.claimed, m, game, stake, win)
+            : validMissionStep([0, 0, 0], [false, false, false], m, game, stake, win)));
+    }
+
+    // Una ronda puede no traer misiones (versiones anteriores de la app), pero nunca quitarlas.
+    function missionsAfterRound(before, after, game, stake, payout) {
+      return 'missions' in after
+        ? validMissionRoundFrom(before.get('missions', null), after.missions, game, stake, payout > stake)
+        : !('missions' in before);
+    }
+
     function keepsClaims(before, after) {
       return after.claimed.toSet() == before.get('claimed', []).toSet();
     }
 
     // Una ronda cerrada: experiencia por la apuesta, contadores y racha según el resultado.
-    // Ganar es cobrar más de lo apostado; un empate no rompe ni alarga la racha.
+    // Ganar es cobrar más de lo apostado; un empate no rompe ni alarga la racha. Cada dato se
+    // calcula una vez y se pasa como argumento (la validación de una ronda va justa de expresiones).
     function validRoundProgress(before, after, stake, payout) {
-      let win = payout > stake;
-      let loss = payout < stake;
-      let streak = win ? previous(before, 'winStreak') + 1 : (loss ? 0 : previous(before, 'winStreak'));
-      let best = previous(before, 'bestWinStreak');
-      return after.xp == previous(before, 'xp') + xpForStake(stake)
-        && after.rounds == previous(before, 'rounds') + 1
-        && after.wins == previous(before, 'wins') + (win ? 1 : 0)
-        && after.losses == previous(before, 'losses') + (loss ? 1 : 0)
-        && after.pushes == previous(before, 'pushes') + (win || loss ? 0 : 1)
-        && after.winStreak == streak
-        && after.bestWinStreak == (streak > best ? streak : best)
+      return validRoundCounters(before, after, stake, payout > stake, payout < stake, before.get('winStreak', 0))
         && keepsDailyBonus(before, after)
         && keepsDailySpin(before, after)
         && keepsClaims(before, after);
+    }
+    function validRoundCounters(before, after, stake, win, loss, streakBefore) {
+      return after.xp == before.get('xp', 0) + xpForStake(stake)
+        && after.rounds == before.get('rounds', 0) + 1
+        && after.wins == before.get('wins', 0) + (win ? 1 : 0)
+        && after.losses == before.get('losses', 0) + (loss ? 1 : 0)
+        && after.pushes == before.get('pushes', 0) + (win || loss ? 0 : 1)
+        && validStreak(after, win ? streakBefore + 1 : (loss ? 0 : streakBefore), before.get('bestWinStreak', 0));
+    }
+    function validStreak(after, streak, best) {
+      return after.winStreak == streak && after.bestWinStreak == (streak > best ? streak : best);
     }
 
     // Solo se desbloquean logros cuya condición se cumple con los datos ya validados. La mayoría
@@ -244,20 +330,29 @@ service cloud.firestore {
     function validNewUnlocks(earlier, after) {
       let added = after.unlocked.toSet().difference(earlier);
       return after.unlocked.toSet().hasAll(earlier)
-        && (!('FirstWin' in added) || after.wins >= 1)
-        && (!('Rounds10' in added) || after.rounds >= 10)
-        && (!('Rounds100' in added) || after.rounds >= 100)
-        && (!('Rounds1000' in added) || after.rounds >= 1000)
-        && (!('Wins50' in added) || after.wins >= 50)
-        && (!('WinStreak5' in added) || after.bestWinStreak >= 5)
-        && (!('WinStreak10' in added) || after.bestWinStreak >= 10)
-        && (!('Level5' in added) || after.xp >= 800)
-        && (!('Level10' in added) || after.xp >= 4050)
-        && (!('Level25' in added) || after.xp >= 28800)
-        && (!('Balance50k' in added) || after.highestBalance >= 50000)
-        && (!('Balance250k' in added) || after.highestBalance >= 250000)
-        && (!('DailyStreak7' in added) || after.dailyStreak >= 7)
-        && (!('DailyStreak30' in added) || after.dailyStreak >= 30);
+        && !('-' in added)
+        && added.hasOnly(unlockableNow(after));
+    }
+
+    // Logros cuya condición se cumple con los datos ya validados ('-' en los que no). Es a la vez
+    // la lista de ids válidos: más barato que comprobar los catorce uno a uno.
+    function unlockableNow(after) {
+      return [
+        after.wins >= 1 ? 'FirstWin' : '-',
+        after.rounds >= 10 ? 'Rounds10' : '-',
+        after.rounds >= 100 ? 'Rounds100' : '-',
+        after.rounds >= 1000 ? 'Rounds1000' : '-',
+        after.wins >= 50 ? 'Wins50' : '-',
+        after.bestWinStreak >= 5 ? 'WinStreak5' : '-',
+        after.bestWinStreak >= 10 ? 'WinStreak10' : '-',
+        after.xp >= 800 ? 'Level5' : '-',
+        after.xp >= 4050 ? 'Level10' : '-',
+        after.xp >= 28800 ? 'Level25' : '-',
+        after.highestBalance >= 50000 ? 'Balance50k' : '-',
+        after.highestBalance >= 250000 ? 'Balance250k' : '-',
+        after.dailyStreak >= 7 ? 'DailyStreak7' : '-',
+        after.dailyStreak >= 30 ? 'DailyStreak30' : '-'
+      ];
     }
 
     // Apuesta de una ronda por turnos: abre la ronda o añade fichas a la abierta del mismo juego.
@@ -267,6 +362,7 @@ service cloud.firestore {
       let roundId = previous == null ? e.id : previous.id;
       let roundStake = (previous == null ? 0 : previous.stake) + stake;
       return e.kind == 'Bet'
+        && e.game in games()
         && stake >= minimumBet()
         && e.stake == stake
         && (previous == null || previous.game == e.game)
@@ -277,7 +373,8 @@ service cloud.firestore {
         && keepsCounters(before, after)
         && keepsDailyBonus(before, after)
         && keepsDailySpin(before, after)
-        && keepsClaims(before, after);
+        && keepsClaims(before, after)
+        && keepsMissions(before, after);
     }
 
     // Liquidación de la ronda abierta: el pago no puede superar su apuesta por el techo global.
@@ -295,7 +392,8 @@ service cloud.firestore {
         && payout <= round.stake * maximumPayoutMultiplier()
         && !('openRound' in after)
         && keepsRescueTime(before, after)
-        && validRoundProgress(before, after, round.stake, payout);
+        && validRoundProgress(before, after, round.stake, payout)
+        && missionsAfterRound(before, after, round.game, round.stake, payout);
     }
 
     // Ronda instantánea (ruleta, slots, dados): apuesta y pago en un solo asiento.
@@ -310,7 +408,8 @@ service cloud.firestore {
         && after.balance - before.balance == e.payout - e.stake
         && after.get('openRound', null) == before.get('openRound', null)
         && keepsRescueTime(before, after)
-        && validRoundProgress(before, after, e.stake, e.payout);
+        && validRoundProgress(before, after, e.stake, e.payout)
+        && missionsAfterRound(before, after, e.game, e.stake, e.payout);
     }
 
     // Recarga gratuita: sin fichas para apostar ni en la mesa, y como mucho una cada 4 horas
@@ -328,7 +427,8 @@ service cloud.firestore {
         && keepsCounters(before, after)
         && keepsDailyBonus(before, after)
         && keepsDailySpin(before, after)
-        && keepsClaims(before, after);
+        && keepsClaims(before, after)
+        && keepsMissions(before, after);
     }
 
     // Bono diario: un día del dispositivo posterior al último cobro y, como mucho, un día de
@@ -351,7 +451,8 @@ service cloud.firestore {
         && keepsRescueTime(before, after)
         && keepsCounters(before, after)
         && keepsDailySpin(before, after)
-        && keepsClaims(before, after);
+        && keepsClaims(before, after)
+        && keepsMissions(before, after);
     }
 
     // Ruleta diaria: un giro por día del dispositivo (como el bono, cerca del día del servidor) y un
@@ -370,7 +471,8 @@ service cloud.firestore {
         && keepsRescueTime(before, after)
         && keepsCounters(before, after)
         && keepsDailyBonus(before, after)
-        && keepsClaims(before, after);
+        && keepsClaims(before, after)
+        && keepsMissions(before, after);
     }
 
     // Recompensa de un logro desbloqueado antes y aún sin cobrar.
@@ -385,7 +487,35 @@ service cloud.firestore {
         && keepsRescueTime(before, after)
         && keepsCounters(before, after)
         && keepsDailyBonus(before, after)
-        && keepsDailySpin(before, after);
+        && keepsDailySpin(before, after)
+        && keepsMissions(before, after);
+    }
+
+    // Recompensa de una misión completada y aún sin cobrar, de hoy (un día de margen con el
+    // servidor, como el bono): adelantar días con rondas no permite cobrar misiones de más.
+    function validMissionClaim(before, after, e) {
+      let m = before.get('missions', null);
+      let i = e.get('mission', -1);
+      let target = m == null ? null : missionAt(i, m.day);
+      return e.kind == 'MissionReward'
+        && m != null
+        && i in [0, 1, 2]
+        && m.day >= serverDay() - 1
+        && m.day <= serverDay() + 1
+        && m.claimed[i] == false
+        && m.progress[i] >= target.target
+        && after.missions == {
+          'day': m.day,
+          'progress': m.progress,
+          'claimed': [i == 0 || m.claimed[0], i == 1 || m.claimed[1], i == 2 || m.claimed[2]]
+        }
+        && after.balance - before.balance == target.reward
+        && after.get('openRound', null) == before.get('openRound', null)
+        && keepsRescueTime(before, after)
+        && keepsCounters(before, after)
+        && keepsDailyBonus(before, after)
+        && keepsDailySpin(before, after)
+        && keepsClaims(before, after);
     }
 
     // El asiento cuadra con el cambio de saldo y es una de las operaciones permitidas. El saldo
@@ -409,7 +539,20 @@ service cloud.firestore {
         : e.kind == 'DailyBonus' ? validDailyBonus(before, after, e)
         : e.kind == 'DailySpin' ? validDailySpin(before, after, e)
         : e.kind == 'AchievementReward' ? validAchievementClaim(before, after, e)
+        : e.kind == 'MissionReward' ? validMissionClaim(before, after, e)
         : false;
+    }
+
+    // Cambio del monedero: el asiento se lee una sola vez (en «let»; como argumento se volvería a
+    // leer en cada uso y agotaría el límite de expresiones).
+    function validWalletUpdate(uid, before, after) {
+      let path = entryPath(uid, after.lastEntryId);
+      let e = getAfter(path).data;
+      return validUpdatedKeys(after, before)
+        && validWallet(after, uid)
+        && after.seq == before.seq + 1
+        && !exists(path)
+        && validMovement(before, after, e);
     }
 
     function validWelcome(after, e) {
@@ -424,6 +567,7 @@ service cloud.firestore {
         && !('lastDailyDay' in after) && !('lastDailyAtMillis' in after)
         && !('lastSpinDay' in after) && !('lastSpinAtMillis' in after)
         && after.unlocked.size() == 0 && after.claimed.size() == 0
+        && !('missions' in after)
         && e.kind == 'Welcome'
         && e.seq == 1
         && e.amount == welcomeGrant()
@@ -434,22 +578,18 @@ service cloud.firestore {
       allow read: if isOwner(uid);
 
       // Se crea una sola vez, tras el perfil, con las fichas de bienvenida y su asiento.
-      allow create: if isOwner(uid)
+      // Lo primero, lo más barato: Firestore evalúa también esta regla en cada jugada (se escribe con
+      // «set») y solo la bienvenida es el movimiento 1; así no gasta el límite de expresiones.
+      allow create: if request.resource.data.seq == 1
+        && isOwner(uid)
         && exists(playerPath(uid))
+        && request.resource.data.keys().hasOnly(walletKeys())
         && validWallet(request.resource.data, uid)
         && validWelcome(request.resource.data, getAfter(entryPath(uid, request.resource.data.lastEntryId)).data);
 
       // Cada cambio: número de movimiento consecutivo y un asiento nuevo, escrito en el mismo lote,
       // que lo justifica. Una escritura basada en un saldo antiguo no cuadra y se rechaza.
-      allow update: if isOwner(uid)
-        && validWallet(request.resource.data, uid)
-        && request.resource.data.seq == resource.data.seq + 1
-        && !exists(entryPath(uid, request.resource.data.lastEntryId))
-        && validMovement(
-          resource.data,
-          request.resource.data,
-          getAfter(entryPath(uid, request.resource.data.lastEntryId)).data
-        );
+      allow update: if isOwner(uid) && validWalletUpdate(uid, resource.data, request.resource.data);
 
       // Solo al eliminar la cuenta: junto con el perfil, para no poder reiniciar el saldo.
       allow delete: if isOwner(uid) && !existsAfter(playerPath(uid));

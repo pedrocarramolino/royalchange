@@ -468,6 +468,121 @@ describe('progresión', () => {
   });
 });
 
+// ── Misiones diarias (repiten domain/missions.ts) ──────────────────────────────────────────
+const mission = (kind, game, target, reward) => ({ kind, game, target, reward });
+const EASY = [
+  mission('rounds', '', 5, 250), mission('rounds', 'Slots', 5, 250), mission('rounds', 'Roulette', 3, 250),
+  mission('rounds', 'Scratch', 3, 250), mission('rounds', 'Plinko', 5, 250), mission('rounds', 'Dice', 3, 250),
+  mission('rounds', 'VideoPoker', 3, 250),
+];
+const MEDIUM = [
+  mission('wins', '', 3, 500), mission('rounds', 'Blackjack', 5, 500), mission('wins', 'Roulette', 2, 500),
+  mission('rounds', 'Baccarat', 5, 500), mission('wins', 'Slots', 3, 500), mission('rounds', 'Poker', 3, 500),
+];
+const HARD = [
+  mission('stake', '', 5000, 1000), mission('wins', '', 8, 1000), mission('rounds', '', 25, 1000),
+  mission('stake', '', 10000, 1500), mission('wins', 'Blackjack', 3, 1000),
+];
+const missionsFor = (day) => [EASY[day % 7], MEDIUM[day % 6], HARD[day % 5]];
+const gain = (m, game, stake, payout) =>
+  m.game && m.game !== game ? 0 : m.kind === 'rounds' ? 1 : m.kind === 'wins' ? (payout > stake ? 1 : 0) : stake;
+/** Misiones tras una tirada de ruleta (spin) partiendo de [progress] del mismo día. */
+const afterSpin = (day, progress = [0, 0, 0], claimed = [false, false, false], stake = 100, payout = 0) => ({
+  day, claimed, progress: missionsFor(day).map((m, i) => progress[i] + gain(m, 'Roulette', stake, payout)),
+});
+
+function claimMission(db, uid, { index = 0, reward, missions }) {
+  const id = newId('mision');
+  return move(
+    db,
+    uid,
+    { balance: 10000 + reward, seq: 6, lastEntryId: id, missions },
+    { id, seq: 6, kind: 'MissionReward', amount: reward, balanceAfter: 10000 + reward, mission: index },
+  );
+}
+
+describe('misiones diarias', () => {
+  test('cada ronda avanza las misiones del día exactamente', async () => {
+    const db = as('ana');
+    const day = today();
+    await seedWallet('ana');
+    await assertFails(spin(db, 'ana', { progress: { missions: { ...afterSpin(day), progress: [9, 9, 9] } } }));
+    await assertSucceeds(spin(db, 'ana', { progress: { missions: afterSpin(day) } }));
+
+    // El mismo día sigue sumando; un día nuevo empieza de cero.
+    await seedWallet('ana', { missions: { day, progress: [2, 1, 0], claimed: [true, false, false] } });
+    await assertFails(spin(db, 'ana', { progress: { missions: afterSpin(day) } }));
+    await assertSucceeds(spin(db, 'ana', { progress: { missions: afterSpin(day, [2, 1, 0], [true, false, false]) } }));
+    await seedWallet('ana', { missions: { day: day - 1, progress: [2, 1, 0], claimed: [true, false, false] } });
+    await assertSucceeds(spin(db, 'ana', { progress: { missions: afterSpin(day) } }));
+  });
+
+  test('el caso más costoso cabe en el límite de las reglas: ganar, desbloquear un logro y cambiar de día', async () => {
+    const day = today();
+    await seedWallet('ana', { missions: { day: day - 1, progress: [2, 1, 0], claimed: [true, false, false] } });
+    await assertSucceeds(spin(as('ana'), 'ana', {
+      stake: 1000, payout: 2000,
+      progress: { unlocked: ['FirstWin'], missions: afterSpin(day, [0, 0, 0], [false, false, false], 1000, 2000) },
+    }));
+  });
+
+  test('también cabe al liquidar una ronda por turnos ganada que desbloquea un logro y cambia de día', async () => {
+    const day = today();
+    const missions = { day, claimed: [false, false, false], progress: missionsFor(day).map((m) => gain(m, 'Blackjack', 500, 1000)) };
+    await seedWallet('ana', {
+      balance: 9500, openRound: { id: 'apuesta', game: 'Blackjack', stake: 500 },
+      missions: { day: day - 1, progress: [2, 1, 0], claimed: [true, false, false] },
+    });
+    await assertSucceeds(move(
+      as('ana'), 'ana',
+      { balance: 10500, seq: 6, lastEntryId: 'pago', highestBalance: 10500, ...afterRound(500, 1000), unlocked: ['FirstWin'], missions },
+      { id: 'pago', seq: 6, kind: 'Settlement', amount: 1000, balanceAfter: 10500, game: 'Blackjack', roundId: 'apuesta', stake: 500, payout: 1000 },
+    ));
+  });
+
+  test('el día no retrocede, no se adelanta más de uno y las misiones no se pueden quitar', async () => {
+    const db = as('ana');
+    const day = today();
+    await seedWallet('ana', { missions: { day, progress: [0, 0, 0], claimed: [false, false, false] } });
+    await assertFails(spin(db, 'ana', { progress: { missions: afterSpin(day - 1) } }));
+    await assertFails(spin(db, 'ana', { progress: { missions: afterSpin(day + 5) } }));
+    await assertFails(spin(db, 'ana'));
+    // Una versión anterior de la app (sin misiones) puede seguir jugando si nunca las tuvo.
+    await seedWallet('ana');
+    await assertSucceeds(spin(db, 'ana'));
+  });
+
+  test('una misión completada se cobra una vez, por su importe y solo si es de hoy', async () => {
+    const db = as('ana');
+    const day = today();
+    const set = missionsFor(day);
+    const done = { day, progress: [set[0].target, 0, 0], claimed: [false, false, false] };
+    const paid = { ...done, claimed: [true, false, false] };
+    await seedWallet('ana', { missions: done });
+    await assertFails(claimMission(db, 'ana', { index: 0, reward: set[0].reward + 100, missions: paid }));
+    await assertFails(claimMission(db, 'ana', { index: 1, reward: set[1].reward, missions: { ...done, claimed: [false, true, false] } }));
+    await assertFails(claimMission(db, 'ana', { index: 0, reward: set[0].reward, missions: { ...paid, progress: [99, 99, 99] } }));
+    await assertSucceeds(claimMission(db, 'ana', { index: 0, reward: set[0].reward, missions: paid }));
+
+    await seedWallet('ana', { missions: paid });
+    await assertFails(claimMission(db, 'ana', { index: 0, reward: set[0].reward, missions: paid }));
+
+    // Misiones de hace días: ya no se cobran (aunque estén completadas).
+    const old = day - 3;
+    await seedWallet('ana', { missions: { day: old, progress: [missionsFor(old)[0].target, 0, 0], claimed: [false, false, false] } });
+    await assertFails(claimMission(db, 'ana', { index: 0, reward: missionsFor(old)[0].reward, missions: { day: old, progress: [missionsFor(old)[0].target, 0, 0], claimed: [true, false, false] } }));
+  });
+
+  test('el bono y los logros no pueden tocar las misiones', async () => {
+    const db = as('ana');
+    const day = today();
+    await seedWallet('ana', { missions: { day, progress: [0, 0, 0], claimed: [false, false, false] } });
+    // El bono escrito sin las misiones las quitaría: se rechaza.
+    await assertFails(dailyBonus(db, 'ana'));
+    await assertFails(claimAchievement(db, 'ana', { progress: { wins: 1, rounds: 1, xp: 14, winStreak: 1, bestWinStreak: 1 } }));
+  });
+});
+
 describe('resto de la base de datos', () => {
   test('cualquier otra colección está cerrada', async () => {
     await assertFails(setDoc(doc(as('ana'), 'leaderboard/ana'), { balance: 1 }));

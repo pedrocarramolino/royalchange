@@ -1,5 +1,6 @@
 import type { EconomyError, EconomyOperation, EntryKind, GameType, LedgerEntry, ProgressEvent, Wallet, AchievementId } from './economy';
 import { EconomyRules, rescueStatus } from './economy';
+import { missionsAfterRound, missionsToday, newlyCompletedMissions } from './missions';
 import { achievement, afterRound, dailyBonusStatus, dailySpinStatus, isDailyPrize, levelFor, newlyUnlocked, sortAchievements } from './progression';
 
 /** Resultado de una operación: monedero nuevo, asiento que lo justifica y avisos para la interfaz. */
@@ -48,9 +49,9 @@ export function applyOperation(wallet: Wallet, operation: EconomyOperation, entr
     case 'placeBet':
       return placeBet(wallet, operation.game, operation.stake, entryId, nowMillis);
     case 'settleRound':
-      return settleRound(wallet, operation.payout, entryId, nowMillis);
+      return settleRound(wallet, operation.payout, entryId, nowMillis, operation.today);
     case 'instantRound':
-      return instantRound(wallet, operation.game, operation.stake, operation.payout, entryId, nowMillis);
+      return instantRound(wallet, operation.game, operation.stake, operation.payout, entryId, nowMillis, operation.today);
     case 'claimRescue':
       return claimRescue(wallet, entryId, nowMillis);
     case 'claimDailyBonus':
@@ -59,6 +60,8 @@ export function applyOperation(wallet: Wallet, operation: EconomyOperation, entr
       return spinDailyWheel(wallet, operation.today, operation.prize, entryId, nowMillis);
     case 'claimAchievement':
       return claimAchievement(wallet, operation.id, entryId, nowMillis);
+    case 'claimMission':
+      return claimMission(wallet, operation.index, operation.today, entryId, nowMillis);
   }
 }
 
@@ -79,7 +82,12 @@ function placeBet(wallet: Wallet, game: GameType, stake: number, entryId: string
   );
 }
 
-function settleRound(wallet: Wallet, payout: number, entryId: string, now: number): TransitionResult {
+/** La ronda cuenta para las misiones del día (si se conoce el día del dispositivo). */
+function withMissions(wallet: Wallet, today: number | undefined, game: GameType, stake: number, payout: number): Wallet {
+  return today === undefined ? wallet : { ...wallet, missions: missionsAfterRound(wallet.missions, today, game, stake, payout) };
+}
+
+function settleRound(wallet: Wallet, payout: number, entryId: string, now: number, today?: number): TransitionResult {
   const round = wallet.openRound;
   if (!round) return fail({ type: 'noOpenRound' });
   if (payout > round.stake * EconomyRules.MAXIMUM_PAYOUT_MULTIPLIER) return fail({ type: 'payoutTooHigh' });
@@ -87,13 +95,13 @@ function settleRound(wallet: Wallet, payout: number, entryId: string, now: numbe
   return record(
     wallet,
     // La ronda cuenta al cerrarse, con todas sus apuestas (dobles y separaciones incluidas).
-    afterRound({ ...rest, balance: wallet.balance + payout }, round.stake, payout),
+    withMissions(afterRound({ ...rest, balance: wallet.balance + payout }, round.stake, payout), today, round.game, round.stake, payout),
     // La liquidación guarda lo apostado en toda la ronda: el historial la muestra completa.
     { id: entryId, kind: 'Settlement', createdAtMillis: now, game: round.game, roundId: round.id, stake: round.stake, payout },
   );
 }
 
-function instantRound(wallet: Wallet, game: GameType, stake: number, payout: number, entryId: string, now: number): TransitionResult {
+function instantRound(wallet: Wallet, game: GameType, stake: number, payout: number, entryId: string, now: number, today?: number): TransitionResult {
   if (stake < EconomyRules.MINIMUM_BET) return fail({ type: 'belowMinimumBet' });
   if (stake > EconomyRules.MAXIMUM_ROUND_STAKE) return fail({ type: 'aboveMaximumStake' });
   if (stake > wallet.balance) return fail({ type: 'insufficientFunds' });
@@ -101,7 +109,7 @@ function instantRound(wallet: Wallet, game: GameType, stake: number, payout: num
   return record(
     wallet,
     // Una ronda abierta de otro juego no se toca: sus fichas siguen en la mesa.
-    afterRound({ ...wallet, balance: wallet.balance - stake + payout }, stake, payout),
+    withMissions(afterRound({ ...wallet, balance: wallet.balance - stake + payout }, stake, payout), today, game, stake, payout),
     { id: entryId, kind: 'InstantRound', createdAtMillis: now, game, roundId: entryId, stake, payout },
   );
 }
@@ -150,6 +158,20 @@ function claimAchievement(wallet: Wallet, id: AchievementId, entryId: string, no
   );
 }
 
+/** Recompensa de una misión del día completada y aún sin cobrar. */
+function claimMission(wallet: Wallet, index: number, today: number, entryId: string, now: number): TransitionResult {
+  const current = missionsToday(wallet, today);
+  const stored = wallet.missions;
+  const m = current.missions[index];
+  if (!m || !stored || stored.day !== current.day || (current.progress[index] ?? 0) < m.target) return fail({ type: 'missionNotCompleted' });
+  if (current.claimed[index]) return fail({ type: 'missionAlreadyClaimed' });
+  return record(
+    wallet,
+    { ...wallet, balance: wallet.balance + m.reward, missions: { ...stored, claimed: stored.claimed.map((c, i) => c || i === index) } },
+    { id: entryId, kind: 'MissionReward', createdAtMillis: now, mission: index },
+  );
+}
+
 /** Datos del asiento que no dependen del saldo resultante. */
 interface Draft {
   id: string;
@@ -160,6 +182,7 @@ interface Draft {
   stake?: number;
   payout?: number;
   achievementId?: AchievementId;
+  mission?: number;
 }
 
 /**
@@ -179,6 +202,7 @@ function record(before: Wallet, updated: Wallet, draft: Draft): TransitionResult
   const level = levelFor(next.xp);
   if (level > levelFor(before.xp)) events.push({ type: 'levelUp', level });
   unlockedNow.forEach((id) => events.push({ type: 'achievementUnlocked', id }));
+  newlyCompletedMissions(before.missions, next.missions).forEach((index) => events.push({ type: 'missionCompleted', day: next.missions!.day, index }));
 
   const entry: LedgerEntry = {
     id: draft.id,
@@ -193,5 +217,6 @@ function record(before: Wallet, updated: Wallet, draft: Draft): TransitionResult
   if (draft.stake !== undefined) entry.stake = draft.stake;
   if (draft.payout !== undefined) entry.payout = draft.payout;
   if (draft.achievementId !== undefined) entry.achievementId = draft.achievementId;
+  if (draft.mission !== undefined) entry.mission = draft.mission;
   return { ok: true, value: { wallet: next, entry, events } };
 }

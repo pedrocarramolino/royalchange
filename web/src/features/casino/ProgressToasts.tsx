@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { AnimatePresence, m as motion } from 'motion/react';
 import { useWallet } from '@/data/wallet';
 import { achievement } from '@/domain/progression';
+import { missionsFor, missionText } from '@/domain/missions';
 import { chips } from '@/lib/format';
 import { Chip } from '@/ui/Chip';
 import { IconTrophy } from '@/ui/icons';
@@ -20,7 +21,13 @@ export function ProgressToasts() {
     return () => clearTimeout(timer);
   }, [event, consume]);
 
-  const key = event ? (event.type === 'levelUp' ? `level-${event.level}` : `ach-${event.id}`) : null;
+  const key = event
+    ? event.type === 'levelUp'
+      ? `level-${event.level}`
+      : event.type === 'achievementUnlocked'
+        ? `ach-${event.id}`
+        : `mision-${event.day}-${event.index}`
+    : null;
   return (
     <div className="safe-pt-3 pointer-events-none fixed inset-x-0 top-0 z-40 flex justify-center px-4" aria-live="polite">
       <AnimatePresence>
@@ -41,6 +48,19 @@ export function ProgressToasts() {
                 <span>
                   <span className="block font-display font-semibold text-gold-light">¡Subes al nivel {event.level}!</span>
                   <span className="block text-sm text-ivory-dim">Sigue jugando para desbloquear más logros.</span>
+                </span>
+              </>
+            ) : event.type === 'missionCompleted' ? (
+              <>
+                <span className="relative grid size-11 shrink-0 place-items-center">
+                  <Chip value={500} size={44} label="" />
+                  <span className="absolute font-display text-lg font-bold text-white">✓</span>
+                </span>
+                <span>
+                  <span className="block font-display font-semibold text-gold-light">Misión completada</span>
+                  <span className="block text-sm text-ivory-dim">
+                    {missionText(missionsFor(event.day)[event.index]!)}. Recoge {chips(missionsFor(event.day)[event.index]!.reward)} en el casino.
+                  </span>
                 </span>
               </>
             ) : (

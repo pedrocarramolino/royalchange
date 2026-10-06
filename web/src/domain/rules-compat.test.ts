@@ -10,6 +10,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { assertFails, assertSucceeds, initializeTestEnvironment, type RulesTestEnvironment } from '@firebase/rules-unit-testing';
 import { doc, getDoc, writeBatch, type Firestore } from 'firebase/firestore';
 import type { EconomyOperation, Wallet } from './economy';
+import { GAMES } from './economy';
+import { missionsFor, missionsToday } from './missions';
 import { entryToData, walletFromData, walletToData } from './documents';
 import { applyOperation, openWallet, type WalletTransition } from './transitions';
 import { localEpochDay } from '../lib/time';
@@ -130,6 +132,37 @@ describe.skipIf(!emulator)('reglas de Firestore', () => {
     await run(db, uid, { type: 'claimRescue' });
     expect((await read(db, uid)).balance).toBe(remaining + 1_000);
   });
+
+  it('las misiones avanzan igual en la app y en las reglas, todos los días del ciclo', async () => {
+    const uid = 'mia';
+    const db = env.authenticatedContext(uid).firestore() as unknown as Firestore;
+    await register(db, uid, 'MiaTs');
+    await assertSucceeds(write(db, uid, openWallet(uid, newId(), Date.now())));
+    // 42 días seguidos cubren todas las posiciones de las tres listas (7, 6 y 5). Días pasados: las
+    // rondas no tienen límite hacia atrás (se pueden sincronizar tarde); cobrar sí exige hoy.
+    const first = Math.floor(Date.now() / 86_400_000) - 50;
+    for (let day = first; day < first + 42; day++) {
+      for (const game of GAMES) await run(db, uid, { type: 'instantRound', game, stake: 10, payout: day % 3 === 0 ? 0 : 20, today: day });
+    }
+  }, 120_000);
+
+  it('se completan y cobran las misiones de hoy', async () => {
+    const uid = 'teo';
+    const db = env.authenticatedContext(uid).firestore() as unknown as Firestore;
+    await register(db, uid, 'TeoTs');
+    await assertSucceeds(write(db, uid, openWallet(uid, newId(), Date.now())));
+    const today = Math.floor(Date.now() / 86_400_000);
+    const set = missionsFor(today);
+    // Rondas ganadas en cada juego hasta completar las tres (la difícil puede pedir 10.000 fichas).
+    for (let k = 0; k < 30 && !missionsToday(await read(db, uid), today).progress.every((p, i) => p >= set[i]!.target); k++) {
+      for (const game of GAMES) await run(db, uid, { type: 'instantRound', game, stake: 500, payout: 1_000, today });
+    }
+    const before = await read(db, uid);
+    for (const index of [0, 1, 2]) await run(db, uid, { type: 'claimMission', index, today });
+    const after = await read(db, uid);
+    expect(after.missions!.claimed).toEqual([true, true, true]);
+    expect(after.balance).toBe(before.balance + set.reduce((s, m) => s + m.reward, 0));
+  }, 120_000);
 
   it('rechaza un giro de la ruleta diaria con un premio que no está en la ruleta', async () => {
     const uid = 'eva';

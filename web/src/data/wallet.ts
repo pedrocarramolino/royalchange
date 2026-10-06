@@ -26,6 +26,8 @@ interface WalletStore {
   /** Ruleta diaria: cobra la casilla [prize] en la que ha caído. */
   spinDailyWheel: (prize: number) => Promise<OperationResult>;
   claimAchievement: (id: AchievementId) => Promise<OperationResult>;
+  /** Cobra la misión [index] (0, 1 o 2) del día, ya completada. */
+  claimMission: (index: number) => Promise<OperationResult>;
   holdEvents: (held: boolean) => void;
   consumeEvent: () => void;
 }
@@ -143,12 +145,14 @@ export const useWallet = create<WalletStore>((set, get) => {
     events: [],
     eventsHeld: false,
     placeBet: (game, stake) => execute({ type: 'placeBet', game, stake }),
-    settleRound: (payout) => execute({ type: 'settleRound', payout }),
-    playInstantRound: (game, stake, payout) => execute({ type: 'instantRound', game, stake, payout }),
+    // Las rondas llevan el día del dispositivo: así cuentan para las misiones diarias.
+    settleRound: (payout) => execute({ type: 'settleRound', payout, today: localEpochDay() }),
+    playInstantRound: (game, stake, payout) => execute({ type: 'instantRound', game, stake, payout, today: localEpochDay() }),
     claimRescue: () => execute({ type: 'claimRescue' }),
     claimDailyBonus: () => execute({ type: 'claimDailyBonus', today: localEpochDay() }),
     spinDailyWheel: (prize) => execute({ type: 'spinDailyWheel', today: localEpochDay(), prize }),
     claimAchievement: (id) => execute({ type: 'claimAchievement', id }),
+    claimMission: (index) => execute({ type: 'claimMission', index, today: localEpochDay() }),
     holdEvents: (held) => set({ eventsHeld: held }),
     consumeEvent: () => set((s) => ({ events: s.events.slice(1) })),
   };
@@ -174,6 +178,8 @@ export const ECONOMY_ERROR_TEXT: Record<EconomyError['type'], string> = {
   invalidDailyPrize: 'Premio no válido.',
   dailySpinAlreadyUsed: 'Ya has girado la ruleta diaria hoy.',
   achievementLocked: 'Ese logro aún no está desbloqueado.',
+  missionNotCompleted: 'Esa misión aún no está completada.',
+  missionAlreadyClaimed: 'Ya has recogido esa misión.',
   achievementAlreadyClaimed: 'Ya has recogido esa recompensa.',
 };
 

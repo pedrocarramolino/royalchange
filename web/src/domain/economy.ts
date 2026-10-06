@@ -24,7 +24,7 @@ export const GAMES = ['Blackjack', 'Roulette', 'Slots', 'Poker', 'Dice', 'Baccar
 export type GameType = (typeof GAMES)[number];
 
 /** Tipos de asiento contable. Los nombres son estables: las reglas los validan. */
-export type EntryKind = 'Welcome' | 'Bet' | 'Settlement' | 'InstantRound' | 'Rescue' | 'DailyBonus' | 'DailySpin' | 'AchievementReward';
+export type EntryKind = 'Welcome' | 'Bet' | 'Settlement' | 'InstantRound' | 'Rescue' | 'DailyBonus' | 'DailySpin' | 'AchievementReward' | 'MissionReward';
 
 /** Logros, en orden de catálogo. Los ids son estables. */
 export const ACHIEVEMENT_IDS = [
@@ -44,6 +44,16 @@ export const ACHIEVEMENT_IDS = [
   'DailyStreak30',
 ] as const;
 export type AchievementId = (typeof ACHIEVEMENT_IDS)[number];
+
+/**
+ * Misiones del día [day]: progreso y cobro de cada una (ver domain/missions.ts). Siempre tres de
+ * cada, en el orden fácil, media y difícil.
+ */
+export interface DailyMissions {
+  day: number;
+  progress: number[];
+  claimed: boolean[];
+}
 
 /** Ronda por turnos (blackjack, póker) con fichas en la mesa, aún sin liquidar. */
 export interface OpenRound {
@@ -83,6 +93,8 @@ export interface Wallet {
   lastSpinAtMillis?: number;
   unlocked: AchievementId[];
   claimed: AchievementId[];
+  /** Misiones diarias: aparece con la primera ronda que se juega con ellas. */
+  missions?: DailyMissions;
 }
 
 /** Asiento contable inmutable: `wallets/{uid}/ledger/{id}`. */
@@ -101,18 +113,22 @@ export interface LedgerEntry {
   /** Fichas cobradas, apuesta devuelta incluida (Settlement, InstantRound). */
   payout?: number;
   achievementId?: AchievementId;
+  /** Misión cobrada (MissionReward): 0, 1 o 2. */
+  mission?: number;
 }
 
 /** Operaciones con intención que admite el monedero. No existe "fijar el saldo". */
 export type EconomyOperation =
   | { type: 'placeBet'; game: GameType; stake: number }
-  | { type: 'settleRound'; payout: number }
-  | { type: 'instantRound'; game: GameType; stake: number; payout: number }
+  /** [today]: día del dispositivo, para las misiones diarias (sin él no avanzan). */
+  | { type: 'settleRound'; payout: number; today?: number }
+  | { type: 'instantRound'; game: GameType; stake: number; payout: number; today?: number }
   | { type: 'claimRescue' }
   | { type: 'claimDailyBonus'; today: number }
   /** Ruleta diaria: [prize] es la casilla en la que ha caído. */
   | { type: 'spinDailyWheel'; today: number; prize: number }
-  | { type: 'claimAchievement'; id: AchievementId };
+  | { type: 'claimAchievement'; id: AchievementId }
+  | { type: 'claimMission'; index: number; today: number };
 
 export type EconomyError =
   | { type: 'walletUnavailable' }
@@ -129,10 +145,15 @@ export type EconomyError =
   | { type: 'invalidDailyPrize' }
   | { type: 'dailySpinAlreadyUsed' }
   | { type: 'achievementLocked' }
-  | { type: 'achievementAlreadyClaimed' };
+  | { type: 'achievementAlreadyClaimed' }
+  | { type: 'missionNotCompleted' }
+  | { type: 'missionAlreadyClaimed' };
 
 /** Avisos para la interfaz tras una operación. */
-export type ProgressEvent = { type: 'levelUp'; level: number } | { type: 'achievementUnlocked'; id: AchievementId };
+export type ProgressEvent =
+  | { type: 'levelUp'; level: number }
+  | { type: 'achievementUnlocked'; id: AchievementId }
+  | { type: 'missionCompleted'; day: number; index: number };
 
 export type RescueStatus =
   | { type: 'notNeeded' }

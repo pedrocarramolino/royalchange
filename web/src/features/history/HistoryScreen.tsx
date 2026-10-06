@@ -173,6 +173,8 @@ function HistoryRow({ item, order }: { item: HistoryItem; order: number }) {
             ? 'Bono diario'
             : item.kind === 'DailySpin'
               ? 'Ruleta diaria'
+            : item.kind === 'MissionReward'
+              ? 'Misión diaria'
             : `Logro: ${item.achievementId ? achievement(item.achievementId).name : ''}`;
   }
   return (

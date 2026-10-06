@@ -1,4 +1,4 @@
-import type { AchievementId, GameType, LedgerEntry, Wallet } from './economy';
+import type { AchievementId, DailyMissions, GameType, LedgerEntry, Wallet } from './economy';
 import { ACHIEVEMENT_IDS, GAMES } from './economy';
 import { sortAchievements } from './progression';
 
@@ -54,12 +54,26 @@ export function walletFromData(data: Data): Wallet {
   if (spinDay !== undefined) wallet.lastSpinDay = spinDay;
   const spinAt = optNum(data.lastSpinAtMillis);
   if (spinAt !== undefined) wallet.lastSpinAtMillis = spinAt;
+  const missions = missionsFromData(data.missions);
+  if (missions) wallet.missions = missions;
   return wallet;
+}
+
+/** Misiones guardadas; si no tienen la forma esperada se ignoran (empiezan de cero con la siguiente ronda). */
+function missionsFromData(value: unknown): DailyMissions | undefined {
+  const data = value as Data | undefined;
+  if (!data || typeof data.day !== 'number' || !Array.isArray(data.progress) || !Array.isArray(data.claimed)) return undefined;
+  if (data.progress.length !== 3 || data.claimed.length !== 3) return undefined;
+  return { day: data.day, progress: data.progress.map((p) => num(p)), claimed: data.claimed.map((c) => c === true) };
 }
 
 /** Monedero listo para escribir: sin campos `undefined` (Firestore los rechaza y las reglas no los esperan). */
 export function walletToData(wallet: Wallet): Data {
-  return stripUndefined({ ...wallet, openRound: wallet.openRound ? { ...wallet.openRound } : undefined });
+  return stripUndefined({
+    ...wallet,
+    openRound: wallet.openRound ? { ...wallet.openRound } : undefined,
+    missions: wallet.missions ? { day: wallet.missions.day, progress: [...wallet.missions.progress], claimed: [...wallet.missions.claimed] } : undefined,
+  });
 }
 
 export function entryToData(entry: LedgerEntry): Data {
@@ -83,6 +97,8 @@ export function entryFromData(data: Data): LedgerEntry {
   const payout = optNum(data.payout);
   if (payout !== undefined) entry.payout = payout;
   if ((ACHIEVEMENT_IDS as readonly string[]).includes(data.achievementId as string)) entry.achievementId = data.achievementId as AchievementId;
+  const mission = optNum(data.mission);
+  if (mission !== undefined) entry.mission = mission;
   return entry;
 }
 
