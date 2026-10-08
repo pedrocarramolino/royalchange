@@ -367,15 +367,20 @@ function DailyBonusCard({ now }: { now: number }) {
   );
 }
 
-/** Las siete fichas de la semana: las de la racha encendidas y la de hoy latiendo hasta recogerla. */
+/**
+ * Las siete fichas de la semana de racha: las recogidas encendidas y la de hoy latiendo hasta
+ * recogerla. Pasado el día 7 la tira sigue con 8–14, 15–21… (el premio ya no sube desde el 7).
+ */
 function BonusWeek({ filled, todayIndex }: { filled: number; todayIndex: number }) {
+  const ref = todayIndex > 0 ? todayIndex : Math.max(filled, 1);
+  const first = Math.floor((ref - 1) / MAX_REWARD_DAY) * MAX_REWARD_DAY + 1;
   return (
     <ol className="mt-3 grid grid-cols-7 gap-1.5" aria-label="Recompensas de la semana">
         {Array.from({ length: MAX_REWARD_DAY }, (_, i) => {
-          const day = i + 1;
+          const day = first + i;
           const visualDay = Math.min(day, MAX_REWARD_DAY);
-          const done = day <= Math.min(filled, MAX_REWARD_DAY);
-          const today = day === Math.min(todayIndex, MAX_REWARD_DAY);
+          const done = day <= filled;
+          const today = day === todayIndex;
           return (
             <li key={day} className="flex flex-col items-center gap-1">
               <motion.span
@@ -387,7 +392,7 @@ function BonusWeek({ filled, todayIndex }: { filled: number; todayIndex: number 
               >
                 <Chip value={dailyReward(visualDay) >= 1000 ? 1000 : 500} size={34} label={dailyReward(visualDay) >= 1000 ? `${(dailyReward(visualDay) / 1000).toFixed(1).replace('.0', '')}K` : String(dailyReward(visualDay))} />
               </motion.span>
-              <span className={`text-[10px] font-semibold ${today ? 'text-gold-light' : 'text-mute'}`}>{day === MAX_REWARD_DAY ? '7+' : `Día ${day}`}</span>
+              <span className={`text-[10px] font-semibold ${today ? 'text-gold-light' : 'text-mute'}`}>Día {day}</span>
             </li>
           );
         })}
@@ -474,7 +479,7 @@ function DailyBonusDialog({ now }: { now: number }) {
         )
       }
     >
-      <BonusWeek filled={claimed !== null ? Math.min(streakDay, MAX_REWARD_DAY) : streakDay - 1} todayIndex={claimed !== null ? -1 : streakDay} />
+      <BonusWeek filled={claimed !== null ? streakDay : streakDay - 1} todayIndex={claimed !== null ? -1 : streakDay} />
       <p className="mt-4">
         {failed
           ? 'No se pudo recoger el bono. Vuelve a intentarlo.'

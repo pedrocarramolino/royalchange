@@ -250,7 +250,8 @@ service cloud.firestore {
     // Lo que avanza cada misión con una ronda, sin montar la misión entera (límite de expresiones).
     // Fáciles: todas cuentan rondas, en su juego. Medias: las de posición par cuentan victorias y
     // las impares, rondas. Difíciles: 0 y 3 fichas apostadas, 1 victorias, 2 rondas y 4 victorias
-    // al blackjack. Ganar es cobrar más de lo apostado. (domain/missions.test.ts lo comprueba.)
+    // al blackjack. Ganar es cobrar más de lo apostado o, en slots y ruleta, cobrar algún premio.
+    // (domain/missions.test.ts lo comprueba.)
     function easyGame(day) {
       return ['', 'Slots', 'Roulette', 'Scratch', 'Plinko', 'Dice', 'VideoPoker'][day % 7];
     }
@@ -289,7 +290,7 @@ service cloud.firestore {
     // Una ronda puede no traer misiones (versiones anteriores de la app), pero nunca quitarlas.
     function missionsAfterRound(before, after, game, stake, payout) {
       return 'missions' in after
-        ? validMissionRoundFrom(before.get('missions', null), after.missions, game, stake, payout > stake)
+        ? validMissionRoundFrom(before.get('missions', null), after.missions, game, stake, payout > stake || (payout > 0 && game in ['Slots', 'Roulette']))
         : !('missions' in before);
     }
 

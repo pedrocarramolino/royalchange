@@ -142,7 +142,8 @@ describe.skipIf(!emulator)('reglas de Firestore', () => {
     // rondas no tienen límite hacia atrás (se pueden sincronizar tarde); cobrar sí exige hoy.
     const first = Math.floor(Date.now() / 86_400_000) - 50;
     for (let day = first; day < first + 42; day++) {
-      for (const game of GAMES) await run(db, uid, { type: 'instantRound', game, stake: 10, payout: day % 3 === 0 ? 0 : 20, today: day });
+      // Sin premio, premio mayor que la apuesta y premio menor (en slots y ruleta cuenta como victoria).
+      for (const game of GAMES) await run(db, uid, { type: 'instantRound', game, stake: 10, payout: [0, 20, 5][day % 3]!, today: day });
     }
   }, 120_000);
 

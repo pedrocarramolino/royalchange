@@ -36,7 +36,12 @@ describe('misiones diarias', () => {
     expect(missionGain(rounds, 'Slots', 100, 0)).toBe(0);
     const wins = { kind: 'wins' as const, game: '' as const, target: 3, reward: 500 };
     expect(missionGain(wins, 'Slots', 100, 200)).toBe(1);
-    expect(missionGain(wins, 'Slots', 100, 100)).toBe(0);
+    expect(missionGain(wins, 'Blackjack', 100, 100)).toBe(0);
+    expect(missionGain(wins, 'Plinko', 100, 50)).toBe(0);
+    // Slots y ruleta: cualquier premio cuenta, aunque sea menor que la apuesta total.
+    expect(missionGain(wins, 'Slots', 100, 20)).toBe(1);
+    expect(missionGain(wins, 'Roulette', 100, 36)).toBe(1);
+    expect(missionGain(wins, 'Slots', 100, 0)).toBe(0);
     const stake = { kind: 'stake' as const, game: '' as const, target: 5000, reward: 1000 };
     expect(missionGain(stake, 'Dice', 250, 0)).toBe(250);
   });

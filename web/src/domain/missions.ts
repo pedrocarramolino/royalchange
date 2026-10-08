@@ -54,11 +54,19 @@ export function missionsFor(day: number): Mission[] {
   return [EASY_MISSIONS[day % EASY_MISSIONS.length]!, MEDIUM_MISSIONS[day % MEDIUM_MISSIONS.length]!, HARD_MISSIONS[day % HARD_MISSIONS.length]!];
 }
 
-/** Lo que avanza [m] con una ronda: ganar es cobrar más de lo apostado. */
+/**
+ * Si una ronda cuenta como victoria para las misiones: cobrar más de lo apostado o, en las slots y
+ * la ruleta (donde se apuesta a varias líneas o números a la vez), cobrar cualquier premio.
+ */
+export function missionWin(game: GameType, stake: number, payout: number): boolean {
+  return payout > stake || (payout > 0 && (game === 'Slots' || game === 'Roulette'));
+}
+
+/** Lo que avanza [m] con una ronda. */
 export function missionGain(m: Mission, game: GameType, stake: number, payout: number): number {
   if (m.game !== '' && m.game !== game) return 0;
   if (m.kind === 'rounds') return 1;
-  if (m.kind === 'wins') return payout > stake ? 1 : 0;
+  if (m.kind === 'wins') return missionWin(game, stake, payout) ? 1 : 0;
   return stake;
 }
 
