@@ -466,6 +466,12 @@ describe('progresión', () => {
     await seedWallet('ana', { dailyStreak: 6, lastDailyDay: today() - 1 });
     await assertSucceeds(dailyBonus(as('ana'), 'ana', { streak: 7, reward: 1700, unlocked: ['DailyStreak7'] }));
   });
+
+  test('tras el día 7 el premio vuelve a empezar en 500', async () => {
+    await seedWallet('ana', { dailyStreak: 7, lastDailyDay: today() - 1, unlocked: ['DailyStreak7'] });
+    await assertFails(dailyBonus(as('ana'), 'ana', { streak: 8, reward: 1700, unlocked: ['DailyStreak7'] }));
+    await assertSucceeds(dailyBonus(as('ana'), 'ana', { streak: 8, reward: 500, unlocked: ['DailyStreak7'] }));
+  });
 });
 
 // ── Misiones diarias (repiten domain/missions.ts) ──────────────────────────────────────────

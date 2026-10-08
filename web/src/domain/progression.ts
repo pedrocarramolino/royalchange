@@ -170,12 +170,13 @@ export function claimable(wallet: Wallet): AchievementId[] {
 
 // ── Bono diario ─────────────────────────────────────────────────────────────────────────────
 // Un cobro por día natural del dispositivo. Racha +1 si el último fue ayer; si no, vuelve a 1.
-// Premio 500 + 200 · (día − 1), con tope en el día 7 (1.700).
+// Premio 500 + 200 · (día − 1) hasta el día 7 (1.700); el día 8 vuelve a 500 y sube igual (ciclos
+// de siete días mientras dure la racha).
 
 export const MAX_REWARD_DAY = 7;
 
 export function dailyReward(streakDay: number): number {
-  return 500 + 200 * (Math.min(streakDay, MAX_REWARD_DAY) - 1);
+  return 500 + 200 * ((streakDay - 1) % MAX_REWARD_DAY);
 }
 
 export type DailyBonusStatus =

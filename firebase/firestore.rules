@@ -434,11 +434,11 @@ service cloud.firestore {
 
     // Bono diario: un día del dispositivo posterior al último cobro y, como mucho, un día de
     // diferencia con el día UTC del servidor (las zonas horarias van de UTC−12 a UTC+14). Racha +1
-    // si es el día siguiente; si no, vuelve a 1. Premio 500 + 200 · (día − 1), con tope en el día 7.
+    // si es el día siguiente; si no, vuelve a 1. Premio 500 + 200 · (día − 1) en ciclos de 7 días.
     function validDailyBonus(before, after, e) {
       let lastDay = before.get('lastDailyDay', null);
       let streak = (lastDay != null && after.lastDailyDay == lastDay + 1) ? previous(before, 'dailyStreak') + 1 : 1;
-      let rewardDay = streak > 7 ? 7 : streak;
+      let rewardDay = (streak - 1) % 7 + 1;
       let serverDay = math.floor(request.time.toMillis() / 86400000);
       return e.kind == 'DailyBonus'
         && after.lastDailyDay is int

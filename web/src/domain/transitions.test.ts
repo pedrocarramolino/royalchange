@@ -101,7 +101,10 @@ describe('bono diario', () => {
     const day2 = ok(applyOperation(day1.wallet, { type: 'claimDailyBonus', today: 20_001 }, id(), NOW + 86_400_000));
     expect(day2.wallet.dailyStreak).toBe(2);
     expect(day2.entry.amount).toBe(700);
-    expect(dailyReward(9)).toBe(1_700);
+    expect(dailyReward(7)).toBe(1_700);
+    expect(dailyReward(8)).toBe(500);
+    expect(dailyReward(9)).toBe(700);
+    expect(dailyReward(14)).toBe(1_700);
   });
 
   it('no deja cobrar dos veces el mismo día ni con el reloj hacia atrás', () => {

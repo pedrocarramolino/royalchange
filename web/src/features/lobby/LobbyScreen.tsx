@@ -369,7 +369,7 @@ function DailyBonusCard({ now }: { now: number }) {
 
 /**
  * Las siete fichas de la semana de racha: las recogidas encendidas y la de hoy latiendo hasta
- * recogerla. Pasado el día 7 la tira sigue con 8–14, 15–21… (el premio ya no sube desde el 7).
+ * recogerla. Pasado el día 7 la tira sigue con 8–14, 15–21…, y el premio vuelve a empezar en 500.
  */
 function BonusWeek({ filled, todayIndex }: { filled: number; todayIndex: number }) {
   const ref = todayIndex > 0 ? todayIndex : Math.max(filled, 1);
@@ -378,7 +378,6 @@ function BonusWeek({ filled, todayIndex }: { filled: number; todayIndex: number 
     <ol className="mt-3 grid grid-cols-7 gap-1.5" aria-label="Recompensas de la semana">
         {Array.from({ length: MAX_REWARD_DAY }, (_, i) => {
           const day = first + i;
-          const visualDay = Math.min(day, MAX_REWARD_DAY);
           const done = day <= filled;
           const today = day === todayIndex;
           return (
@@ -390,7 +389,7 @@ function BonusWeek({ filled, todayIndex }: { filled: number; todayIndex: number 
                 transition={today ? { repeat: Infinity, duration: 1.6, ease: 'easeInOut' } : undefined}
                 style={{ opacity: done || today ? 1 : 0.32 }}
               >
-                <Chip value={dailyReward(visualDay) >= 1000 ? 1000 : 500} size={34} label={dailyReward(visualDay) >= 1000 ? `${(dailyReward(visualDay) / 1000).toFixed(1).replace('.0', '')}K` : String(dailyReward(visualDay))} />
+                <Chip value={dailyReward(day) >= 1000 ? 1000 : 500} size={34} label={dailyReward(day) >= 1000 ? `${(dailyReward(day) / 1000).toFixed(1).replace('.0', '')}K` : String(dailyReward(day))} />
               </motion.span>
               <span className={`text-[10px] font-semibold ${today ? 'text-gold-light' : 'text-mute'}`}>Día {day}</span>
             </li>
