@@ -108,8 +108,10 @@ Abrir en Android Studio: `npx cap open android`. Cada vez que cambie la web: `np
 
 ## Antes de publicar
 
-- [ ] Sustituir los **textos legales** (Términos y Privacidad): los incluidos son un borrador
-      marcado como tal en la app. Indicar el responsable del tratamiento.
+- [x] Textos legales definitivos (Términos, Privacidad y `/legal/borrar-cuenta`, la URL de
+      eliminación de cuenta que pide Google Play).
+- [ ] Ficha de Play Console: textos, imágenes y respuestas de los formularios en
+      [`play-store/ficha.md`](play-store/ficha.md).
 - [ ] Revisar la política de **casino social** de Google Play (sin dinero real ni premios,
       clasificación de edad, declaración de que las fichas no tienen valor) y la sección de
       seguridad de los datos (email, alias, país, año de nacimiento, progreso).

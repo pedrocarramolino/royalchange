@@ -2,12 +2,11 @@ import { useNavigate, useParams } from 'react-router';
 import { Button } from '@/ui/Button';
 import { Dialog } from '@/ui/Dialog';
 import { AuthLayout } from './AuthLayout';
-import { LEGAL_BODY, LEGAL_DRAFT_NOTICE, LEGAL_TITLE, type LegalDocument } from './legal';
+import { LEGAL_BODY, LEGAL_DOCUMENTS, LEGAL_TITLE, LEGAL_UPDATED, type LegalDocument } from './legal';
 
 function LegalText({ document }: { document: LegalDocument }) {
   return (
     <div className="flex flex-col gap-5">
-      <p className="rounded-2xl border border-gold/30 bg-gold/10 px-4 py-3 text-sm text-gold-light">{LEGAL_DRAFT_NOTICE}</p>
       {LEGAL_BODY[document].map(([heading, body], i) => (
         <section key={heading}>
           <h2 className="font-semibold text-ivory">
@@ -16,6 +15,7 @@ function LegalText({ document }: { document: LegalDocument }) {
           <p className="mt-1.5 text-[15px] leading-relaxed text-ivory-dim">{body}</p>
         </section>
       ))}
+      <p className="text-sm text-mute">{LEGAL_UPDATED}</p>
     </div>
   );
 }
@@ -23,7 +23,7 @@ function LegalText({ document }: { document: LegalDocument }) {
 export function LegalScreen() {
   const { document } = useParams();
   const navigate = useNavigate();
-  const doc: LegalDocument = document === 'privacidad' ? 'privacidad' : 'terminos';
+  const doc: LegalDocument = LEGAL_DOCUMENTS.find((d) => d === document) ?? 'terminos';
   return (
     <AuthLayout title={LEGAL_TITLE[doc]}>
       <LegalText document={doc} />

@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><title>Royal Chance · imagen destacada</title>
+<style>
+@font-face { font-family: Cinzel; src: url(../web/public/fonts/cinzel.woff2) format('woff2'); font-weight: 400 900; }
+@font-face { font-family: Manrope; src: url(../web/public/fonts/manrope.woff2) format('woff2'); font-weight: 200 800; }
+html, body { margin: 0; width: 1024px; height: 500px; overflow: hidden; background: #0E0F13; }
+.felt { position: absolute; inset: 0; background: radial-gradient(120% 140% at 30% 40%, #15523F 0%, #0B2A22 55%, #07100D 100%); }
+.noise { position: absolute; inset: 0; background: url(../web/public/felt-noise.png); opacity: .5; mix-blend-mode: overlay; }
+.text { position: absolute; left: 64px; top: 0; bottom: 0; display: flex; flex-direction: column; justify-content: center; width: 420px; }
+.spade { width: 64px; height: 64px; }
+h1 { font-family: Cinzel; font-weight: 700; font-size: 66px; line-height: 1; margin: 18px 0 0; background: linear-gradient(#F3DFA2, #D4AF6A 55%, #9C7A3C); -webkit-background-clip: text; color: transparent; letter-spacing: .01em; }
+p { font-family: Manrope; color: #E9E2D0; font-size: 23px; line-height: 1.35; margin: 18px 0 0; font-weight: 500; }
+.tag { font-family: Manrope; font-size: 14px; letter-spacing: .22em; text-transform: uppercase; color: #D4AF6A; margin-top: 22px; font-weight: 700; }
+.shot { position: absolute; border-radius: 18px; box-shadow: 0 24px 60px rgba(0,0,0,.6), 0 0 0 2px rgba(212,175,106,.55); }
+.a { width: 470px; right: 40px; top: 46px; transform: rotate(-4deg); }
+.b { width: 400px; right: 150px; top: 250px; transform: rotate(3deg); }
+</style></head><body>
+<div class="felt"></div><div class="noise"></div>
+<img class="shot a" src="capturas/2-blackjack.png" alt="">
+<img class="shot b" src="capturas/4-slots.png" alt="">
+<div class="text">
+  <svg class="spade" viewBox="0 0 100 100"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F3DFA2"/><stop offset=".5" stop-color="#D4AF6A"/><stop offset="1" stop-color="#9C7A3C"/></linearGradient></defs><path fill="url(#g)" d="M50,8 C44,20 16,38 16,58 C16,71 26,79 37,79 C42,79 46,77 48.5,73 C47.5,81 43,88 36,92 L64,92 C57,88 52.5,81 51.5,73 C54,77 58,79 63,79 C74,79 84,71 84,58 C84,38 56,20 50,8 Z"/></svg>
+  <h1>Royal Chance</h1>
+  <p>Blackjack, ruleta, slots, póker y más, con fichas gratis cada día.</p>
+  <div class="tag">Sin dinero real</div>
+</div>
+</body></html>
