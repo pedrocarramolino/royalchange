@@ -110,6 +110,11 @@ export function spinRoulette(bets: PlacedBet[], random: RandomInt = secureRandom
   return { ok: true, spin: settleRoulette(bets, random(POCKETS)) };
 }
 
+/** Tirada sin apuestas (la mesa gira igual al acabar el tiempo): solo sale un número. */
+export function spinWithoutBets(random: RandomInt = secureRandom): RouletteSpin {
+  return settleRoulette([], random(POCKETS));
+}
+
 /** Nombre de la apuesta para lectores de pantalla y el historial de la mesa. */
 export function betName(bet: RouletteBet): string {
   const [kind, arg] = bet.split(':') as [string, string | undefined];

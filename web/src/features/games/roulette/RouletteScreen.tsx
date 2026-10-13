@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useWallet, useReadyWallet } from '@/data/wallet';
 import { useSettings } from '@/data/settings';
-import { ROULETTE_RULES, spinRoulette, type RouletteBet, type RouletteSpin } from '@/engine/roulette';
+import { ROULETTE_RULES, spinRoulette, spinWithoutBets, type RouletteBet, type RouletteSpin } from '@/engine/roulette';
 import { chips, grouped } from '@/lib/format';
 import { play, resultSound, BIG_WIN_MULTIPLIER } from '@/audio/sound';
 import { Button } from '@/ui/Button';
@@ -135,6 +135,19 @@ export default function RouletteScreen() {
     play('spin');
   };
 
+  // Sin apuestas la mesa gira igual (no cuesta nada ni se apunta en el monedero).
+  const spinEmpty = () => {
+    const empty = spinWithoutBets();
+    pending.current = empty;
+    setDeadline(null);
+    setSpinning(true);
+    setShowResult(false);
+    setResult(null);
+    setCelebrate(null);
+    setWheelSpin({ id: Date.now(), number: empty.number });
+    play('spin');
+  };
+
   const onSettled = () => {
     const spin = pending.current;
     if (!spin) return;
@@ -169,11 +182,11 @@ export default function RouletteScreen() {
     return () => clearInterval(id);
   }, [deadline === null]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Fin del plazo: gira con lo apostado; sin apuestas, empieza otra cuenta atrás.
+  // Fin del plazo: gira con lo apostado o, sin apuestas, gira igual.
   useEffect(() => {
-    if (remaining !== 0) return;
-    if (liveBets && canBet) void spinRef.current();
-    else if (canBet) restartCountdown();
+    if (remaining !== 0 || !canBet) return;
+    if (liveBets) void spinRef.current();
+    else spinEmpty();
   }, [remaining]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Tictac en los últimos segundos (solo si hay algo apostado).
@@ -242,7 +255,7 @@ export default function RouletteScreen() {
                 <ResultBanner
                   net={net}
                   big={net > 0}
-                  label={`${result.number} ${COLOR_NAME[colorOf(result.number)]} · ${net > 0 ? `ganas ${grouped(net)}` : net < 0 ? `pierdes ${grouped(-net)}` : 'sin cambios'}`}
+                  label={`${result.number} ${COLOR_NAME[colorOf(result.number)]}${result.totalStake === 0 ? '' : ` · ${net > 0 ? `ganas ${grouped(net)}` : net < 0 ? `pierdes ${grouped(-net)}` : 'sin cambios'}`}`}
                 />
               </div>
             )}

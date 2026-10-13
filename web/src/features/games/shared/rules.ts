@@ -27,7 +27,7 @@ export const GAME_RULES: Record<GameType, { title: string; sections: [string, st
         [
           'Toca un número, la línea entre dos (caballo) o una esquina (cuatro números). Abajo y a los lados, las apuestas sencillas: docenas, columnas, rojo o negro, par o impar, 1–18 o 19–36.',
           'Arrastra el dedo por el tapete para poner fichas en varios números seguidos.',
-          'Tienes 30 segundos para apostar: al acabar, la ruleta gira sola con lo que hayas puesto. Si ya lo tienes, pulsa Girar sin esperar.',
+          'Tienes 30 segundos para apostar: al acabar, la ruleta gira sola, con tus fichas o sin ellas. Si ya has apostado, pulsa Girar sin esperar.',
         ],
       ],
       ['Pagos', ['Pleno 35 a 1 · caballo 17 a 1 · calle 11 a 1 · esquina 8 a 1 · seisena 5 a 1 · docena y columna 2 a 1 · rojo, negro, par, impar, mitades 1 a 1.', 'Si sale el 0, solo cobran las apuestas que lo incluyen.']],
