@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useWallet, useReadyWallet } from '@/data/wallet';
 import { useSettings } from '@/data/settings';
 import { ROULETTE_RULES, spinRoulette, type RouletteBet, type RouletteSpin } from '@/engine/roulette';
@@ -17,6 +17,10 @@ import { RouletteWheel, type WheelSpin } from './RouletteWheel';
 import { COLOR_NAME, colorOf } from './wheel';
 
 const CHIPS = [10, 50, 100, 500, 1000, 5000];
+/** Segundos para apostar: al acabar, la ruleta gira sola con lo apostado. */
+const BETTING_SECONDS = 30;
+/** Últimos segundos: el reloj se pone rojo y hace tictac. */
+const HURRY_SECONDS = 5;
 
 export default function RouletteScreen() {
   const wallet = useReadyWallet();
@@ -37,6 +41,9 @@ export default function RouletteScreen() {
   const [celebrate, setCelebrate] = useState<number | null>(null);
   const pending = useRef<RouletteSpin | null>(null);
   useHoldProgressEvents(spinning);
+  // Cuenta atrás de la ronda de apuestas (null mientras gira la bola).
+  const [deadline, setDeadline] = useState<number | null>(() => Date.now() + BETTING_SECONDS * 1000);
+  const [now, setNow] = useState(() => Date.now());
 
   const total = [...bets.values()].reduce((s, v) => s + v, 0);
   const balance = wallet?.balance ?? 0;
@@ -97,13 +104,17 @@ export default function RouletteScreen() {
     play('chip');
   };
 
+  const restartCountdown = () => setDeadline(Date.now() + BETTING_SECONDS * 1000);
+
   const spin = async () => {
     if (!canBet || bets.size === 0) return;
     setNotice(null);
+    setDeadline(null);
     const placed = [...bets.entries()].map(([bet, stake]) => ({ bet, stake }));
     const outcome = spinRoulette(placed);
     if (!outcome.ok) {
       setNotice(outcome.error === 'aboveTableMaximum' ? `El máximo por tirada es de ${chips(ROULETTE_RULES.maximumTotalBet)}.` : 'Revisa tus apuestas.');
+      restartCountdown();
       return;
     }
     setBusy(true);
@@ -112,6 +123,7 @@ export default function RouletteScreen() {
     setBusy(false);
     if (!booked.ok) {
       setNotice(economyNotice(booked.error));
+      restartCountdown();
       return;
     }
     pending.current = outcome.spin;
@@ -136,7 +148,38 @@ export default function RouletteScreen() {
     const sound = resultSound(net, big);
     if (sound) play(sound);
     if (big && net > 0) setCelebrate(Date.now());
+    restartCountdown();
   };
+
+  const spinRef = useRef(spin);
+  spinRef.current = spin;
+  const remaining = deadline === null ? null : Math.max(0, Math.ceil((deadline - now) / 1000));
+  const liveBets = bets.size > 0 && !showResult;
+
+  // Reloj de la cuenta atrás. Con la app en segundo plano se detiene (el plazo se aplaza).
+  useEffect(() => {
+    if (deadline === null) return;
+    let last = Date.now();
+    const id = setInterval(() => {
+      const t = Date.now();
+      if (document.hidden) setDeadline((d) => (d === null ? d : d + (t - last)));
+      last = t;
+      setNow(t);
+    }, 200);
+    return () => clearInterval(id);
+  }, [deadline === null]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fin del plazo: gira con lo apostado; sin apuestas, empieza otra cuenta atrás.
+  useEffect(() => {
+    if (remaining !== 0) return;
+    if (liveBets && canBet) void spinRef.current();
+    else if (canBet) restartCountdown();
+  }, [remaining]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Tictac en los últimos segundos (solo si hay algo apostado).
+  useEffect(() => {
+    if (remaining !== null && remaining > 0 && remaining <= HURRY_SECONDS && liveBets) play('tick');
+  }, [remaining]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Medidas: arriba el marcador; debajo, la rueda a la izquierda y el tapete ocupa el resto.
   const tableHeight = Math.max(120, table.height - STATS_HEIGHT - 8);
@@ -144,6 +187,7 @@ export default function RouletteScreen() {
   const boardWidth = Math.max(260, Math.min(table.width - wheelSize - 48, 900));
   const payouts = showResult && result ? new Map(result.results.map((r) => [r.bet, r.payout])) : null;
   const net = result ? result.totalPayout - result.totalStake : 0;
+  const paid = showResult && result !== null && result.totalPayout > 0;
   // Mesa estrecha (iPhone en vertical o pequeño): acciones con icono y fichas más pequeñas.
   const compact = table.width < 720;
   const showTotal = table.width >= (compact ? 600 : 800);
@@ -178,16 +222,20 @@ export default function RouletteScreen() {
           <div className="shrink-0">
             <RouletteWheel size={wheelSize} spin={wheelSpin} reducedMotion={reducedMotion} onSettled={onSettled} />
           </div>
-          <div className="relative flex flex-col items-end gap-1">
+          <div className="relative flex flex-col items-end gap-1" style={{ width: boardWidth }}>
+            <div className="flex w-full items-center justify-between gap-3 whitespace-nowrap">
+            {/* Sin sitio para el rótulo cuando también se muestra lo cobrado. */}
+            <Countdown remaining={remaining} label={boardWidth >= (paid ? 620 : 440)} />
             {/* Lo apostado en esta tirada, siempre a la vista (en la barra de abajo no cabe en el móvil). */}
             <p className="tabular h-[18px] text-[13px] leading-[18px] font-semibold text-ivory-dim" aria-live="polite">
-              Apostado: <span className="font-bold text-gold-light">{chips(showResult && result ? result.totalStake : total)}</span>
-              {showResult && result && result.totalPayout > 0 && (
+              Apostado: <span className="font-bold text-gold-light">{(paid && boardWidth < 620 ? grouped : chips)(showResult && result ? result.totalStake : total)}</span>
+              {paid && (
                 <>
-                  {' · '}Cobrado: <span className="font-bold text-gold-light">{chips(result.totalPayout)}</span>
+                  {' · '}Cobrado: <span className="font-bold text-gold-light">{(boardWidth < 620 ? grouped : chips)(result.totalPayout)}</span>
                 </>
               )}
             </p>
+            </div>
             <RouletteBoard width={boardWidth} height={tableHeight - 22} bets={showResult && result ? new Map(result.results.map((r) => [r.bet, r.stake])) : bets} winning={showResult && result ? result.number : null} payouts={payouts} disabled={!canBet} onPlace={place} />
             {showResult && result && (
               <div className="pointer-events-none absolute inset-x-0 top-[38%] flex -translate-y-1/2 justify-center">
@@ -203,5 +251,28 @@ export default function RouletteScreen() {
       </div>
       <Celebration trigger={celebrate} />
     </GameShell>
+  );
+}
+
+/** Tiempo para apostar: una barra que se vacía y los segundos; en rojo los últimos. */
+function Countdown({ remaining, label }: { remaining: number | null; label: boolean }) {
+  const spinning = remaining === null;
+  const hurry = !spinning && remaining <= HURRY_SECONDS;
+  const fraction = spinning ? 0 : remaining / BETTING_SECONDS;
+  return (
+    <div className="flex h-[18px] items-center gap-2" role="timer" aria-label={spinning ? 'No va más' : `Quedan ${remaining} segundos para apostar`}>
+      {(label || spinning) && <span className={`text-[11px] font-semibold tracking-wider uppercase ${hurry ? 'text-ruby-bright' : 'text-mute'}`}>{spinning ? 'No va más' : 'Hagan juego'}</span>}
+      {!spinning && (
+        <>
+          <span className="h-1.5 w-16 overflow-hidden rounded-full bg-black/30" aria-hidden>
+            <span
+              className={`block h-full w-full origin-left rounded-full transition-transform duration-1000 ease-linear ${hurry ? 'bg-ruby-bright' : 'metal-gold'}`}
+              style={{ transform: `scaleX(${fraction})` }}
+            />
+          </span>
+          <span className={`tabular w-6 text-[13px] font-bold ${hurry ? 'animate-pulse text-ruby-bright' : 'text-gold-light'}`}>{remaining}</span>
+        </>
+      )}
+    </div>
   );
 }

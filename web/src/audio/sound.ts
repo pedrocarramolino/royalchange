@@ -1,7 +1,7 @@
 import { useSettings } from '@/data/settings';
 
 /** Efectos de sonido, sintetizados (sin archivos de audio que descargar). */
-export type Sound = 'chip' | 'card' | 'spin' | 'reelStop' | 'dice' | 'win' | 'bigWin' | 'lose' | 'scratch';
+export type Sound = 'chip' | 'card' | 'spin' | 'reelStop' | 'dice' | 'win' | 'bigWin' | 'lose' | 'scratch' | 'tick';
 
 const SAMPLE_RATE = 44_100;
 
@@ -117,6 +117,11 @@ function synth(sound: Sound): Float32Array {
       m.tone(392, 0, 0.18, 12, 0.4, 0.01);
       m.tone(329.6, 0.16, 0.28, 9, 0.4, 0.01);
       return m.render(0.25);
+    case 'tick':
+      // Tictac de reloj para los últimos segundos de una cuenta atrás.
+      m.tone(1_650, 0, 0.04, 90, 0.3);
+      m.noise(0, 0.012, 300, 0.15, 43);
+      return m.render(0.4);
     case 'scratch':
       // Raspado corto de la lámina: ruido áspero y algo agudo.
       m.noise(0, 0.07, 28, 0.9, 41, 0.004, 0.85);
@@ -156,6 +161,7 @@ const VIBRATION: Partial<Record<Sound, number | number[]>> = {
   win: [15, 50, 25],
   bigWin: [25, 60, 25, 60, 80],
   lose: 35,
+  tick: 4,
 };
 
 function vibrate(sound: Sound, delayMs: number) {
