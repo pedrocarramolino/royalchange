@@ -1,7 +1,7 @@
 {
   "name": "royal-chance",
   "private": true,
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Royal Chance: casino social con fichas virtuales sin valor monetario.",
   "type": "module",
   "scripts": {

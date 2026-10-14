@@ -11,7 +11,7 @@ import { Dialog } from '@/ui/Dialog';
 import { PasswordField, Toggle } from '@/ui/Field';
 import { EASE_OUT, SPRING } from '@/ui/motion';
 
-export const APP_VERSION = '2.0.0';
+export const APP_VERSION = '2.1.0';
 
 export function SettingsScreen() {
   const auth = useAuth((s) => s.state);

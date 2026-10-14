@@ -103,7 +103,7 @@ Abrir en Android Studio: `npx cap open android`. Cada vez que cambie la web: `np
 3. `cd web/android && ./gradlew bundleRelease` →
    `app/build/outputs/bundle/release/app-release.aab` (sin `keystore.properties` sale sin firmar).
 4. En Play Console activa *Play App Signing* y sube el `.aab`. Sube `versionCode` en
-   `web/android/app/build.gradle` en cada publicación (la 2.0.0 es el 2) y mantén `versionName`
+   `web/android/app/build.gradle` en cada publicación (la 2.1.0 es el 3) y mantén `versionName`
    igual que `version` en `web/package.json`.
 
 ## Antes de publicar
