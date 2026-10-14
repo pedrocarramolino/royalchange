@@ -11,7 +11,7 @@ import { useCountUp } from '@/ui/ChipBalance';
 import { EASE_OUT, SPRING } from '@/ui/motion';
 import { Celebration } from '../shared/Celebration';
 import { GameShell, TableNotice, useTableSize } from '../shared/GameShell';
-import { economyNotice, useHoldProgressEvents } from '../shared/session';
+import { economyNotice, holdPayout, useHoldProgressEvents } from '../shared/session';
 import { SlotSvgDefs, SlotSymbolArt } from './SlotSymbolArt';
 
 /** Tiradas del juego automático. */
@@ -65,10 +65,12 @@ export default function SlotsScreen() {
     const result = spinSlots(lineBet);
     if (!result) return;
     setBusy(true);
-    // El resultado se contabiliza antes de animarlo.
+    // El resultado se contabiliza antes de animarlo; el premio no se ve en el saldo hasta que paran.
+    const release = holdPayout(result.totalPayout);
     const booked = await playInstantRound('Slots', result.totalBet, result.totalPayout);
     setBusy(false);
     if (!booked.ok) {
+      release();
       setAuto(0);
       setNotice(economyNotice(booked.error));
       return;
@@ -82,6 +84,7 @@ export default function SlotsScreen() {
     const total = reducedMotion ? 400 : 1300 + (REELS - 1) * 260;
     for (let r = 0; r < REELS; r++) play('reelStop', reducedMotion ? 300 : 1300 + r * 260 - 40);
     setTimeout(() => {
+      release();
       setSpinning(false);
       setShowResult(true);
       setLineShown(0);

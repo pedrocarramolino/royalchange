@@ -14,7 +14,7 @@ import { TableAction } from '../shared/TableAction';
 import { IconRepeat, IconTrash, IconUndo } from '@/ui/icons';
 import { CHIP_DROP, EASE_OUT, SPRING } from '@/ui/motion';
 import { GameShell, TableNotice, useTableSize } from '../shared/GameShell';
-import { economyNotice, useHoldProgressEvents } from '../shared/session';
+import { economyNotice, holdPayout, useHoldProgressEvents } from '../shared/session';
 
 const CHIPS = [10, 50, 100, 500, 1000, 5000];
 const TOP: { bet: DiceBet; title: string; subtitle?: string }[] = [
@@ -72,10 +72,14 @@ export default function DiceScreen() {
     const outcome = throwDice([...bets.entries()].map(([bet, stake]) => ({ bet, stake })));
     if (!outcome.ok) return setNotice('Revisa tus apuestas.');
     setBusy(true);
-    // El resultado se contabiliza antes de animarlo.
+    // El resultado se contabiliza antes de animarlo; el premio no se ve en el saldo hasta que paran.
+    const release = holdPayout(outcome.result.totalPayout);
     const booked = await playInstantRound('Dice', outcome.result.totalStake, outcome.result.totalPayout);
     setBusy(false);
-    if (!booked.ok) return setNotice(economyNotice(booked.error));
+    if (!booked.ok) {
+      release();
+      return setNotice(economyNotice(booked.error));
+    }
     setLastBets(new Map(bets));
     setResult(outcome.result);
     setShowResult(false);
@@ -85,6 +89,7 @@ export default function DiceScreen() {
     play('dice');
     setTimeout(
       () => {
+        release();
         setRolling(false);
         setShowResult(true);
         setHistory([]);

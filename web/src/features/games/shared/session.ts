@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { create } from 'zustand';
 import { useAuth } from '@/data/auth';
 import { useWallet, ECONOMY_ERROR_TEXT } from '@/data/wallet';
 import type { EconomyError, GameType } from '@/domain/economy';
@@ -40,6 +41,34 @@ export function useHoldProgressEvents(held: boolean) {
     hold(held);
     return () => hold(false);
   }, [held, hold]);
+}
+
+/*
+ * Premios retenidos: el resultado se contabiliza antes de animarlo, así que el saldo real ya lo
+ * incluye. La cabecera de la mesa resta lo retenido para no adelantar el premio: se suma cuando la
+ * mesa lo enseña (bola parada, rodillos quietos, cartas vueltas…).
+ */
+const useHeldPayouts = create<{ total: number }>(() => ({ total: 0 }));
+
+/** Fichas de premio que la cabecera aún no debe mostrar. */
+export const useHeldPayout = () => useHeldPayouts((s) => s.total);
+
+/** Olvida lo retenido (al salir de la mesa). */
+export const resetHeldPayouts = () => useHeldPayouts.setState({ total: 0 });
+
+/**
+ * Retiene [amount] fichas de premio hasta llamar a la función que devuelve (se puede llamar varias
+ * veces). Se pide antes de contabilizar la ronda, para que el saldo nuevo no asome ni un instante.
+ */
+export function holdPayout(amount: number): () => void {
+  if (amount <= 0) return () => undefined;
+  useHeldPayouts.setState((s) => ({ total: s.total + amount }));
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    useHeldPayouts.setState((s) => ({ total: Math.max(0, s.total - amount) }));
+  };
 }
 
 /** Texto de un error de la economía visto desde una mesa. */

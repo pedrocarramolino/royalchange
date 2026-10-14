@@ -26,7 +26,7 @@ const DISCARD = { opacity: 0, transform: 'translate(18px, -22px) rotate(8deg) sc
 import { Celebration } from '../shared/Celebration';
 import { FlipCard } from '../shared/FlipCard';
 import { GameShell, TableNotice, useTableSize } from '../shared/GameShell';
-import { economyNotice, loadSession, saveSession, useHoldProgressEvents, usePlayerId } from '../shared/session';
+import { economyNotice, holdPayout, loadSession, saveSession, useHoldProgressEvents, usePlayerId } from '../shared/session';
 
 /** Mano en curso: la apuesta ya está en el monedero (ronda abierta) y falta el cambio. */
 interface OpenHand {
@@ -124,10 +124,14 @@ export default function VideoPokerScreen() {
     const hand = classifyVideoPoker(cards);
     const payout = videoPokerPayout(open.bet, hand);
     setBusy(true);
-    // El resultado se contabiliza antes de mostrarlo.
+    // El resultado se contabiliza antes de mostrarlo; el premio no se ve en el saldo hasta entonces.
+    const release = holdPayout(payout);
     const result = await settleRound(payout);
     setBusy(false);
-    if (!result.ok) return setNotice(economyNotice(result.error));
+    if (!result.ok) {
+      release();
+      return setNotice(economyNotice(result.error));
+    }
     persist({ open: null, lastBet: open.bet });
     const replaced = open.held.map((h) => !h);
     setFinal({ cards, hand, payout, bet: open.bet, replaced });
@@ -137,6 +141,7 @@ export default function VideoPokerScreen() {
     const count = replaced.filter(Boolean).length;
     for (let i = 0; i < count; i++) play('card', i * 100);
     setTimeout(() => {
+      release();
       setRevealing(false);
       const sound = resultSound(payout - open.bet, payout >= BIG_WIN_MULTIPLIER * open.bet);
       if (sound) play(sound);

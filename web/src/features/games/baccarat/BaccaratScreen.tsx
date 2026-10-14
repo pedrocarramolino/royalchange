@@ -15,7 +15,7 @@ import { ChipRack } from '../shared/ChipRack';
 import { useDealFrom } from '../shared/deal';
 import { FlipCard } from '../shared/FlipCard';
 import { GameShell, TableNotice, useTableSize } from '../shared/GameShell';
-import { economyNotice, useHoldProgressEvents, usePlayerId } from '../shared/session';
+import { economyNotice, holdPayout, useHoldProgressEvents, usePlayerId } from '../shared/session';
 import { TableAction } from '../shared/TableAction';
 
 const CHIPS = [10, 50, 100, 500, 1000, 5000];
@@ -169,10 +169,14 @@ export default function BaccaratScreen() {
     const outcome = dealBaccarat(placed, shoe.current);
     if (!outcome.ok) return setNotice(outcome.error === 'aboveTableMaximum' ? `El máximo por mano es de ${chips(BACCARAT_RULES.maximumTotalBet)}.` : 'Revisa tus apuestas.');
     setBusy(true);
-    // El resultado se contabiliza antes de animarlo.
+    // El resultado se contabiliza antes de animarlo; el premio no se ve en el saldo hasta el final.
+    const release = holdPayout(outcome.round.totalPayout);
     const booked = await playInstantRound('Baccarat', outcome.round.totalStake, outcome.round.totalPayout);
     setBusy(false);
-    if (!booked.ok) return setNotice(economyNotice(booked.error));
+    if (!booked.ok) {
+      release();
+      return setNotice(economyNotice(booked.error));
+    }
     shoe.current = outcome.shoe;
     setLastBets(new Map(bets));
     const timeline = schedule(outcome.round.coup, reducedMotion);
@@ -186,6 +190,7 @@ export default function BaccaratScreen() {
     for (const { ms, side, count } of timeline.reveals) timers.current.push(setTimeout(() => setRevealed((r) => ({ ...r, [side]: count })), ms));
     timers.current.push(
       setTimeout(() => {
+        release();
         setPhase('result');
         setHistory([]);
         addToRoad(outcome.round.coup.winner);

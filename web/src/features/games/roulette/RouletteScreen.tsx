@@ -10,7 +10,7 @@ import { ChipRack } from '../shared/ChipRack';
 import { TableAction } from '../shared/TableAction';
 import { IconRepeat, IconTrash, IconUndo } from '@/ui/icons';
 import { GameShell, TableNotice, useTableSize } from '../shared/GameShell';
-import { economyNotice, useHoldProgressEvents } from '../shared/session';
+import { economyNotice, holdPayout, useHoldProgressEvents } from '../shared/session';
 import { RouletteBoard } from './RouletteBoard';
 import { RouletteStats, STATS_HEIGHT, useRouletteHistory } from './RouletteStats';
 import { RouletteWheel, type WheelSpin } from './RouletteWheel';
@@ -40,6 +40,7 @@ export default function RouletteScreen() {
   const [notice, setNotice] = useState<string | null>(null);
   const [celebrate, setCelebrate] = useState<number | null>(null);
   const pending = useRef<RouletteSpin | null>(null);
+  const releasePending = useRef<() => void>(() => undefined);
   useHoldProgressEvents(spinning);
   // Cuenta atrás de la ronda de apuestas (null mientras gira la bola).
   const [deadline, setDeadline] = useState<number | null>(() => Date.now() + BETTING_SECONDS * 1000);
@@ -118,15 +119,18 @@ export default function RouletteScreen() {
       return;
     }
     setBusy(true);
-    // El resultado se contabiliza antes de animarlo.
+    // El resultado se contabiliza antes de animarlo; el premio no se ve en el saldo hasta que para.
+    const release = holdPayout(outcome.spin.totalPayout);
     const booked = await playInstantRound('Roulette', outcome.spin.totalStake, outcome.spin.totalPayout);
     setBusy(false);
     if (!booked.ok) {
+      release();
       setNotice(economyNotice(booked.error));
       restartCountdown();
       return;
     }
     pending.current = outcome.spin;
+    releasePending.current = release;
     setLastBets(new Map(bets));
     setSpinning(true);
     setShowResult(false);
@@ -151,6 +155,8 @@ export default function RouletteScreen() {
   const onSettled = () => {
     const spin = pending.current;
     if (!spin) return;
+    releasePending.current();
+    releasePending.current = () => undefined;
     setSpinning(false);
     setResult(spin);
     setShowResult(true);

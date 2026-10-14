@@ -9,7 +9,7 @@ import { Button } from '@/ui/Button';
 import { EASE_OUT, EASE_OUT_CSS, SPRING } from '@/ui/motion';
 import { Celebration } from '../shared/Celebration';
 import { GameShell, TableNotice, useTableSize } from '../shared/GameShell';
-import { economyNotice, useHoldProgressEvents } from '../shared/session';
+import { economyNotice, holdPayout, useHoldProgressEvents } from '../shared/session';
 
 /** Bolas cayendo a la vez, como mucho. */
 const MAX_BALLS = 6;
@@ -29,6 +29,8 @@ function slotColor(tenths: number): { bg: string; text: string } {
 interface Ball {
   id: number;
   drop: PlinkoDrop;
+  /** Suma su premio al saldo de la cabecera (al caer en su casilla). */
+  release: () => void;
 }
 
 export default function PlinkoScreen() {
@@ -62,14 +64,16 @@ export default function PlinkoScreen() {
     }
     const result = dropPlinko(bet, risk);
     pending.current++;
-    // El resultado se contabiliza antes de soltar la bola.
+    // El resultado se contabiliza antes de soltar la bola; el premio se ve en el saldo al caer.
+    const release = holdPayout(result.payout);
     const booked = await playInstantRound('Plinko', result.stake, result.payout);
     pending.current--;
     if (!booked.ok) {
+      release();
       setNotice(economyNotice(booked.error));
       return 'fail';
     }
-    setBalls((b) => [...b, { id: Date.now() + Math.random(), drop: result }]);
+    setBalls((b) => [...b, { id: Date.now() + Math.random(), drop: result, release }]);
     setDrops((n) => n + 1);
     play('chip');
     return 'ok';
@@ -96,6 +100,7 @@ export default function PlinkoScreen() {
   }, [autoOn]);
 
   const landed = (ball: Ball) => {
+    ball.release();
     setBalls((b) => b.filter((x) => x.id !== ball.id));
     setRecent((r) => [ball.drop, ...r].slice(0, 12));
     setHits((h) => ({ ...h, [ball.drop.slot]: (h[ball.drop.slot] ?? 0) + 1 }));

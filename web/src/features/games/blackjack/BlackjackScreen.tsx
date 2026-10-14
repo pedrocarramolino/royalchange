@@ -30,7 +30,7 @@ import { ChipRack, TABLE_CHIPS } from '../shared/ChipRack';
 import { TableAction } from '../shared/TableAction';
 import { IconTrash } from '@/ui/icons';
 import { GameShell, TableNotice, useTableSize } from '../shared/GameShell';
-import { economyNotice, loadSession, saveSession, usePlayerId, useHoldProgressEvents } from '../shared/session';
+import { economyNotice, holdPayout, loadSession, saveSession, usePlayerId, useHoldProgressEvents } from '../shared/session';
 
 interface Session {
   state: BlackjackState;
@@ -130,9 +130,10 @@ export default function BlackjackScreen() {
     return until;
   };
 
-  const finishAnimation = (seconds: number, after: BlackjackState) => {
+  const finishAnimation = (seconds: number, after: BlackjackState, release: () => void = () => undefined) => {
     setAnimating(true);
     setTimeout(() => {
+      release();
       setAnimating(false);
       if (after.phase === 'roundOver') {
         const net = totalPayout(after) - totalStake(after);
@@ -169,14 +170,17 @@ export default function BlackjackScreen() {
       }
       const { state: after, events } = preview;
       let settled = after.phase !== 'roundOver';
-      // El resultado se contabiliza antes de animarlo.
+      let release: () => void = () => undefined;
+      // El resultado se contabiliza antes de animarlo; el premio no se ve en el saldo hasta el final.
       if (after.phase === 'roundOver') {
+        release = holdPayout(totalPayout(after));
         const result = await settleRound(totalPayout(after));
         settled = result.ok || result.error.type === 'noOpenRound';
+        if (!result.ok) release();
       }
       persist({ state: after, roundId: after.phase === 'roundOver' ? null : roundId, settled, lastBet: action.type === 'deal' ? action.bet : session.lastBet });
       if (action.type === 'deal') setCelebrate(null);
-      finishAnimation(schedule(before, after, events), after);
+      finishAnimation(schedule(before, after, events), after, release);
     } finally {
       setBusy(false);
     }

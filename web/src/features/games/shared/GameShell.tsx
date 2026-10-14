@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { AnimatePresence, m as motion } from 'motion/react';
 import { useReadyWallet } from '@/data/wallet';
@@ -12,6 +12,7 @@ import type { GameType } from '@/domain/economy';
 import { Button } from '@/ui/Button';
 import { Dialog } from '@/ui/Dialog';
 import { GAME_RULES } from './rules';
+import { resetHeldPayouts, useHeldPayout } from './session';
 
 /** Tamaño de la mesa, siempre en horizontal: con el móvil en vertical, alto y ancho intercambiados. */
 export function useGameViewport(): Viewport {
@@ -84,6 +85,9 @@ interface GameShellProps {
  */
 export function GameShell({ title, children, controls, actions, notice, surface = 'felt', heldBalance = null, portrait = false, rules }: GameShellProps) {
   const [rulesOpen, setRulesOpen] = useState(false);
+  const heldPayout = useHeldPayout();
+  // Al salir de la mesa no queda nada retenido.
+  useEffect(() => resetHeldPayouts, []);
   useRequireLandscape(!portrait);
   const navigate = useNavigate();
   const wallet = useReadyWallet();
@@ -166,7 +170,7 @@ export function GameShell({ title, children, controls, actions, notice, surface 
             {actions}
             {wallet && (
               <div className="rounded-full bg-black/35 px-3 py-1.5 ring-1 ring-gold/30">
-                <ChipBalance balance={heldBalance ?? wallet.balance} size="sm" />
+                <ChipBalance balance={heldBalance ?? wallet.balance - heldPayout} size="sm" />
               </div>
             )}
           </header>
