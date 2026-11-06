@@ -192,7 +192,7 @@ export function Toggle({ checked, onChange, label, description }: { checked: boo
         aria-hidden
       >
         <span
-          className={`absolute top-1 h-5 w-5 rounded-full bg-ivory shadow transition-[translate,width] duration-200 ease-[var(--ease-out)] group-active:w-6 ${
+          className={`absolute top-1 h-5 w-5 rounded-full bg-[#f6f1e6] shadow transition-[translate,width] duration-200 ease-[var(--ease-out)] group-active:w-6 ${
             checked ? 'translate-x-6 group-active:translate-x-5' : 'translate-x-1'
           }`}
         />

@@ -36,6 +36,8 @@
   --color-ruby-bright: #e0485e;
   --color-emerald: #5cc79e;
   --color-pocket-black: #15171d;
+  /* Velos y separadores: blanco translúcido en oscuro, negro translúcido en claro. */
+  --color-veil: #fff;
 
   --font-sans: 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-display: 'Cinzel', Georgia, 'Times New Roman', serif;
@@ -44,6 +46,70 @@
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/*
+ * Modo claro: papel marfil, tinta oscura y oro bruñido. Solo cambia la parte de menús: las mesas
+ * (.theme-dark) y los paños verdes (.felt) se quedan siempre con la paleta oscura.
+ */
+@layer base {
+  :root {
+    color-scheme: dark;
+    --panel-from: rgb(34 37 44 / 0.96);
+    --panel-to: rgb(21 22 27 / 0.98);
+    --panel-border: rgb(212 175 106 / 0.16);
+    --panel-shadow: 0 10px 30px -12px rgb(0 0 0 / 0.8);
+    --gold-text: linear-gradient(180deg, #fbefc8 0%, #e5c682 45%, #b48a43 100%);
+  }
+
+  :root[data-theme='light'] {
+    color-scheme: light;
+    --color-obsidian: #f3eee3;
+    --color-ink-1: #fbf8f1;
+    --color-ink-2: #efe8d9;
+    --color-ink-3: #e6decb;
+    --color-ink-4: #d8cdb5;
+    --color-line: #cdbf9f;
+    --color-ivory: #1e1a13;
+    --color-ivory-dim: #4f4738;
+    --color-mute: #776e5e;
+    --color-gold-light: #8a6420;
+    --color-gold: #a67a2f;
+    --color-gold-deep: #7a5822;
+    --color-ruby-bright: #c22f46;
+    --color-emerald: #1d8660;
+    --color-veil: #000;
+    --panel-from: #fffdf8;
+    --panel-to: #f8f2e6;
+    --panel-border: rgb(166 122 47 / 0.28);
+    --panel-shadow: 0 10px 28px -14px rgb(90 66 22 / 0.35);
+    /* Oro viejo: el dorado claro no se lee sobre papel. */
+    --gold-text: linear-gradient(180deg, #b0852f 0%, #8a6420 50%, #5e430f 100%);
+  }
+
+  :root[data-theme='light'] :is(.theme-dark, .felt) {
+    color-scheme: dark;
+    --color-obsidian: #0e0f13;
+    --color-ink-1: #15161b;
+    --color-ink-2: #1a1c22;
+    --color-ink-3: #22252c;
+    --color-ink-4: #2b2e36;
+    --color-line: #3a3830;
+    --color-ivory: #f3ede0;
+    --color-ivory-dim: #bdb6a8;
+    --color-mute: #8c8678;
+    --color-gold-light: #f3dfa2;
+    --color-gold: #d4af6a;
+    --color-gold-deep: #9c7a3c;
+    --color-ruby-bright: #e0485e;
+    --color-emerald: #5cc79e;
+    --color-veil: #fff;
+    --panel-from: rgb(34 37 44 / 0.96);
+    --panel-to: rgb(21 22 27 / 0.98);
+    --panel-border: rgb(212 175 106 / 0.16);
+    --panel-shadow: 0 10px 30px -12px rgb(0 0 0 / 0.8);
+    --gold-text: linear-gradient(180deg, #fbefc8 0%, #e5c682 45%, #b48a43 100%);
+  }
 }
 
 @layer base {
@@ -120,7 +186,7 @@
   }
 
   .text-gold-gradient {
-    background: linear-gradient(180deg, #fbefc8 0%, #e5c682 45%, #b48a43 100%);
+    background: var(--gold-text);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
@@ -158,9 +224,9 @@
   }
 
   .panel {
-    background: linear-gradient(180deg, rgb(34 37 44 / 0.96), rgb(21 22 27 / 0.98));
-    border: 1px solid rgb(212 175 106 / 0.16);
-    box-shadow: 0 10px 30px -12px rgb(0 0 0 / 0.8);
+    background: linear-gradient(180deg, var(--panel-from), var(--panel-to));
+    border: 1px solid var(--panel-border);
+    box-shadow: var(--panel-shadow);
   }
 
   /* Márgenes seguros (muesca, barra de inicio) como variables: una mesa girada 90° las reasigna. */

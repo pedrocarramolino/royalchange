@@ -135,7 +135,7 @@ export function ProgressScreen() {
       <h2 className="mt-8 mb-3 px-1 text-xs font-bold tracking-[0.2em] text-gold uppercase">
         Logros · {unlockedCount} de {ACHIEVEMENTS.length}
       </h2>
-      {failed && <p className="mb-3 rounded-2xl bg-ruby/15 px-4 py-3 text-sm text-[#ffd9dd]">No se pudo recoger la recompensa. Vuelve a intentarlo.</p>}
+      {failed && <p className="mb-3 rounded-2xl bg-ruby/15 px-4 py-3 text-sm text-ruby-bright">No se pudo recoger la recompensa. Vuelve a intentarlo.</p>}
       <ul className="flex flex-col gap-2">
         {ACHIEVEMENTS.map((a, i) => {
           const unlocked = wallet.unlocked.includes(a.id);

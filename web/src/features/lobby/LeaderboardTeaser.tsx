@@ -41,7 +41,7 @@ export function LeaderboardTeaser() {
     <motion.button
       type="button"
       onClick={() => navigate('/clasificacion')}
-      className="panel flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left transition-colors duration-150 ease-out active:bg-white/[0.04]"
+      className="panel flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left transition-colors duration-150 ease-out active:bg-veil/[0.04]"
       initial={{ opacity: 0, transform: 'translateY(-6px)' }}
       animate={{ opacity: 1, transform: 'translateY(0px)' }}
       transition={{ duration: 0.25, ease: EASE_OUT }}

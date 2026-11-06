@@ -133,7 +133,7 @@ export function LeaderboardScreen() {
               <motion.li
                 key={row.uid}
                 layout="position"
-                className={`flex items-center gap-3 rounded-2xl px-3 py-2.5 ring-1 ${mine ? 'bg-gold/10 ring-gold/60' : 'bg-ink-1 ring-white/5'}`}
+                className={`flex items-center gap-3 rounded-2xl px-3 py-2.5 ring-1 ${mine ? 'bg-gold/10 ring-gold/60' : 'bg-ink-1 ring-veil/5'}`}
                 initial={{ opacity: 0, transform: 'translateY(6px)' }}
                 animate={{ opacity: 1, transform: 'translateY(0px)' }}
                 transition={{ duration: 0.25, ease: EASE_OUT, delay: Math.min(i, 12) * 0.03 }}

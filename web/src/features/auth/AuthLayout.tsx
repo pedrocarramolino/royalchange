@@ -50,7 +50,7 @@ export function FormBanner({ children, tone = 'error' }: { children: ReactNode; 
   return (
     <motion.div
       role={tone === 'error' ? 'alert' : 'status'}
-      className={`rounded-2xl border px-4 py-3 text-[15px] ${tone === 'error' ? 'border-ruby/60 bg-ruby/15 text-[#ffd9dd]' : 'border-emerald/50 bg-emerald/10 text-[#c9f2df]'}`}
+      className={`rounded-2xl border px-4 py-3 text-[15px] ${tone === 'error' ? 'border-ruby/60 bg-ruby/15 text-ruby-bright' : 'border-emerald/50 bg-emerald/10 text-emerald'}`}
       initial={{ opacity: 0, transform: 'translateX(0px)' }}
       animate={{
         opacity: 1,

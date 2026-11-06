@@ -13,7 +13,7 @@ export function TopBar({ title, onBack, backLabel = 'Volver', actions, className
   return (
     <header className={`flex h-14 shrink-0 items-center gap-1 px-2 ${className}`}>
       {onBack && (
-        <button type="button" onClick={onBack} aria-label={backLabel} className="grid size-11 place-items-center rounded-full text-ivory hover:bg-white/5 active:bg-white/10">
+        <button type="button" onClick={onBack} aria-label={backLabel} className="grid size-11 place-items-center rounded-full text-ivory hover:bg-veil/5 active:bg-veil/10">
           <BackIcon />
         </button>
       )}

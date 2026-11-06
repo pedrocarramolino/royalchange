@@ -174,7 +174,7 @@ function BalanceHero({ state, balance, xp, onProgress }: { state: string; balanc
             <span className="text-sm font-semibold text-gold-light/80">fichas</span>
           </p>
         ) : state === 'loading' ? (
-          <p className="mt-2 h-10 w-40 animate-pulse rounded-lg bg-white/10" aria-label="Cargando tu saldo" />
+          <p className="mt-2 h-10 w-40 animate-pulse rounded-lg bg-veil/10" aria-label="Cargando tu saldo" />
         ) : (
           <p className="mt-2 text-[15px] text-ivory">Tu saldo no está disponible ahora mismo. Vuelve a intentarlo en unos minutos.</p>
         )}
@@ -230,9 +230,9 @@ function Notice({
   dismissLabel?: string;
 }) {
   const tones = {
-    felt: 'bg-felt-deep/80 ring-emerald/30',
+    felt: 'theme-dark bg-felt-deep/80 ring-emerald/30',
     gold: 'bg-gold/10 ring-gold/35',
-    plain: 'bg-ink-2 ring-white/10',
+    plain: 'bg-ink-2 ring-veil/10',
     ruby: 'bg-ruby/15 ring-ruby/40',
   };
   return (
@@ -252,7 +252,7 @@ function Notice({
         </Button>
       )}
       {onDismiss && (
-        <button type="button" onClick={onDismiss} className="grid size-9 shrink-0 place-items-center rounded-full text-ivory-dim hover:bg-white/10" aria-label={dismissLabel ?? 'Cerrar'}>
+        <button type="button" onClick={onDismiss} className="grid size-9 shrink-0 place-items-center rounded-full text-ivory-dim hover:bg-veil/10" aria-label={dismissLabel ?? 'Cerrar'}>
           <IconClose className="size-5" />
         </button>
       )}

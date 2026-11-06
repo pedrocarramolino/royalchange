@@ -180,7 +180,7 @@ function HistoryRow({ item, order }: { item: HistoryItem; order: number }) {
   return (
     <motion.li
       layout="position"
-      className="flex items-center gap-3 rounded-2xl bg-ink-1 px-4 py-3 ring-1 ring-white/5"
+      className="flex items-center gap-3 rounded-2xl bg-ink-1 px-4 py-3 ring-1 ring-veil/5"
       initial={{ opacity: 0, transform: 'translateY(6px)' }}
       animate={{ opacity: 1, transform: 'translateY(0px)' }}
       // Escalonado corto: como mucho las diez primeras de cada página.

@@ -47,14 +47,14 @@ export function DailyMissions({ now }: { now: number }) {
           {done === missions.length ? '¡Todas hechas!' : `Nuevas en ${remaining(msUntilLocalMidnight(new Date(now)))}`}
         </p>
       </div>
-      {failed && <p className="mt-2 rounded-xl bg-ruby/15 px-3 py-2 text-sm text-[#ffd9dd]">No se pudo recoger la misión. Vuelve a intentarlo.</p>}
+      {failed && <p className="mt-2 rounded-xl bg-ruby/15 px-3 py-2 text-sm text-ruby-bright">No se pudo recoger la misión. Vuelve a intentarlo.</p>}
       <ul className="mt-2 flex flex-col">
         {missions.map((m, i) => {
           const value = Math.min(progress[i] ?? 0, m.target);
           const complete = value >= m.target;
           const isClaimed = claimed[i] ?? false;
           return (
-            <li key={i} className={`flex items-center gap-3 py-2.5 ${i > 0 ? 'border-t border-white/5' : ''}`}>
+            <li key={i} className={`flex items-center gap-3 py-2.5 ${i > 0 ? 'border-t border-veil/5' : ''}`}>
               <div className="min-w-0 flex-1">
                 <p className={`text-[15px] leading-snug font-semibold ${isClaimed ? 'text-mute line-through decoration-gold/50' : 'text-ivory'}`}>{missionText(m)}</p>
                 <div className="mt-1.5 flex items-center gap-2">

@@ -1,7 +1,12 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+/** Apariencia de los menús: las mesas son siempre oscuras. */
+export type ThemePreference = 'dark' | 'light' | 'system';
+
 interface SettingsStore {
+  theme: ThemePreference;
+  setTheme: (value: ThemePreference) => void;
   soundEnabled: boolean;
   /** Sin celebraciones ni movimientos decorativos; las mesas siguen mostrando cada resultado. */
   reducedMotion: boolean;
@@ -19,6 +24,8 @@ interface SettingsStore {
 export const useSettings = create<SettingsStore>()(
   persist(
     (set) => ({
+      theme: 'dark',
+      setTheme: (theme) => set({ theme }),
       soundEnabled: true,
       reducedMotion: typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches,
       vibrationEnabled: true,

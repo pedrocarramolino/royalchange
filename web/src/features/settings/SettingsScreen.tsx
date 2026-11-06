@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { AnimatePresence, m as motion } from 'motion/react';
 import { useNavigate } from 'react-router';
 import { useAuth } from '@/data/auth';
-import { useSettings } from '@/data/settings';
+import { useSettings, type ThemePreference } from '@/data/settings';
 import { leaveLeaderboard } from '@/data/leaderboard';
 import { AVATARS, type AvatarId } from '@/domain/validation';
 import { Avatar, avatarName } from '@/ui/Avatar';
@@ -16,6 +16,8 @@ export const APP_VERSION = '2.1.0';
 export function SettingsScreen() {
   const auth = useAuth((s) => s.state);
   const { sendVerification, signOut, deleteAccount, updateProfile } = useAuth();
+  const theme = useSettings((s) => s.theme);
+  const setTheme = useSettings((s) => s.setTheme);
   const { soundEnabled, reducedMotion, vibrationEnabled, leaderboardEnabled, setSoundEnabled, setReducedMotion, setVibrationEnabled, setLeaderboardEnabled } = useSettings();
   const navigate = useNavigate();
   const [confirmSignOut, setConfirmSignOut] = useState(false);
@@ -100,18 +102,26 @@ export function SettingsScreen() {
         </AnimatePresence>
       </Section>
 
-      <Section title="Juego" index={1}>
+      <Section title="Apariencia" index={1}>
+        <div className="py-3">
+          <p className="text-[15px] font-semibold text-ivory">Tema</p>
+          <p className="mt-0.5 text-sm text-ivory-dim">Las mesas de juego se ven siempre en oscuro.</p>
+          <ThemePicker value={theme} onChange={setTheme} />
+        </div>
+      </Section>
+
+      <Section title="Juego" index={2}>
         <Toggle checked={soundEnabled} onChange={setSoundEnabled} label="Sonido" description="Efectos de cartas, fichas, ruleta y premios." />
-        <div className="h-px bg-white/5" />
+        <div className="h-px bg-veil/5" />
         <Toggle checked={vibrationEnabled} onChange={setVibrationEnabled} label="Vibración" description="Un toque al repartir, apostar, ganar o perder (en los móviles que lo permiten)." />
-        <div className="h-px bg-white/5" />
+        <div className="h-px bg-veil/5" />
         <Toggle
           checked={reducedMotion}
           onChange={setReducedMotion}
           label="Animaciones reducidas"
           description="Sin celebraciones ni movimientos decorativos. Las mesas siguen mostrando cada resultado."
         />
-        <div className="h-px bg-white/5" />
+        <div className="h-px bg-veil/5" />
         <Toggle
           checked={leaderboardEnabled}
           onChange={(value) => {
@@ -124,7 +134,7 @@ export function SettingsScreen() {
         />
       </Section>
 
-      <Section title="Información" index={2}>
+      <Section title="Información" index={3}>
         <RowButton onClick={() => navigate('/legal/terminos')}>Términos y condiciones</RowButton>
         <RowButton onClick={() => navigate('/legal/privacidad')}>Política de privacidad</RowButton>
         <p className="py-3 text-sm text-mute">Versión {APP_VERSION}</p>
@@ -215,6 +225,36 @@ export function SettingsScreen() {
   );
 }
 
+const THEMES: { value: ThemePreference; label: string }[] = [
+  { value: 'dark', label: 'Oscuro' },
+  { value: 'light', label: 'Claro' },
+  { value: 'system', label: 'Automático' },
+];
+
+/** Oscuro, claro o el del sistema: tres botones, el elegido con una píldora dorada que se desliza. */
+function ThemePicker({ value, onChange }: { value: ThemePreference; onChange: (value: ThemePreference) => void }) {
+  return (
+    <div role="radiogroup" aria-label="Tema" className="mt-3 grid grid-cols-3 gap-1 rounded-2xl bg-ink-3 p-1">
+      {THEMES.map((t) => {
+        const selected = t.value === value;
+        return (
+          <button
+            key={t.value}
+            type="button"
+            role="radio"
+            aria-checked={selected}
+            onClick={() => onChange(t.value)}
+            className={`relative h-10 rounded-xl text-sm font-semibold transition-colors duration-200 ease-out ${selected ? 'text-on-gold' : 'text-ivory-dim'}`}
+          >
+            {selected && <motion.span layoutId="tema" className="metal-gold absolute inset-0 rounded-xl" transition={SPRING} />}
+            <span className="relative">{t.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function Section({ title, index, children }: { title: string; index: number; children: ReactNode }) {
   return (
     <motion.section
@@ -234,7 +274,7 @@ function RowButton({ children, onClick }: { children: ReactNode; onClick: () => 
     <button
       type="button"
       onClick={onClick}
-      className="group -mx-4 flex w-[calc(100%+2rem)] items-center justify-between border-b border-white/5 px-4 py-3.5 text-left text-[15px] text-ivory transition-colors duration-150 ease-out active:bg-white/[0.04] [@media(hover:hover)_and_(pointer:fine)]:hover:bg-white/[0.03]"
+      className="group -mx-4 flex w-[calc(100%+2rem)] items-center justify-between border-b border-veil/5 px-4 py-3.5 text-left text-[15px] text-ivory transition-colors duration-150 ease-out active:bg-veil/[0.04] [@media(hover:hover)_and_(pointer:fine)]:hover:bg-veil/[0.03]"
     >
       {children}
       <svg

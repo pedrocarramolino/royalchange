@@ -144,7 +144,8 @@ export function GameShell({ title, children, controls, actions, notice, surface 
         <div
           ref={setFrame}
           style={rotated ? rotatedStyle : landscapeStyle}
-          className={`relative flex flex-col overflow-hidden ${rotated ? '' : 'h-full'} ${surface === 'felt' ? 'felt' : 'bg-[radial-gradient(ellipse_at_50%_35%,#1d2029,#0b0c10_70%)]'}`}
+          // Las mesas se ven siempre en oscuro, también con el modo claro de los menús.
+          className={`theme-dark relative flex flex-col overflow-hidden ${rotated ? '' : 'h-full'} ${surface === 'felt' ? 'felt' : 'bg-[radial-gradient(ellipse_at_50%_35%,#1d2029,#0b0c10_70%)]'}`}
         >
           <header className="safe-top safe-px-2 relative z-20 flex h-12 shrink-0 items-center gap-2" style={{ boxSizing: 'content-box' }}>
             <button
